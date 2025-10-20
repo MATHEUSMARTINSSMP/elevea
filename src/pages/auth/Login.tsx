@@ -6,6 +6,7 @@ type ApiResp = {
   ok?: boolean;
   error?: string;
   message?: string;
+  id?: string; // ex.: id do e-mail no provider
   user?: { email: string; role: Role; siteSlug?: string };
   token?: string;
 };
@@ -20,11 +21,11 @@ const RESET_URL = `${N8N_BASE}/api/auth/password-reset-request`;
 const APP_KEY_HEADER = "X-APP-KEY";
 const APP_KEY = (import.meta as any).env?.VITE_APP_KEY as string | undefined;
 
-function authHeaders() {
+function authHeaders(): Record<string, string> {
   return {
     "Content-Type": "application/json",
     ...(APP_KEY ? { [APP_KEY_HEADER]: APP_KEY } : {}),
-  } as Record<string, string>;
+  };
 }
 
 function detectSiteSlug(): string | undefined {
@@ -131,10 +132,20 @@ export default function LoginPage() {
     }
   }
 
+  function wasResetAccepted(resp: Response, data: any): boolean {
+    if (!resp.ok) return false;
+    const flag = (data?.success ?? data?.ok);
+    if (flag === true) return true;
+    if (typeof data?.id === "string") return true; // alguns providers retornam um id
+    if (typeof data?.message === "string" && /enviado|sent|ok/i.test(data.message)) return true;
+    // se a API não retorna corpo, status 2xx já é sucesso
+    return resp.status >= 200 && resp.status < 300;
+  }
+
   async function handleSendReset(emailIn: string): Promise<{ ok: boolean; error?: string }> {
     try {
       const email = emailIn.trim().toLowerCase();
-      if (!email || !/^\S+@\S+\.\S+$/.test(email)) return { ok:false, error:"email_invalido" };
+      if (!email || !/^\S+@\S+\.\S+$/.test(email)) return { ok:false, error:"E-mail inválido" };
 
       setForgotLoading(true);
       const r = await fetch(RESET_URL, {
@@ -142,12 +153,15 @@ export default function LoginPage() {
         headers: authHeaders(),
         body: JSON.stringify({ email }),
       });
-      const data: ApiResp = await r.json().catch(() => ({} as any));
+
+      let data: ApiResp = {};
+      try { data = await r.json(); } catch { /* pode não ter corpo */ }
+
       setForgotLoading(false);
 
-      const ok = (data.success ?? data.ok) === true;
-      if (!r.ok || !ok) return { ok:false, error: data?.error || data?.message || `http_${r.status}` };
-      return { ok:true };
+      if (wasResetAccepted(r, data)) return { ok:true };
+
+      return { ok:false, error: data?.error || data?.message || `Erro ${r.status}` };
     } catch (e: any) {
       setForgotLoading(false);
       return { ok:false, error:String(e?.message || e) };
@@ -159,8 +173,10 @@ export default function LoginPage() {
     setErr(null); setMsg(null);
     const res = await handleSendReset(forgotEmail);
     if (!res.ok) { setErr(res.error || "Falha ao enviar o link"); return; }
-    setMsg("Se o e-mail existir, enviamos um link de redefinição.");
+    setMsg("Link de redefinição enviado. Verifique seu e-mail.");
     setForgotOpen(false);
+    // limpa mensagem após alguns segundos
+    window.setTimeout(() => setMsg(null), 8000);
   }
 
   return (
@@ -202,8 +218,16 @@ export default function LoginPage() {
           </button>
         </div>
 
-        {err && <div className="mt-4 text-red-600 whitespace-pre-wrap">{err}</div>}
-        {msg && <div className="mt-4 text-green-600 break-words">{msg}</div>}
+        {err && (
+          <div className="mt-4 rounded-md border border-red-200 bg-red-50 text-red-700 px-3 py-2 whitespace-pre-wrap">
+            {err}
+          </div>
+        )}
+        {msg && (
+          <div className="mt-4 rounded-md border border-green-200 bg-green-50 text-green-700 px-3 py-2 break-words">
+            {msg}
+          </div>
+        )}
       </div>
 
       {forgotOpen && (
