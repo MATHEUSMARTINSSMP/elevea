@@ -10,7 +10,8 @@ type ApiResp = {
   token?: string;
 };
 
-const N8N_BASE = "/.netlify/functions/n8n-proxy";
+// chamadas diretas ao n8n (PRODUCTION URL, não use webhook-test)
+const N8N_BASE = "https://fluxos.eleveaagencia.com.br/webhook";
 const LOGIN_URL = `${N8N_BASE}/api/auth/login`;
 const ME_URL    = `${N8N_BASE}/api/auth/me`;
 const RESET_URL = `${N8N_BASE}/api/auth/password-reset-request`;
