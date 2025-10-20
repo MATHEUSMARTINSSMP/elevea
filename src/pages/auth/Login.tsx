@@ -10,7 +10,7 @@ type ApiResp = {
   token?: string;
 };
 
-const N8N_BASE = "/api/n8n"; // via Netlify proxy
+const N8N_BASE = "/.netlify/functions/n8n-proxy";
 const LOGIN_URL = `${N8N_BASE}/api/auth/login`;
 const ME_URL    = `${N8N_BASE}/api/auth/me`;
 const RESET_URL = `${N8N_BASE}/api/auth/password-reset-request`;
