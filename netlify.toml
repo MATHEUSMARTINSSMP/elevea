@@ -16,25 +16,26 @@
   publish    = "dist"
   functions  = "netlify/functions"
 
-# === Functions (Node) ===
+# === Functions ===
 [functions]
   directory    = "netlify/functions"
   node_bundler = "esbuild"
 
-# === Redirects / HTTP Functions ===
-# Mercado Pago (já existia)
+# === Redirects ===
+# 1) n8n proxy (PRIMEIRO)
+[[redirects]]
+  from   = "/api/n8n/*"
+  to     = "/.netlify/functions/n8n-proxy/:splat"
+  status = 200
+  force  = true
+
+# 2) Mercado Pago
 [[redirects]]
   from   = "/api/mp-webhook"
   to     = "/.netlify/functions/mp-webhook"
   status = 200
 
-# Proxy p/ n8n (front chama /api/n8n/...)
-[[redirects]]
-  from   = "/api/n8n/*"
-  to     = "/.netlify/functions/n8n-proxy/:splat"
-  status = 200
-
-# SPA fallback (DEIXE POR ÚLTIMO)
+# 3) SPA fallback (ÚLTIMO)
 [[redirects]]
   from   = "/*"
   to     = "/index.html"
