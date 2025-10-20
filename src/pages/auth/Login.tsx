@@ -3,37 +3,36 @@ import React, { useEffect, useMemo, useState } from "react";
 type Role = "admin" | "client";
 type ApiResp = {
   success?: boolean;
-  ok?: boolean;                 // aceita ambos
+  ok?: boolean;
   error?: string;
   message?: string;
   user?: { email: string; role: Role; siteSlug?: string };
   token?: string;
 };
 
-// chamadas diretas ao n8n (PRODUCTION URL, não use webhook-test)
+// n8n (PRODUCTION URL do Webhook)
 const N8N_BASE = "https://fluxos.eleveaagencia.com.br/webhook";
 const LOGIN_URL = `${N8N_BASE}/api/auth/login`;
 const ME_URL    = `${N8N_BASE}/api/auth/me`;
 const RESET_URL = `${N8N_BASE}/api/auth/password-reset-request`;
 
+// Header Auth do Webhook n8n
+const APP_KEY_HEADER = "X-APP-KEY";
+const APP_KEY_VALUE  = "#mmP220411"; // troque depois
+
 function detectSiteSlug(): string | undefined {
-  // prioridade: ?site=  → env  → subdomínio  → trecho /app/<slug>
   try {
     const qs = new URLSearchParams(window.location.search);
     if (qs.get("site")) return qs.get("site")!.trim();
-
-    // Vite env opcional
     // @ts-ignore
     const envSlug = import.meta?.env?.VITE_ELEVEA_SITE_SLUG as string | undefined;
     if (envSlug) return envSlug;
-
     const host = window.location.hostname;
     const parts = host.split(".");
     if (parts.length > 2) {
       const sub = parts[0];
       if (!["www", "app"].includes(sub)) return sub;
     }
-
     const m = window.location.pathname.match(/\/app\/([a-z0-9\-]+)/i);
     if (m) return m[1];
   } catch {}
@@ -67,7 +66,10 @@ export default function LoginPage() {
 
         const r = await fetch(ME_URL, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            [APP_KEY_HEADER]: APP_KEY_VALUE,
+          },
           body: JSON.stringify({ email: current }),
         });
         const data: ApiResp = await r.json().catch(() => ({} as any));
@@ -95,7 +97,10 @@ export default function LoginPage() {
 
       const r = await fetch(LOGIN_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          [APP_KEY_HEADER]: APP_KEY_VALUE,
+        },
         body: JSON.stringify({ email: emailLc, password: pass, site }),
       });
 
@@ -133,7 +138,10 @@ export default function LoginPage() {
       setForgotLoading(true);
       const r = await fetch(RESET_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          [APP_KEY_HEADER]: APP_KEY_VALUE,
+        },
         body: JSON.stringify({ email }),
       });
       const data: ApiResp = await r.json().catch(() => ({} as any));
@@ -229,3 +237,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
