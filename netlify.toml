@@ -10,7 +10,7 @@
 
 # === Dev Server ===
 [dev]
-  command   = "npm run dev:vite"
+  command    = "npm run dev:vite"
   targetPort = 5000
   port       = 8888
   publish    = "dist"
@@ -22,26 +22,19 @@
   node_bundler = "esbuild"
 
 # === Redirects ===
-# 1) n8n proxy (PRIMEIRO)
-[[redirects]]
-  from   = "/api/n8n/*"
-  to     = "/.netlify/functions/n8n-proxy/:splat"
-  status = 200
-  force  = true
-
-# 2) Mercado Pago
+# Mercado Pago
 [[redirects]]
   from   = "/api/mp-webhook"
   to     = "/.netlify/functions/mp-webhook"
   status = 200
 
-# 3) SPA fallback (ÚLTIMO)
+# SPA fallback (DEIXE POR ÚLTIMO)
 [[redirects]]
   from   = "/*"
   to     = "/index.html"
   status = 200
 
-# CORS p/ todas as Functions
+# CORS para todas as Functions
 [[headers]]
   for = "/.netlify/functions/*"
   [headers.values]
