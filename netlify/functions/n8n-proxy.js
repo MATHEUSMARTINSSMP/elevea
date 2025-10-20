@@ -1,18 +1,16 @@
 // netlify/functions/n8n-proxy.js
 exports.handler = async (event) => {
-  // BASE do seu n8n (defina em variáveis do Netlify):
-  // VITE_N8N_BASE_URL = https://fluxos.eleveaagencia.com.br
   const base = (process.env.VITE_N8N_BASE_URL || process.env.N8N_BASE_URL || "").replace(/\/+$/, "");
-  if (!base) {
-    return { statusCode: 500, body: JSON.stringify({ error: "Missing VITE_N8N_BASE_URL" }) };
-  }
+  const mode = (process.env.VITE_N8N_MODE || process.env.N8N_MODE || "prod").toLowerCase();
+  const prefix = mode === "test" ? "/webhook-test" : "/webhook";
+  if (!base) return { statusCode: 500, body: JSON.stringify({ error: "Missing VITE_N8N_BASE_URL" }) };
 
-  // rota original depois de /api/n8n/
+  // trecho depois de /.netlify/functions/n8n-proxy/
   const after = event.path.split("/.netlify/functions/n8n-proxy/")[1] || "";
+  const afterClean = after.startsWith("/") ? after : `/${after}`;
   const query = event.rawQuery ? `?${event.rawQuery}` : "";
-  const target = `${base}/${after}${query}`;
+  const target = `${base}${prefix}${afterClean}${query}`;
 
-  // Pré-flight
   if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 204,
@@ -24,7 +22,6 @@ exports.handler = async (event) => {
     };
   }
 
-  // Encaminha mantendo método, headers e corpo
   const headers = { ...event.headers };
   delete headers.host;
 
