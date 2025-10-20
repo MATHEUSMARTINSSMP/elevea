@@ -1,50 +1,22 @@
-# === Build / Publish ===
 [build]
-  command   = "npm run build"
-  publish   = "dist"
-  functions = "netlify/functions"
+  command = "npm run build"
+  publish = "dist"
 
-[build.environment]
-  CI        = "false"
-  NPM_FLAGS = "--legacy-peer-deps"
-  NODE_VERSION = "20"
-  # evita bloqueio do deploy porque Vite injeta VITE_* no bundle
-  SECRETS_SCAN_OMIT_KEYS = "VITE_APP_KEY,VITE_ADMIN_DASH_TOKEN,ADMIN_SYNC_TOKEN_FOR_CLIENTS"
-
-# === Dev Server ===
 [dev]
   command    = "npm run dev:vite"
   targetPort = 5000
   port       = 8888
   publish    = "dist"
-  functions  = "netlify/functions"
 
-# === Functions (geral) ===
-[functions]
-  directory    = "netlify/functions"
-  node_bundler = "esbuild"
-
-# Config específica (ex.: mp-webhook). Adapte se precisar.
-[functions."mp-webhook"]
-  node_bundler = "esbuild"
-
-# === Redirects ===
-# Mercado Pago -> Function
+# SPA fallback
 [[redirects]]
-  from   = "/api/mp-webhook"
-  to     = "/.netlify/functions/mp-webhook"
+  from = "/*"
+  to   = "/index.html"
   status = 200
 
-# SPA fallback (DEIXE POR ÚLTIMO)
-[[redirects]]
-  from   = "/*"
-  to     = "/index.html"
-  status = 200
-
-# CORS para todas as Functions (ajuste para seu domínio quando migrar)
 [[headers]]
   for = "/.netlify/functions/*"
   [headers.values]
     Access-Control-Allow-Origin  = "*"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type, Authorization, X-APP-KEY"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
