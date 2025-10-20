@@ -11,14 +11,21 @@ type ApiResp = {
 };
 
 // n8n (PRODUCTION URL do Webhook)
-const N8N_BASE = "https://fluxos.eleveaagencia.com.br/webhook";
+const N8N_BASE  = "https://fluxos.eleveaagencia.com.br/webhook";
 const LOGIN_URL = `${N8N_BASE}/api/auth/login`;
 const ME_URL    = `${N8N_BASE}/api/auth/me`;
 const RESET_URL = `${N8N_BASE}/api/auth/password-reset-request`;
 
-// Header Auth do Webhook n8n
+// Header Auth do Webhook n8n (valor vem de env, não do código)
 const APP_KEY_HEADER = "X-APP-KEY";
-const APP_KEY_VALUE  = "#mmP220411"; // troque depois
+const APP_KEY = (import.meta as any).env?.VITE_APP_KEY as string | undefined;
+
+function authHeaders() {
+  return {
+    "Content-Type": "application/json",
+    ...(APP_KEY ? { [APP_KEY_HEADER]: APP_KEY } : {}),
+  } as Record<string, string>;
+}
 
 function detectSiteSlug(): string | undefined {
   try {
@@ -66,10 +73,7 @@ export default function LoginPage() {
 
         const r = await fetch(ME_URL, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            [APP_KEY_HEADER]: APP_KEY_VALUE,
-          },
+          headers: authHeaders(),
           body: JSON.stringify({ email: current }),
         });
         const data: ApiResp = await r.json().catch(() => ({} as any));
@@ -97,10 +101,7 @@ export default function LoginPage() {
 
       const r = await fetch(LOGIN_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          [APP_KEY_HEADER]: APP_KEY_VALUE,
-        },
+        headers: authHeaders(),
         body: JSON.stringify({ email: emailLc, password: pass, site }),
       });
 
@@ -138,10 +139,7 @@ export default function LoginPage() {
       setForgotLoading(true);
       const r = await fetch(RESET_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          [APP_KEY_HEADER]: APP_KEY_VALUE,
-        },
+        headers: authHeaders(),
         body: JSON.stringify({ email }),
       });
       const data: ApiResp = await r.json().catch(() => ({} as any));
@@ -237,4 +235,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
