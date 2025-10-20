@@ -1,17 +1,43 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-const AUTH_BASE = "/.netlify/functions/auth-session";
-const LOGIN_URL = `${AUTH_BASE}?action=login`;
-const ME_URL    = `${AUTH_BASE}?action=me`;   // usaremos GET com ?email=...
-
-const RESET_URL = "/.netlify/functions/reset-dispatch";
-
+type Role = "admin" | "client";
 type ApiResp = {
-  ok?: boolean;
+  success?: boolean;
+  ok?: boolean;                 // aceita ambos
   error?: string;
   message?: string;
-  user?: { email: string; role: "admin" | "client"; siteSlug?: string };
+  user?: { email: string; role: Role; siteSlug?: string };
+  token?: string;
 };
+
+const N8N_BASE = "/api/n8n"; // via Netlify proxy
+const LOGIN_URL = `${N8N_BASE}/api/auth/login`;
+const ME_URL    = `${N8N_BASE}/api/auth/me`;
+const RESET_URL = `${N8N_BASE}/api/auth/password-reset-request`;
+
+function detectSiteSlug(): string | undefined {
+  // prioridade: ?site=  → env  → subdomínio  → trecho /app/<slug>
+  try {
+    const qs = new URLSearchParams(window.location.search);
+    if (qs.get("site")) return qs.get("site")!.trim();
+
+    // Vite env opcional
+    // @ts-ignore
+    const envSlug = import.meta?.env?.VITE_ELEVEA_SITE_SLUG as string | undefined;
+    if (envSlug) return envSlug;
+
+    const host = window.location.hostname;
+    const parts = host.split(".");
+    if (parts.length > 2) {
+      const sub = parts[0];
+      if (!["www", "app"].includes(sub)) return sub;
+    }
+
+    const m = window.location.pathname.match(/\/app\/([a-z0-9\-]+)/i);
+    if (m) return m[1];
+  } catch {}
+  return undefined;
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -35,21 +61,22 @@ export default function LoginPage() {
   useEffect(() => {
     (async () => {
       try {
-        // Se você tiver o e-mail salvo em localStorage, dá pra passar aqui.
         const current = window.localStorage.getItem("elevea_last_email") || "";
         if (!current) return;
 
-        const r = await fetch(`${ME_URL}&email=${encodeURIComponent(current)}`, {
-          method: "GET",
-          cache: "no-store",
+        const r = await fetch(ME_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: current }),
         });
         const data: ApiResp = await r.json().catch(() => ({} as any));
-        if (data?.ok && data.user) redirectByRole(data.user.role, next);
-      } catch {/* ignore */}
+        const ok = (data.success ?? data.ok) === true;
+        if (ok && data.user?.role) redirectByRole(data.user.role, next);
+      } catch {}
     })();
   }, [next]);
 
-  function redirectByRole(role: "admin" | "client", candidate?: string) {
+  function redirectByRole(role: Role, candidate?: string) {
     if (candidate) {
       if (role === "admin"  && candidate.startsWith("/admin/"))  return void window.location.assign(candidate);
       if (role === "client" && candidate.startsWith("/client/")) return void window.location.assign(candidate);
@@ -63,22 +90,23 @@ export default function LoginPage() {
 
     try {
       const emailLc = email.trim().toLowerCase();
+      const site = detectSiteSlug();
 
       const r = await fetch(LOGIN_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // Enviamos o action também no body como fallback
-        body: JSON.stringify({ action: "login", email: emailLc, password: pass }),
+        body: JSON.stringify({ email: emailLc, password: pass, site }),
       });
 
-      if (r.status >= 500) {
+      if (!r.ok && r.status >= 500) {
         const txt = await r.text().catch(() => "");
         setErr(`Servidor indisponível (${r.status}). ${txt || ""}`.trim());
         return;
       }
 
       const data: ApiResp = await r.json().catch(() => ({} as any));
-      if (!r.ok || data.ok === false) {
+      const ok = (data.success ?? data.ok) === true;
+      if (!r.ok || !ok) {
         setErr(data.error || data.message || `Falha no login (${r.status})`);
         return;
       }
@@ -87,9 +115,7 @@ export default function LoginPage() {
         return;
       }
 
-      // guarda último e-mail para o “me”
       try { window.localStorage.setItem("elevea_last_email", emailLc); } catch {}
-
       redirectByRole(data.user.role, next);
     } catch (e: any) {
       setErr(e?.message || "Erro de rede");
@@ -112,7 +138,8 @@ export default function LoginPage() {
       const data: ApiResp = await r.json().catch(() => ({} as any));
       setForgotLoading(false);
 
-      if (!r.ok || data?.ok === false) return { ok:false, error: data?.error || data?.message || `http_${r.status}` };
+      const ok = (data.success ?? data.ok) === true;
+      if (!r.ok || !ok) return { ok:false, error: data?.error || data?.message || `http_${r.status}` };
       return { ok:true };
     } catch (e: any) {
       setForgotLoading(false);
