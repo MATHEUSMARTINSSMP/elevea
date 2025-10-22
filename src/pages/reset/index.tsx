@@ -4,15 +4,18 @@ import React, { useEffect, useMemo, useState } from "react";
 const LOGIN_URL = "/login";
 
 function useQuery() {
-  return useMemo(() => new URLSearchParams(window.location.search), []);
+  return useMemo(() => {
+    if (typeof window === "undefined") return new URLSearchParams("");
+    return new URLSearchParams(window.location.search);
+  }, []);
 }
 
 type Step = "request" | "confirm";
 
 export default function ResetPage() {
   const q = useQuery();
-  const qEmail = (q.get("email") || q.get("e") || "").toLowerCase();
-  const qToken = q.get("token") || q.get("t") || "";
+  const qEmail = ((q.get("email") || q.get("e") || "") + "").toLowerCase().trim();
+  const qToken = ((q.get("token") || q.get("t") || "") + "").trim();
 
   const [step, setStep] = useState<Step>(qEmail || qToken ? "confirm" : "request");
 
@@ -39,14 +42,13 @@ export default function ResetPage() {
     }
   }, [qEmail, qToken]);
 
-  // redireciona para login quando confirmar com sucesso
   useEffect(() => {
     if (!confirmMsg) return;
     const t = setInterval(() => {
       setRedirectSecs((s) => {
         if (s <= 1) {
           clearInterval(t);
-          window.location.assign(LOGIN_URL);
+          if (typeof window !== "undefined") window.location.assign(LOGIN_URL);
           return 0;
         }
         return s - 1;
@@ -60,16 +62,17 @@ export default function ResetPage() {
       case "missing_email":
       case "missing_email_or_token":
       case "missing_email_or_token_or_password":
-        return "Informe seu e-mail (e token quando aplicável).";
+      case "dados_incompletos":
+        return "Informe e-mail, token e a nova senha.";
       case "user_not_found":
-        return "Se existir uma conta com este e-mail, enviaremos o link. Verifique seu e-mail e spam.";
+        return "Se existir uma conta com este e-mail, enviaremos o link. Verifique sua caixa de entrada e spam.";
       case "invalid_token":
       case "token_invalid":
       case "token_expired":
-        return "Token inválido ou expirado. Gere um novo link de redefinição.";
+        return "Token inválido ou expirado. Gere um novo link.";
       case "weak_password":
       case "password_too_short":
-        return "A nova senha deve ter pelo menos 6–8 caracteres.";
+        return "A nova senha deve ter pelo menos 6 caracteres.";
       default:
         return "Não foi possível completar a operação. Tente novamente.";
     }
@@ -81,19 +84,18 @@ export default function ResetPage() {
     setReqErr(null);
     setReqMsg(null);
     try {
+      const payload = { email: (email || "").toLowerCase().trim() };
       const r = await fetch("https://fluxos.eleveaagencia.com.br/webhook/api/auth/password-reset-request", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          "X-APP-KEY": "#mmP220411"
+          "X-APP-KEY": "#mmP220411",
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify(payload),
       });
       const out = await r.json().catch(() => ({} as any));
-      if (out?.id) {
-        setReqMsg(
-          "Se existir uma conta com este e-mail, enviamos um link de redefinição. Confira também a caixa de spam."
-        );
+      if (r.ok && !out?.error) {
+        setReqMsg("Se existir uma conta com este e-mail, enviamos um link de redefinição. Confira também o spam.");
       } else {
         setReqErr(explainError(out?.error));
       }
@@ -110,16 +112,22 @@ export default function ResetPage() {
     setConfirmErr(null);
     setConfirmMsg(null);
     try {
+      const payload = {
+        email: (confirmEmail || "").toLowerCase().trim(),
+        token: (token || "").trim(),
+        password: password,
+      };
       const r = await fetch("https://fluxos.eleveaagencia.com.br/webhook/api/auth/password-reset-confirm", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          "X-APP-KEY": "#mmP220411"
+          "X-APP-KEY": "#mmP220411",
         },
-        body: JSON.stringify({ email: confirmEmail, token, password }),
+        body: JSON.stringify(payload),
       });
       const out = await r.json().catch(() => ({} as any));
-      if (out?.success) {
+      // Sucesso = resposta sem "error" (o n8n pode devolver o objeto do token sem "success")
+      if (r.ok && !out?.error) {
         setConfirmMsg("Senha alterada com sucesso! Redirecionando para o login…");
       } else {
         setConfirmErr(explainError(out?.error));
@@ -137,7 +145,9 @@ export default function ResetPage() {
         {step === "confirm" ? (
           <>
             <h1 className="text-xl sm:text-2xl font-bold mb-2">Definir nova senha</h1>
-            <p className="text-gray-600 mb-4 text-sm sm:text-base">Cole o <b>e-mail</b> e o <b>token</b> que você recebeu e defina a nova senha.</p>
+            <p className="text-gray-600 mb-4 text-sm sm:text-base">
+              Cole o <b>e-mail</b> e o <b>token</b> que você recebeu e defina a nova senha.
+            </p>
 
             <form className="form-mobile" onSubmit={handleConfirm}>
               <div className="form-group-mobile">
@@ -189,8 +199,16 @@ export default function ResetPage() {
               <div style={{ color: "#065f46", marginTop: 12 }}>
                 <p>{confirmMsg}</p>
                 <button
-                  style={{ width: "100%", marginTop: 8, border: "1px solid #111", borderRadius: 10, height: 40, background: "#fff", cursor: "pointer" }}
-                  onClick={() => window.location.assign(LOGIN_URL)}
+                  style={{
+                    width: "100%",
+                    marginTop: 8,
+                    border: "1px solid #111",
+                    borderRadius: 10,
+                    height: 40,
+                    background: "#fff",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => (typeof window !== "undefined" ? window.location.assign(LOGIN_URL) : null)}
                 >
                   Ir para o login agora
                 </button>
@@ -204,7 +222,13 @@ export default function ResetPage() {
             <hr style={{ margin: "16px 0", borderColor: "#eee" }} />
             <p style={{ fontSize: 13, color: "#6b7280" }}>
               Precisa pedir um novo link?{" "}
-              <a href="#" onClick={(e) => { e.preventDefault(); setStep("request"); }}>
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setStep("request");
+                }}
+              >
                 Clique aqui
               </a>
             </p>
@@ -225,12 +249,29 @@ export default function ResetPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seu@exemplo.com"
-                style={{ width: "100%", height: 40, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", marginBottom: 12 }}
+                style={{
+                  width: "100%",
+                  height: 40,
+                  borderRadius: 10,
+                  border: "1px solid #d1d5db",
+                  padding: "0 12px",
+                  marginBottom: 12,
+                }}
               />
 
               <button
                 disabled={reqLoading}
-                style={{ width: "100%", height: 42, borderRadius: 10, border: 0, background: "black", color: "white", fontWeight: 600, cursor: "pointer", opacity: reqLoading ? 0.7 : 1 }}
+                style={{
+                  width: "100%",
+                  height: 42,
+                  borderRadius: 10,
+                  border: 0,
+                  background: "black",
+                  color: "white",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  opacity: reqLoading ? 0.7 : 1,
+                }}
               >
                 {reqLoading ? "Enviando..." : "Enviar link"}
               </button>
@@ -242,7 +283,13 @@ export default function ResetPage() {
             <hr style={{ margin: "16px 0", borderColor: "#eee" }} />
             <p style={{ fontSize: 13, color: "#6b7280" }}>
               Já tem <b>token</b>?{" "}
-              <a href="#" onClick={(e) => { e.preventDefault(); setStep("confirm"); }}>
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setStep("confirm");
+                }}
+              >
                 Definir nova senha
               </a>
             </p>
