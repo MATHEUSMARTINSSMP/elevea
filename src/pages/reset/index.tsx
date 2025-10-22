@@ -81,13 +81,16 @@ export default function ResetPage() {
     setReqErr(null);
     setReqMsg(null);
     try {
-      const r = await fetch("/.netlify/functions/reset-dispatch", {
+      const r = await fetch("https://fluxos.eleveaagencia.com.br/webhook/api/auth/password-reset-request", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "X-APP-KEY": "#mmP220411"
+        },
         body: JSON.stringify({ email }),
       });
       const out = await r.json().catch(() => ({} as any));
-      if (out?.ok) {
+      if (out?.id) {
         setReqMsg(
           "Se existir uma conta com este e-mail, enviamos um link de redefinição. Confira também a caixa de spam."
         );
@@ -107,13 +110,16 @@ export default function ResetPage() {
     setConfirmErr(null);
     setConfirmMsg(null);
     try {
-      const r = await fetch("/.netlify/functions/auth-reset-confirm", {
+      const r = await fetch("https://fluxos.eleveaagencia.com.br/webhook/api/auth/password-reset-confirm", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "X-APP-KEY": "#mmP220411"
+        },
         body: JSON.stringify({ email: confirmEmail, token, password }),
       });
       const out = await r.json().catch(() => ({} as any));
-      if (out?.ok) {
+      if (out?.success) {
         setConfirmMsg("Senha alterada com sucesso! Redirecionando para o login…");
       } else {
         setConfirmErr(explainError(out?.error));
