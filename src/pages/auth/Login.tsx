@@ -1,3 +1,4 @@
+// src/pages/login/index.tsx
 import React, { useEffect, useMemo, useState } from "react";
 
 type Role = "admin" | "client";
@@ -6,20 +7,21 @@ type ApiResp = {
   ok?: boolean;
   error?: string;
   message?: string;
-  id?: string; // ex.: id do e-mail no provider
-  user?: { email: string; role: Role; siteSlug?: string };
+  id?: string;
+  user?: { email?: string; role?: Role; siteSlug?: string };
   token?: string;
+  token_id?: string;
+  access_token?: string;
 };
 
-// n8n (PRODUCTION URL do Webhook)
 const N8N_BASE  = "https://fluxos.eleveaagencia.com.br/webhook";
 const LOGIN_URL = `${N8N_BASE}/api/auth/login`;
 const ME_URL    = `${N8N_BASE}/api/auth/me`;
 const RESET_URL = `${N8N_BASE}/api/auth/password-reset-request`;
 
-// Header Auth do Webhook n8n (valor vem de env, não do código)
 const APP_KEY_HEADER = "X-APP-KEY";
-const APP_KEY = (import.meta as any).env?.VITE_APP_KEY as string | undefined;
+// fallback ajuda em build local; em produção deixe via env
+const APP_KEY = (import.meta as any).env?.VITE_APP_KEY || "#mmP220411";
 
 function authHeaders(): Record<string, string> {
   return {
@@ -35,16 +37,21 @@ function detectSiteSlug(): string | undefined {
     // @ts-ignore
     const envSlug = import.meta?.env?.VITE_ELEVEA_SITE_SLUG as string | undefined;
     if (envSlug) return envSlug;
-    const host = window.location.hostname;
-    const parts = host.split(".");
-    if (parts.length > 2) {
-      const sub = parts[0];
-      if (!["www", "app"].includes(sub)) return sub;
-    }
+    const host = window.location.hostname.split(".");
+    if (host.length > 2 && !["www", "app"].includes(host[0])) return host[0];
     const m = window.location.pathname.match(/\/app\/([a-z0-9\-]+)/i);
     if (m) return m[1];
   } catch {}
   return undefined;
+}
+
+function isLoginSuccess(data: ApiResp, resp: Response) {
+  if (!resp.ok) return false;
+  if (data?.success === true || data?.ok === true) return true;
+  if (data?.user) return true;
+  if (data?.token || data?.token_id || data?.access_token) return true;
+  // alguns responds não trazem corpo; 2xx já é “ok”
+  return resp.status >= 200 && resp.status < 300;
 }
 
 export default function LoginPage() {
@@ -71,14 +78,9 @@ export default function LoginPage() {
       try {
         const current = window.localStorage.getItem("elevea_last_email") || "";
         if (!current) return;
-
-        const r = await fetch(ME_URL, {
-          method: "POST",
-          headers: authHeaders(),
-          body: JSON.stringify({ email: current }),
-        });
+        const r = await fetch(ME_URL, { method: "POST", headers: authHeaders(), body: JSON.stringify({ email: current }) });
         const data: ApiResp = await r.json().catch(() => ({} as any));
-        const ok = (data.success ?? data.ok) === true;
+        const ok = data?.success === true || data?.ok === true;
         if (ok && data.user?.role) redirectByRole(data.user.role, next);
       } catch {}
     })();
@@ -106,25 +108,35 @@ export default function LoginPage() {
         body: JSON.stringify({ email: emailLc, password: pass, site }),
       });
 
-      if (!r.ok && r.status >= 500) {
-        const txt = await r.text().catch(() => "");
-        setErr(`Servidor indisponível (${r.status}). ${txt || ""}`.trim());
+      let data: ApiResp = {};
+      try { data = await r.json(); } catch {}
+
+      if (!isLoginSuccess(data, r)) {
+        const code = data?.error || data?.message || (r.ok ? "Falha no login" : `HTTP ${r.status}`);
+        setErr(code);
         return;
       }
 
-      const data: ApiResp = await r.json().catch(() => ({} as any));
-      const ok = (data.success ?? data.ok) === true;
-      if (!r.ok || !ok) {
-        setErr(data.error || data.message || `Falha no login (${r.status})`);
-        return;
+      // se o respond de login não fornecer role, consulta /me
+      let role = data.user?.role as Role | undefined;
+      if (!role) {
+        try {
+          const meR = await fetch(ME_URL, {
+            method: "POST",
+            headers: authHeaders(),
+            body: JSON.stringify({ email: emailLc }),
+          });
+          const me: ApiResp = await meR.json().catch(() => ({} as any));
+          role = me.user?.role as Role | undefined;
+        } catch {}
       }
-      if (!data.user?.role) {
+      if (!role) {
         setErr("Resposta inválida do servidor.");
         return;
       }
 
       try { window.localStorage.setItem("elevea_last_email", emailLc); } catch {}
-      redirectByRole(data.user.role, next);
+      redirectByRole(role, next);
     } catch (e: any) {
       setErr(e?.message || "Erro de rede");
     } finally {
@@ -134,11 +146,9 @@ export default function LoginPage() {
 
   function wasResetAccepted(resp: Response, data: any): boolean {
     if (!resp.ok) return false;
-    const flag = (data?.success ?? data?.ok);
-    if (flag === true) return true;
-    if (typeof data?.id === "string") return true; // alguns providers retornam um id
+    if (data?.success === true || data?.ok === true) return true;
+    if (typeof data?.id === "string") return true;
     if (typeof data?.message === "string" && /enviado|sent|ok/i.test(data.message)) return true;
-    // se a API não retorna corpo, status 2xx já é sucesso
     return resp.status >= 200 && resp.status < 300;
   }
 
@@ -155,12 +165,10 @@ export default function LoginPage() {
       });
 
       let data: ApiResp = {};
-      try { data = await r.json(); } catch { /* pode não ter corpo */ }
-
+      try { data = await r.json(); } catch {}
       setForgotLoading(false);
 
       if (wasResetAccepted(r, data)) return { ok:true };
-
       return { ok:false, error: data?.error || data?.message || `Erro ${r.status}` };
     } catch (e: any) {
       setForgotLoading(false);
@@ -175,7 +183,6 @@ export default function LoginPage() {
     if (!res.ok) { setErr(res.error || "Falha ao enviar o link"); return; }
     setMsg("Link de redefinição enviado. Verifique seu e-mail.");
     setForgotOpen(false);
-    // limpa mensagem após alguns segundos
     window.setTimeout(() => setMsg(null), 8000);
   }
 
@@ -206,7 +213,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="btn-mobile w-full bg-black text-white rounded-xl hover:bg-gray-800"
+            className="btn-mobile w-full bg-black text-white rounded-xl hover:bg-gray-800 disabled:opacity-70"
           >
             {loading ? "Entrando..." : "Entrar"}
           </button>
