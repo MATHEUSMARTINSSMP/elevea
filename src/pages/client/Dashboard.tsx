@@ -375,114 +375,52 @@ export default function ClientDashboard() {
   // Mostra "VIP" (ou o valor do plano) mesmo se o fetch principal falhar,
   // usando também status.plan como fallback.
   const planLabel = vipEnabled
-    ? (status?.plan?.toUpperCase?.() || plan?.toUpperCase?.() || (DEV_FORCE_VIP ? "VIP (FORÇADO)" : "VIP"))
-    : (plan || status?.plan || "—");
+    ? (status?.plan?.toUpperCase?.() || plan?.toUpperCase?.() || user?.plan?.toUpperCase?.() || (DEV_FORCE_VIP ? "VIP (FORÇADO)" : "VIP"))
+    : (plan || status?.plan || user?.plan || "—");
 
   // Redireciona admin
   useEffect(() => {
     if (user?.role === "admin") window.location.replace("/admin/dashboard");
   }, [user?.role]);
 
-  /* 1) Carrega plano principal */
+  /* 1) Carrega plano principal - agora usa user.plan do n8n */
   useEffect(() => {
-    console.log("🔄 useEffect plan loading:", { canQuery, DEV_FORCE_VIP, user: user?.siteSlug });
+    console.log("🔄 useEffect plan loading:", { canQuery, user: user?.siteSlug, userPlan: user?.plan });
     
     if (!canQuery) {
       console.log("❌ Cannot query - missing user data");
-      return;
-    }
-
-    // abre com último plano conhecido (se existir)
-    if (!onceRef.current) {
-      onceRef.current = true;
-      try {
-        const last = sessionStorage.getItem(cacheKey);
-        if (last) {
-          console.log("📦 Using cached plan:", last);
-          setPlan(last);
-        }
-      } catch (e) {
-        console.log("⚠️ Error reading cache:", e);
-      }
-    }
-
-    // se forçado, não bloqueia a página
-    if (DEV_FORCE_VIP) {
-      console.log("🚀 DEV_FORCE_VIP enabled - skipping API calls");
       setCheckingPlan(false);
       setLoadingStatus(false);
       return;
     }
 
-    let alive = true;
-    (async () => {
-      console.log("🔄 Starting plan fetch for:", { site: user!.siteSlug, email: user!.email });
-      setCheckingPlan(true);
+    // Usa o plano que vem do n8n via user.plan
+    if (user?.plan) {
+      console.log("📦 Using plan from n8n:", user.plan);
+      setPlan(user.plan);
+      setCheckingPlan(false);
+      setLoadingStatus(false);
       setPlanErr(null);
-      try {
-        // Inclui PIN VIP se disponível
-        const pinParam = vipPin ? `&pin=${encodeURIComponent(vipPin)}` : "";
-        const url = `/.netlify/functions/client-plan?site=${encodeURIComponent(user!.siteSlug!)}&email=${encodeURIComponent(
-          user!.email
-        )}${pinParam}`;
-        console.log("📡 Fetching plan from:", url);
-        
-        const r = await getJSON<{
-          ok: boolean;
-          vip: boolean;
-          plan: string;
-          status?: string;
-          nextCharge?: string | null;
-          lastPayment?: { date: string; amount: number } | null;
-        }>(url, PLAN_TIMEOUT_MS);
-        
-        console.log("📊 Plan response:", r);
+      
+      // Define status básico baseado no plano
+      setStatus({
+        ok: true,
+        siteSlug: user.siteSlug || "",
+        status: "active",
+        plan: user.plan,
+        nextCharge: null,
+        lastPayment: null,
+      });
+    } else {
+      console.log("⚠️ No plan found in user data, using essential as fallback");
+      setPlan("essential"); // fallback
+      setCheckingPlan(false);
+      setLoadingStatus(false);
+      setPlanErr(null);
+    }
+  }, [canQuery, user?.siteSlug, user?.plan]);
 
-        if (!alive) return;
-        // Se backend retorna vip=true, forçar plan="vip"
-        const resolvedPlan = r.vip ? "vip" : (r.plan || "");
-        setPlan(resolvedPlan);
-        
-        try {
-          sessionStorage.setItem(cacheKey, resolvedPlan);
-        } catch {}
-
-        // hidrata status com o que já veio
-        setStatus({
-          ok: true,
-          siteSlug: user!.siteSlug!,
-          status: r.status,
-          nextCharge: r.nextCharge,
-          lastPayment: r.lastPayment,
-          plan: resolvedPlan,
-        });
-
-        setLoadingStatus(false);
-      } catch (e: any) {
-        console.error("❌ Plan fetch error:", e);
-        setPlanErr("Não foi possível validar sua assinatura agora.");
-      } finally {
-        if (alive) {
-          console.log("✅ Plan fetch completed");
-          setCheckingPlan(false);
-        }
-      }
-    })();
-
-    return () => {
-      alive = false;
-    };
-  }, [canQuery, user?.siteSlug, user?.email, planFetchTick, DEV_FORCE_VIP, vipPin]);
-
-  const retryPlan = () => {
-    try {
-      sessionStorage.removeItem(cacheKey);
-    } catch {}
-    setPlan(null);
-    setPlanErr(null);
-    setLoadingStatus(true);
-    setPlanFetchTick((n) => n + 1);
-  };
+  // Função retryPlan removida - agora usa user.plan do n8n
 
   /* 2) Cards em paralelo (não bloqueiam a decisão VIP) */
   useEffect(() => {
@@ -897,7 +835,7 @@ useEffect(() => {
               </span>
             ) : (
               <span className="rounded-xl bg-slate-500/15 text-slate-700 border border-slate-300 px-3 py-1 text-xs font-medium">
-                Plano Essential
+                {planLabel}
               </span>
             )}
             <button
@@ -914,12 +852,7 @@ useEffect(() => {
           <div className="rounded-2xl border border-red-300 bg-red-50 p-4 text-red-900">
             <div className="flex items-center justify-between">
               <span className="text-sm">{planErr}</span>
-              <button
-                onClick={retryPlan}
-                className="rounded-lg bg-red-500 text-white px-3 py-1 text-xs hover:bg-red-600"
-              >
-                Tentar novamente
-              </button>
+              <span className="text-xs text-red-600">Atualize a página para tentar novamente</span>
             </div>
           </div>
         )}
