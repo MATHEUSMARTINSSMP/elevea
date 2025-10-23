@@ -204,13 +204,14 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
   }
 
   // Verificar se data existe e tem a estrutura esperada
-  if (!data || !data.overview) {
+  if (!data || !data.overview || Object.keys(data.overview).length === 0) {
     return (
       <Card className="rounded-2xl border border-white/10 bg-white/5 text-white">
         <CardContent className="p-6">
           <div className="text-center text-red-400">
             <p>Dados de analytics não disponíveis</p>
-            <p className="text-sm text-slate-400 mt-2">Estrutura de dados inválida</p>
+            <p className="text-sm text-slate-400 mt-2">Estrutura de dados inválida ou vazia</p>
+            <p className="text-xs text-slate-500 mt-1">Overview: {JSON.stringify(data?.overview)}</p>
           </div>
         </CardContent>
       </Card>
@@ -219,7 +220,9 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
 
   const { overview, chartData, topPages, deviceBreakdown, countryBreakdown } = data;
 
-  return (
+  // Try-catch global para capturar erros de renderização
+  try {
+    return (
     <Card className="rounded-2xl border border-white/10 bg-white/5 text-white">
       <CardHeader className="pb-3">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -407,7 +410,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                     fill="#8884d8"
                     dataKey="sessions"
                   >
-                    {deviceBreakdown.map((entry, index) => (
+                    {(deviceBreakdown || []).map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
@@ -429,7 +432,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
         <div>
           <h3 className="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Países</h3>
           <div className="space-y-2">
-            {countryBreakdown.slice(0, 5).map((country, index) => (
+            {(countryBreakdown || []).slice(0, 5).map((country, index) => (
               <div key={country.country} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
                 <div className="flex items-center gap-2">
                   <div 
@@ -445,5 +448,19 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
         </div>
       </CardContent>
     </Card>
-  );
+    );
+  } catch (error) {
+    console.error('🔍 AnalyticsDashboard: Erro de renderização', error);
+    return (
+      <Card className="rounded-2xl border border-red-500/50 bg-red-500/10 text-white">
+        <CardContent className="p-6">
+          <div className="text-center text-red-400">
+            <p>Erro ao renderizar analytics</p>
+            <p className="text-sm text-slate-400 mt-2">Detalhes: {error?.message || 'Erro desconhecido'}</p>
+            <p className="text-xs text-slate-500 mt-1">Dados: {JSON.stringify(data, null, 2)}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 }
