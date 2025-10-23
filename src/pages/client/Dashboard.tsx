@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
-import { useSession } from "@/hooks/useSession";
 import { useAuth } from "@/hooks/useAuth";
 
 // === Seções principais ===
@@ -210,16 +209,11 @@ const getQSBool = (key: string) => {
 
 /* ================= Página ================= */
 export default function ClientDashboard() {
-  const { user } = useSession();
-  const { logout: authLogout } = useAuth();
+  const { user, loading, logout: authLogout } = useAuth();
   const canQuery = !!user?.email && !!user?.siteSlug && user?.role === "client";
 
   // Debug logs
-  console.log("🔍 Dashboard Debug:", {
-    user,
-    canQuery,
-    timestamp: new Date().toISOString()
-  });
+  console.log("🔍 Dashboard Debug:", { user, canQuery });
 
   /* ------- DEV FORCE VIP ------- */
   const DEV_FORCE_VIP =
@@ -844,23 +838,30 @@ useEffect(() => {
     authLogout();
   }
 
-  if (!user) {
-    // Se não há usuário e não está carregando, redirecionar para login
-    useEffect(() => {
-      const timer = setTimeout(() => {
-        console.log("🔍 Dashboard: Usuário não encontrado, redirecionando para login");
-        window.location.href = "/login";
-      }, 3000); // Aguarda 3 segundos antes de redirecionar
-      
-      return () => clearTimeout(timer);
-    }, []);
-
+  if (loading) {
     return (
       <div className="min-h-screen grid place-items-center bg-[#0B1220]">
         <div className="text-white text-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
           <p>Carregando dados do usuário...</p>
-          <p className="text-sm text-gray-400">Redirecionando para login em 3 segundos...</p>
+          <p className="text-sm text-gray-400">Aguarde...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-[#0B1220]">
+        <div className="text-white text-center space-y-4">
+          <p>Usuário não encontrado</p>
+          <p className="text-sm text-gray-400">Faça login para continuar</p>
+          <button 
+            onClick={() => window.location.href = "/login"}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Ir para Login
+          </button>
         </div>
       </div>
     );
