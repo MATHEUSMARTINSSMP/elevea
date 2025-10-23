@@ -866,8 +866,8 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                 .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                 .slice(0, 10);
 
-              return recentEvents.length > 0 ? (
-                recentEvents.map((event, index) => {
+              if (recentEvents.length > 0) {
+                return recentEvents.map((event, index) => {
                   // Detectar fonte baseada no referrer
                   let source = 'Direct';
                   if (event.referrer) {
@@ -895,44 +895,46 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                   });
 
                   return (
-              <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="font-medium text-gray-900">{timeStr}</span>
-                    <span className="text-sm text-gray-600">•</span>
-                    <span className="text-sm text-gray-600">{formattedDuration}</span>
+                    <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span className="font-medium text-gray-900">{timeStr}</span>
+                          <span className="text-sm text-gray-600">•</span>
+                          <span className="text-sm text-gray-600">{formattedDuration}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {source === 'Google' && <SearchIcon className="w-4 h-4 text-blue-500" />}
+                          {source === 'Instagram' && <MessageCircleIcon className="w-4 h-4 text-pink-500" />}
+                          {source === 'WhatsApp' && <MessageCircleIcon className="w-4 h-4 text-green-500" />}
+                          {source === 'Facebook' && <ShareIcon className="w-4 h-4 text-blue-700" />}
+                          {source === 'YouTube' && <YoutubeIcon className="w-4 h-4 text-red-700" />}
+                          {source === 'TikTok' && <MessageCircleIcon className="w-4 h-4 text-gray-900 bg-white rounded" />}
+                          {source === 'LinkedIn' && <LinkedinIcon className="w-4 h-4 text-blue-700" />}
+                          {source === 'Twitter' && <TwitterIcon className="w-4 h-4 text-blue-500" />}
+                          {source === 'Direct' && <GlobeIcon className="w-4 h-4 text-green-600" />}
+                          <span className="text-sm font-medium text-gray-700">{source}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-gray-600">
+                        <span>Página: {event.page_url || '/'}</span>
+                        <div className="flex items-center gap-4">
+                          <span>Dispositivo: {event.device_type || 'Unknown'}</span>
+                          <span>Local: {event.country || 'Unknown'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                });
+              } else {
+                return (
+                  <div className="text-center py-8">
+                    <ActivityIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600 mb-2">Nenhuma visita registrada ainda</p>
+                    <p className="text-sm text-gray-500">Os dados aparecerão aqui quando houver visitas ao site</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {source === 'Google' && <SearchIcon className="w-4 h-4 text-blue-500" />}
-                    {source === 'Instagram' && <MessageCircleIcon className="w-4 h-4 text-pink-500" />}
-                    {source === 'WhatsApp' && <MessageCircleIcon className="w-4 h-4 text-green-500" />}
-                    {source === 'Facebook' && <ShareIcon className="w-4 h-4 text-blue-700" />}
-                    {source === 'YouTube' && <YoutubeIcon className="w-4 h-4 text-red-700" />}
-                    {source === 'TikTok' && <MessageCircleIcon className="w-4 h-4 text-gray-900 bg-white rounded" />}
-                    {source === 'LinkedIn' && <LinkedinIcon className="w-4 h-4 text-blue-700" />}
-                    {source === 'Twitter' && <TwitterIcon className="w-4 h-4 text-blue-500" />}
-                    {source === 'Direct' && <GlobeIcon className="w-4 h-4 text-green-600" />}
-                    <span className="text-sm font-medium text-gray-700">{source}</span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between text-sm text-gray-600">
-                  <span>Página: {event.page_url || '/'}</span>
-                  <div className="flex items-center gap-4">
-                    <span>Dispositivo: {event.device_type || 'Unknown'}</span>
-                    <span>Local: {event.country || 'Unknown'}</span>
-                  </div>
-                </div>
-              </div>
-                  ));
-                })()
-              ) : (
-                <div className="text-center py-8">
-                  <ActivityIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-2">Nenhuma visita registrada ainda</p>
-                  <p className="text-sm text-gray-500">Os dados aparecerão aqui quando houver visitas ao site</p>
-                </div>
-              );
+                );
+              }
             })()}
           </div>
         </div>
