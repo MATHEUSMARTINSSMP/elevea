@@ -30,8 +30,11 @@ export function useSession() {
 
     (async () => {
       try {
+        console.log("🔍 useSession: Fazendo fetch para", ME_URL);
         const r = await fetch(ME_URL, { credentials: "include" });
+        console.log("🔍 useSession: Response status", r.status);
         const data = await r.json().catch(() => ({} as any));
+        console.log("🔍 useSession: Response data", data);
 
         if (!alive) return;
 
@@ -42,16 +45,22 @@ export function useSession() {
             siteSlug: (data.user as any).siteSlug || "",
             plan: (data.user as any).plan || "",
           };
+          console.log("🔍 useSession: Usuário encontrado", merged);
           setUser(merged);
           try { localStorage.setItem("auth", JSON.stringify(merged)); } catch {}
         } else {
+          console.log("🔍 useSession: Usuário não encontrado ou erro", data);
           setUser(null);
           try { localStorage.removeItem("auth"); } catch {}
         }
-      } catch {
+      } catch (error) {
+        console.log("🔍 useSession: Erro na requisição", error);
         // se ME falhar, mantém o que tiver no storage
       } finally {
-        if (alive) setReady(true);
+        if (alive) {
+          console.log("🔍 useSession: Ready = true");
+          setReady(true);
+        }
       }
     })();
 

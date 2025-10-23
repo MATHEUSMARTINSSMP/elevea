@@ -845,12 +845,22 @@ useEffect(() => {
   }
 
   if (!user) {
+    // Se não há usuário e não está carregando, redirecionar para login
+    useEffect(() => {
+      const timer = setTimeout(() => {
+        console.log("🔍 Dashboard: Usuário não encontrado, redirecionando para login");
+        window.location.href = "/login";
+      }, 3000); // Aguarda 3 segundos antes de redirecionar
+      
+      return () => clearTimeout(timer);
+    }, []);
+
     return (
       <div className="min-h-screen grid place-items-center bg-[#0B1220]">
         <div className="text-white text-center space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
           <p>Carregando dados do usuário...</p>
-          <p className="text-sm text-gray-400">Se não carregar, faça login novamente</p>
+          <p className="text-sm text-gray-400">Redirecionando para login em 3 segundos...</p>
         </div>
       </div>
     );
