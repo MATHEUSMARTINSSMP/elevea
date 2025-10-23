@@ -2,7 +2,7 @@
 // Sistema de rastreamento de analytics integrado com n8n
 
 const N8N_BASE_URL = 'https://fluxos.eleveaagencia.com.br/webhook';
-const ANALYTICS_URL = `${N8N_BASE_URL}/api/analytics/complete`;
+const ANALYTICS_URL = `${N8N_BASE_URL}/api/analytics/dashboard`;
 const TRACK_URL = `${N8N_BASE_URL}/api/analytics/track`;
 const FEEDBACK_URL = `${N8N_BASE_URL}/api/feedback/submit`;
 const FEEDBACK_PUBLIC_URL = `${N8N_BASE_URL}/api/feedback/public`;
@@ -214,27 +214,37 @@ export async function recordEvent(data: AnalyticsEvent & { site_slug?: string })
 // Buscar dados de analytics do n8n
 export async function fetchAnalyticsData(siteSlug: string, range: string = '30d', vipPin?: string): Promise<AnalyticsData | null> {
   try {
-    const response = await fetch(ANALYTICS_URL, {
-      method: 'POST',
-      headers: analyticsHeaders(),
-      body: JSON.stringify({
-        action: 'analytics_get_dashboard',
-        site_slug: siteSlug,
-        range: range,
-        vip_pin: vipPin
-      })
+    console.log('🔍 fetchAnalyticsData: Chamando', ANALYTICS_URL, { siteSlug, range, vipPin });
+    
+    // Usar GET com query parameters
+    const params = new URLSearchParams({
+      site_slug: siteSlug,
+      range: range,
+      ...(vipPin ? { vip_pin: vipPin } : {})
+    });
+    
+    const response = await fetch(`${ANALYTICS_URL}?${params}`, {
+      method: 'GET',
+      headers: analyticsHeaders()
     });
 
+    console.log('🔍 fetchAnalyticsData: Response status', response.status);
+    
     let result: any = {};
     try { result = await response.json(); } catch {}
+    
+    console.log('🔍 fetchAnalyticsData: Response data', result);
 
     if (!response.ok) {
       throw new Error(result?.error || result?.message || `HTTP ${response.status}`);
     }
 
-    // Verificar se a resposta indica sucesso (seguindo padrão do login)
+    // Verificar se a resposta indica sucesso
     if (result?.success === true || result?.ok === true) {
-      return result.data || null;
+      // O n8n retorna um array com um objeto que tem success: true e data: {...}
+      const responseData = Array.isArray(result) ? result[0] : result;
+      console.log('🔍 fetchAnalyticsData: Processed data', responseData);
+      return responseData.data || responseData || null;
     } else {
       throw new Error(result?.error || result?.message || 'Erro desconhecido');
     }
