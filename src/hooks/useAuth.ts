@@ -1,28 +1,53 @@
 import { useEffect, useState } from "react";
+import { n8n } from "../lib/n8n";
 
 export type SessionUser = {
   email: string;
   role: "admin" | "client";
   siteSlug?: string;
+  plan?: string;
 };
 
 type MeResp = {
   ok?: boolean;
+  success?: boolean;
   user?: SessionUser;
   error?: string;
   message?: string;
 };
 
-const AUTH_BASE  = "/.netlify/functions/auth-session";
-const ME_URL     = `${AUTH_BASE}?action=me`;
-const LOGOUT_URL = `${AUTH_BASE}?action=logout`;
+const N8N_BASE = "https://fluxos.eleveaagencia.com.br/webhook";
+const ME_URL = `${N8N_BASE}/api/auth/me`;
+const LOGOUT_URL = `${N8N_BASE}/api/auth/logout`;
+
+const APP_KEY_HEADER = "X-APP-KEY";
+const APP_KEY = (import.meta as any).env?.VITE_APP_KEY || "#mmP220411";
+
+function authHeaders(): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    ...(APP_KEY ? { [APP_KEY_HEADER]: APP_KEY } : {}),
+  };
+}
 
 function usePathname() {
   return typeof window !== "undefined" ? window.location.pathname : "/";
 }
 
+function readAuthFromStorage(): SessionUser | null {
+  try {
+    const raw = localStorage.getItem("auth");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.email) return null;
+    return parsed as SessionUser;
+  } catch {
+    return null;
+  }
+}
+
 export function useAuth() {
-  const [user, setUser] = useState<SessionUser | null>(null);
+  const [user, setUser] = useState<SessionUser | null>(() => readAuthFromStorage());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const pathname = usePathname();
@@ -34,13 +59,56 @@ export function useAuth() {
       try {
         setLoading(true);
         setError(null);
-        const r = await fetch(ME_URL, { credentials: "include", cache: "no-store" });
+        
+        // Primeiro tenta ler do localStorage
+        const storedUser = readAuthFromStorage();
+        if (storedUser) {
+          console.log("🔍 useAuth: Usuário encontrado no localStorage", storedUser);
+          setUser(storedUser);
+          setLoading(false);
+          return;
+        }
+
+        // Se não tem no localStorage, tenta validar com n8n
+        const lastEmail = localStorage.getItem("elevea_last_email");
+        if (!lastEmail) {
+          console.log("🔍 useAuth: Nenhum email salvo, usuário não logado");
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        console.log("🔍 useAuth: Validando sessão com n8n para", lastEmail);
+        const r = await fetch(ME_URL, {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({ email: lastEmail }),
+        });
+        
         const data: MeResp = await r.json().catch(() => ({} as any));
+        console.log("🔍 useAuth: Resposta n8n", data);
+        
         if (!alive) return;
-        if (data?.ok && data.user) setUser(data.user);
-        else setUser(null);
+        
+        if ((data?.ok || data?.success) && data.user) {
+          console.log("🔍 useAuth: Sessão válida, salvando no localStorage");
+          const userData = {
+            email: data.user.email,
+            role: data.user.role,
+            siteSlug: data.user.siteSlug || "",
+            plan: data.user.plan || "",
+          };
+          setUser(userData);
+          try { localStorage.setItem("auth", JSON.stringify(userData)); } catch {}
+        } else {
+          console.log("🔍 useAuth: Sessão inválida, limpando dados");
+          setUser(null);
+          try { localStorage.removeItem("auth"); } catch {}
+          try { localStorage.removeItem("elevea_last_email"); } catch {}
+        }
       } catch (e: any) {
         if (!alive) return;
+        console.log("🔍 useAuth: Erro na validação", e);
         setError(e?.message || "Falha ao carregar sessão");
         setUser(null);
       } finally {
@@ -88,7 +156,25 @@ export function useAuth() {
   }
 
   async function logout(to?: string) {
-    try { await fetch(LOGOUT_URL, { credentials: "include" }); } catch {}
+    try {
+      // Limpar localStorage
+      localStorage.removeItem("auth");
+      localStorage.removeItem("elevea_last_email");
+      
+      // Chamar logout no n8n (opcional, para invalidar sessão no servidor)
+      const lastEmail = localStorage.getItem("elevea_last_email");
+      if (lastEmail) {
+        try {
+          await fetch(LOGOUT_URL, {
+            method: "POST",
+            headers: authHeaders(),
+            body: JSON.stringify({ email: lastEmail }),
+          });
+        } catch {}
+      }
+    } catch {}
+    
+    setUser(null);
     go(to || "/login");
   }
 
