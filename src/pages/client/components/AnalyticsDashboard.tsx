@@ -362,7 +362,45 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
     );
   }
 
-  const { overview, chartData, topPages, deviceBreakdown, countryBreakdown } = data;
+  // Processar dados reais do n8n
+  const processedChartData = data.chartData?.datasets?.[0]?.data?.map((value: number, index: number) => ({
+    date: data.chartData?.labels?.[index] || `Dia ${index + 1}`,
+    users: value,
+    sessions: value,
+    pageViews: value
+  })) || [];
+
+  const processedDeviceBreakdown = data.deviceBreakdown?.map((device: any) => ({
+    device: device.device,
+    sessions: parseInt(device.count) || 0,
+    percentage: parseFloat(device.percentage) || 0
+  })) || [];
+
+  const processedTopPages = data.topPages?.map((page: any) => ({
+    page: page.page,
+    views: page.views || 0
+  })) || [];
+
+  // Dados temporários para seções não implementadas no n8n
+  const mockCountryBreakdown = [
+    { country: 'Brasil', users: 2 },
+    { country: 'Estados Unidos', users: 1 }
+  ];
+
+  const mockTrafficSources = [
+    { source: 'Google', users: 2, percentage: 66.7 },
+    { source: 'Direct', users: 1, percentage: 33.3 }
+  ];
+
+  // Debug logs para verificar dados dos gráficos
+  console.log('🔍 GRÁFICOS DEBUG:', {
+    originalChartData: data.chartData,
+    processedChartData: processedChartData,
+    originalDeviceBreakdown: data.deviceBreakdown,
+    processedDeviceBreakdown: processedDeviceBreakdown,
+    originalTopPages: data.topPages,
+    processedTopPages: processedTopPages
+  });
 
   // Try-catch global para capturar erros de renderização
   try {
@@ -642,7 +680,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
           </div>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData || []}>
+              <AreaChart data={processedChartData}>
                 <defs>
                   <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
@@ -756,7 +794,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(data.trafficSources || []).slice(0, 6).map((source, index) => (
+            {mockTrafficSources.slice(0, 6).map((source, index) => (
               <div key={source.source} className="bg-white/5 rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-colors">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
@@ -946,7 +984,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Páginas Mais Visitadas</h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={(topPages || []).slice(0, 5)}>
+                <BarChart data={processedTopPages.slice(0, 5)}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                   <XAxis 
                     dataKey="page" 
@@ -979,7 +1017,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={deviceBreakdown || []}
+                    data={processedDeviceBreakdown}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -988,7 +1026,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                     fill="#8884d8"
                     dataKey="sessions"
                   >
-                    {(deviceBreakdown || []).map((entry, index) => (
+                    {processedDeviceBreakdown.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
@@ -1011,7 +1049,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
         <div>
           <h3 className="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Países</h3>
           <div className="space-y-2">
-            {(countryBreakdown || []).slice(0, 5).map((country, index) => (
+            {mockCountryBreakdown.slice(0, 5).map((country, index) => (
               <div key={country.country} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
                 <div className="flex items-center gap-2">
                   <div 
