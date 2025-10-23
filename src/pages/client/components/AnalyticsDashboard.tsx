@@ -198,11 +198,11 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
     } else if (exportFormat === 'csv') {
       const csvData = [
         ['Métrica', 'Valor'],
-        ['Usuários', data.overview.users],
-        ['Sessões', data.overview.sessions],
-        ['Visualizações', data.overview.pageViews],
-        ['Taxa de Rejeição', data.overview.bounceRate],
-        ['Tempo Médio', data.overview.avgSessionDuration]
+        ['Usuários', processedOverview.users],
+        ['Sessões', processedOverview.sessions],
+        ['Visualizações', processedOverview.pageViews],
+        ['Taxa de Rejeição', processedOverview.bounceRate],
+        ['Tempo Médio', processedOverview.avgSessionDuration]
       ];
       const csv = csvData.map(row => row.join(',')).join('\n');
       const blob = new Blob([csv], { type: 'text/csv' });
@@ -362,7 +362,22 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
     );
   }
 
-  // Processar dados reais do n8n
+  // Processar dados reais do n8n - CORRIGIR ESTRUTURA
+  const processedOverview = {
+    users: data.overview?.uniqueVisitors || 0,
+    sessions: data.overview?.totalEvents || 0,
+    pageViews: data.overview?.pageViews || 0,
+    bounceRate: 0, // Não disponível no n8n
+    avgSessionDuration: 0, // Não disponível no n8n
+    avgScrollDepth: 0, // Não disponível no n8n
+    whatsappClicks: 0, // Não disponível no n8n
+    formSubmissions: data.overview?.formSubmissions || 0,
+    phoneClicks: 0, // Não disponível no n8n
+    emailClicks: 0, // Não disponível no n8n
+    mapInteractions: 0, // Não disponível no n8n
+    conversions: data.overview?.conversions || 0
+  };
+
   const processedChartData = data.chartData?.datasets?.[0]?.data?.map((value: number, index: number) => ({
     date: data.chartData?.labels?.[index] || `Dia ${index + 1}`,
     users: value,
@@ -564,7 +579,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               <div className="text-right">
                 <div className="flex items-center justify-end mb-1">
                   <div className="text-3xl font-bold text-gray-900">
-                    {formatNumber(overview.pageViews || 0)}
+                    {formatNumber(processedOverview.pageViews || 0)}
                   </div>
                   <MetricTooltip
                     title="Visualizações de Página"
@@ -590,7 +605,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               <div className="text-right">
                 <div className="flex items-center justify-end mb-1">
                   <div className="text-3xl font-bold text-gray-900">
-                    {formatNumber(overview.users || 0)}
+                    {formatNumber(processedOverview.users || 0)}
                   </div>
                   <MetricTooltip
                     title="Usuários Únicos"
@@ -616,7 +631,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               <div className="text-right">
                 <div className="flex items-center justify-end mb-1">
                   <div className="text-3xl font-bold text-gray-900">
-                    {formatDuration(overview.avgSessionDuration || 0)}
+                    {formatDuration(processedOverview.avgSessionDuration || 0)}
                   </div>
                   <MetricTooltip
                     title="Tempo Médio de Sessão"
@@ -642,7 +657,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               <div className="text-right">
                 <div className="flex items-center justify-end mb-1">
                   <div className="text-3xl font-bold text-gray-900">
-                    {formatNumber(overview.whatsappClicks || 0)}
+                    {formatNumber(processedOverview.whatsappClicks || 0)}
                   </div>
                   <MetricTooltip
                     title="Cliques no WhatsApp"
@@ -750,7 +765,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                 <span className="font-medium text-gray-900">WhatsApp</span>
               </div>
               <div className="text-3xl font-bold text-gray-900 mb-1">
-                {formatNumber(overview.whatsappClicks || 0)}
+                {formatNumber(processedOverview.whatsappClicks || 0)}
               </div>
               <p className="text-sm text-gray-600">cliques</p>
             </div>
@@ -762,7 +777,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                 <span className="font-medium text-gray-900">Formulários</span>
               </div>
               <div className="text-3xl font-bold text-gray-900 mb-1">
-                {formatNumber(overview.formSubmissions || 0)}
+                {formatNumber(processedOverview.formSubmissions || 0)}
               </div>
               <p className="text-sm text-gray-600">envios</p>
             </div>
@@ -774,7 +789,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                 <span className="font-medium text-gray-900">Telefone</span>
               </div>
               <div className="text-3xl font-bold text-gray-900 mb-1">
-                {formatNumber(overview.phoneClicks || 0)}
+                {formatNumber(processedOverview.phoneClicks || 0)}
               </div>
               <p className="text-sm text-gray-600">cliques</p>
             </div>
