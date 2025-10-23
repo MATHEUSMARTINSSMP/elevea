@@ -24,7 +24,21 @@ import {
   TargetIcon,
   ZapIcon,
   InfoIcon,
-  HelpCircleIcon
+  HelpCircleIcon,
+  ScrollTextIcon,
+  ArrowDownIcon,
+  ExternalLinkIcon,
+  SearchIcon,
+  ShareIcon,
+  MessageCircleIcon,
+  YoutubeIcon,
+  LinkedinIcon,
+  TwitterIcon,
+  GlobeIcon,
+  MailIcon,
+  SmartphoneIcon,
+  MonitorIcon,
+  TabletIcon
 } from 'lucide-react';
 import { fetchAnalyticsData, recordEvent } from '@/lib/analytics';
 
@@ -35,7 +49,12 @@ interface AnalyticsData {
     pageViews: number;
     bounceRate: number;
     avgSessionDuration: number;
-    conversions: number;
+    avgScrollDepth: number;
+    whatsappClicks: number;
+    formSubmissions: number;
+    phoneClicks: number;
+    emailClicks: number;
+    mapInteractions: number;
   };
   chartData: Array<{
     date: string;
@@ -55,6 +74,11 @@ interface AnalyticsData {
   countryBreakdown: Array<{
     country: string;
     users: number;
+  }>;
+  trafficSources: Array<{
+    source: string;
+    users: number;
+    percentage: number;
   }>;
 }
 
@@ -115,6 +139,11 @@ const formatNumber = (num: number): string => {
 // Formatar porcentagem
 const formatPercentage = (num: number): string => {
   return `${num.toFixed(1)}%`;
+};
+
+// Formatar profundidade de scroll
+const formatScrollDepth = (percentage: number): string => {
+  return `${Math.round(percentage)}%`;
 };
 
 // Usar a função da lib analytics
@@ -555,29 +584,55 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
             </div>
           </div>
 
-          {/* Taxa de Rejeição */}
-          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-400/30 p-6 hover:from-purple-500/30 hover:to-pink-500/30 transition-all duration-300">
+          {/* Cliques no WhatsApp */}
+          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-400/30 p-6 hover:from-green-500/30 hover:to-emerald-500/30 transition-all duration-300">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-xl bg-purple-500/20 border border-purple-400/30">
-                <MousePointerIcon className="w-6 h-6 text-purple-400" />
+              <div className="p-3 rounded-xl bg-green-500/20 border border-green-400/30">
+                <MessageCircleIcon className="w-6 h-6 text-green-400" />
               </div>
               <div className="text-right">
                 <div className="flex items-center justify-end mb-1">
-                  <div className="text-3xl font-bold text-purple-400">
-                    {formatPercentage(overview.bounceRate || 0)}
+                  <div className="text-3xl font-bold text-green-400">
+                    {formatNumber(overview.whatsappClicks || 0)}
                   </div>
                   <MetricTooltip
-                    title="Taxa de Rejeição"
-                    description="Percentual de visitantes que saem do site após visualizar apenas uma página. Quanto menor, melhor."
-                    importance="Mostra a qualidade do seu conteúdo e experiência do usuário. Taxas baixas = site mais atrativo e maior chance de conversão em vendas."
+                    title="Cliques no WhatsApp"
+                    description="Número de vezes que os visitantes clicaram no botão ou link do WhatsApp para entrar em contato."
+                    importance="Mostra o interesse real em contato. Mais cliques = maior interesse nos serviços e maior potencial de negócios."
                   />
                 </div>
-                <p className="text-sm text-purple-300/80">Taxa de rejeição</p>
+                <p className="text-sm text-green-300/80">Cliques WhatsApp</p>
               </div>
             </div>
-            <div className="flex items-center text-sm text-purple-300/60">
-              <ZapIcon className="w-4 h-4 mr-1" />
-              <span>Engajamento</span>
+            <div className="flex items-center text-sm text-green-300/60">
+              <MessageCircleIcon className="w-4 h-4 mr-1" />
+              <span>Interesse em contato</span>
+            </div>
+          </div>
+
+          {/* Profundidade de Scroll */}
+          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-400/30 p-6 hover:from-indigo-500/30 hover:to-violet-500/30 transition-all duration-300">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 rounded-xl bg-indigo-500/20 border border-indigo-400/30">
+                <ScrollTextIcon className="w-6 h-6 text-indigo-400" />
+              </div>
+              <div className="text-right">
+                <div className="flex items-center justify-end mb-1">
+                  <div className="text-3xl font-bold text-indigo-400">
+                    {formatScrollDepth(overview.avgScrollDepth || 0)}
+                  </div>
+                  <MetricTooltip
+                    title="Profundidade de Scroll"
+                    description="Percentual médio de quanto os visitantes rolam a página para baixo. Mostra o nível de interesse no conteúdo."
+                    importance="Indica se o conteúdo está sendo lido completamente. Valores altos = conteúdo mais interessante e maior engajamento."
+                  />
+                </div>
+                <p className="text-sm text-indigo-300/80">Scroll médio</p>
+              </div>
+            </div>
+            <div className="flex items-center text-sm text-indigo-300/60">
+              <ArrowDownIcon className="w-4 h-4 mr-1" />
+              <span>Interesse no conteúdo</span>
             </div>
           </div>
         </div>
@@ -626,8 +681,160 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
           </div>
         </div>
 
+        {/* Métricas de Contato - Importante para Sites Institucionais */}
+        <div className="bg-gradient-to-br from-white/5 to-white/10 rounded-2xl border border-white/10 p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-400/30">
+              <MessageCircleIcon className="w-5 h-5 text-cyan-400" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-white">Interações de Contato</h3>
+              <p className="text-slate-400 text-sm">Como os visitantes estão entrando em contato</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* WhatsApp */}
+            <div className="bg-white/5 rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-colors">
+              <div className="flex items-center gap-3 mb-3">
+                <MessageCircleIcon className="w-6 h-6 text-green-400" />
+                <span className="font-medium text-white">WhatsApp</span>
+              </div>
+              <div className="text-3xl font-bold text-green-400 mb-1">
+                {formatNumber(overview.whatsappClicks || 0)}
+              </div>
+              <p className="text-sm text-green-300/80">cliques</p>
+            </div>
+
+            {/* Formulários */}
+            <div className="bg-white/5 rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-colors">
+              <div className="flex items-center gap-3 mb-3">
+                <MailIcon className="w-6 h-6 text-blue-400" />
+                <span className="font-medium text-white">Formulários</span>
+              </div>
+              <div className="text-3xl font-bold text-blue-400 mb-1">
+                {formatNumber(overview.formSubmissions || 0)}
+              </div>
+              <p className="text-sm text-blue-300/80">envios</p>
+            </div>
+
+            {/* Telefone */}
+            <div className="bg-white/5 rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-colors">
+              <div className="flex items-center gap-3 mb-3">
+                <SmartphoneIcon className="w-6 h-6 text-purple-400" />
+                <span className="font-medium text-white">Telefone</span>
+              </div>
+              <div className="text-3xl font-bold text-purple-400 mb-1">
+                {formatNumber(overview.phoneClicks || 0)}
+              </div>
+              <p className="text-sm text-purple-300/80">cliques</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Fontes de Tráfego - Nova Seção */}
+        <div className="bg-gradient-to-br from-white/5 to-white/10 rounded-2xl border border-white/10 p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-400/30">
+              <ExternalLinkIcon className="w-5 h-5 text-orange-400" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-white">Fontes de Tráfego</h3>
+              <p className="text-slate-400 text-sm">De onde vêm seus visitantes</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(data.trafficSources || []).slice(0, 6).map((source, index) => (
+              <div key={source.source} className="bg-white/5 rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-colors">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    {/* Google / Busca Orgânica */}
+                    {(source.source.toLowerCase().includes('google') || 
+                      source.source.toLowerCase().includes('organic') ||
+                      source.source.toLowerCase().includes('search')) && 
+                      <SearchIcon className="w-5 h-5 text-blue-400" />}
+                    
+                    {/* Instagram */}
+                    {source.source.toLowerCase().includes('instagram') && 
+                      <MessageCircleIcon className="w-5 h-5 text-pink-400" />}
+                    
+                    {/* Facebook */}
+                    {source.source.toLowerCase().includes('facebook') && 
+                      <ShareIcon className="w-5 h-5 text-blue-600" />}
+                    
+                    {/* WhatsApp */}
+                    {source.source.toLowerCase().includes('whatsapp') && 
+                      <MessageCircleIcon className="w-5 h-5 text-green-400" />}
+                    
+                    {/* YouTube */}
+                    {source.source.toLowerCase().includes('youtube') && 
+                      <YoutubeIcon className="w-5 h-5 text-red-500" />}
+                    
+                    {/* TikTok */}
+                    {source.source.toLowerCase().includes('tiktok') && 
+                      <MessageCircleIcon className="w-5 h-5 text-black bg-white rounded" />}
+                    
+                    {/* LinkedIn */}
+                    {source.source.toLowerCase().includes('linkedin') && 
+                      <LinkedinIcon className="w-5 h-5 text-blue-500" />}
+                    
+                    {/* Twitter/X */}
+                    {(source.source.toLowerCase().includes('twitter') || 
+                      source.source.toLowerCase().includes('x.com')) && 
+                      <TwitterIcon className="w-5 h-5 text-blue-400" />}
+                    
+                    {/* Email */}
+                    {(source.source.toLowerCase().includes('email') || 
+                      source.source.toLowerCase().includes('mail')) && 
+                      <MailIcon className="w-5 h-5 text-gray-400" />}
+                    
+                    {/* Direto / Acesso Direto */}
+                    {(source.source.toLowerCase().includes('direct') || 
+                      source.source.toLowerCase().includes('none') ||
+                      source.source.toLowerCase().includes('direto')) && 
+                      <GlobeIcon className="w-5 h-5 text-green-400" />}
+                    
+                    {/* Outros */}
+                    {!source.source.toLowerCase().includes('google') && 
+                     !source.source.toLowerCase().includes('organic') &&
+                     !source.source.toLowerCase().includes('search') &&
+                     !source.source.toLowerCase().includes('instagram') && 
+                     !source.source.toLowerCase().includes('facebook') && 
+                     !source.source.toLowerCase().includes('whatsapp') &&
+                     !source.source.toLowerCase().includes('youtube') &&
+                     !source.source.toLowerCase().includes('tiktok') &&
+                     !source.source.toLowerCase().includes('linkedin') &&
+                     !source.source.toLowerCase().includes('twitter') &&
+                     !source.source.toLowerCase().includes('x.com') &&
+                     !source.source.toLowerCase().includes('email') &&
+                     !source.source.toLowerCase().includes('mail') &&
+                     !source.source.toLowerCase().includes('direct') &&
+                     !source.source.toLowerCase().includes('none') &&
+                     !source.source.toLowerCase().includes('direto') && 
+                     <ExternalLinkIcon className="w-5 h-5 text-slate-400" />}
+                    
+                    <span className="font-medium text-white text-sm">{source.source}</span>
+                  </div>
+                  <span className="text-xs text-slate-400">{source.percentage}%</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-2xl font-bold text-white">{formatNumber(source.users)}</span>
+                  <span className="text-xs text-slate-400">visitantes</span>
+                </div>
+                <div className="mt-2 bg-slate-700 rounded-full h-2">
+                  <div 
+                    className="bg-gradient-to-r from-orange-500 to-red-500 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${source.percentage}%` }}
+                  ></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Gráficos Secundários */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Top Páginas */}
           <div>
             <h3 className="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Páginas Mais Visitadas</h3>
