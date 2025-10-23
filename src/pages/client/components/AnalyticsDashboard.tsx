@@ -80,15 +80,16 @@ interface AnalyticsData {
     users: number;
     percentage: number;
   }>;
-  recentVisits: Array<{
-    time: string;
-    source: string;
-    page: string;
-    duration: string;
-    device: string;
-    location: string;
-    ip: string;
-    userAgent: string;
+  events: Array<{
+    created_at: string;
+    event_type: string;
+    page_url: string;
+    referrer: string;
+    device_type: string;
+    country: string;
+    ip_address: string;
+    user_agent: string;
+    session_duration: number;
   }>;
 }
 
@@ -856,40 +857,83 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
           </div>
           
           <div className="space-y-4">
-            {/* Dados dinâmicos do webhook n8n */}
-            {(data.recentVisits || []).length > 0 ? (
-              (data.recentVisits || []).slice(0, 10).map((visit, index) => (
+            {/* Processar dados reais dos eventos do n8n */}
+            {(() => {
+              // Processar eventos para criar visitas recentes
+              const events = data.events || [];
+              const recentEvents = events
+                .filter(event => event.event_type === 'pageview')
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .slice(0, 10);
+
+              return recentEvents.length > 0 ? (
+                recentEvents.map((event, index) => {
+                  // Detectar fonte baseada no referrer
+                  let source = 'Direct';
+                  if (event.referrer) {
+                    if (event.referrer.includes('google')) source = 'Google';
+                    else if (event.referrer.includes('instagram')) source = 'Instagram';
+                    else if (event.referrer.includes('facebook')) source = 'Facebook';
+                    else if (event.referrer.includes('whatsapp')) source = 'WhatsApp';
+                    else if (event.referrer.includes('youtube')) source = 'YouTube';
+                    else if (event.referrer.includes('tiktok')) source = 'TikTok';
+                    else if (event.referrer.includes('linkedin')) source = 'LinkedIn';
+                    else if (event.referrer.includes('twitter')) source = 'Twitter';
+                  }
+
+                  // Formatar duração
+                  const duration = event.session_duration || 0;
+                  const minutes = Math.floor(duration / 60);
+                  const seconds = Math.floor(duration % 60);
+                  const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+                  // Formatar horário
+                  const visitTime = new Date(event.created_at);
+                  const timeStr = visitTime.toLocaleTimeString('pt-BR', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  });
+
+                  return (
               <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-3">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="font-medium text-gray-900">{visit.time}</span>
+                    <span className="font-medium text-gray-900">{timeStr}</span>
                     <span className="text-sm text-gray-600">•</span>
-                    <span className="text-sm text-gray-600">{visit.duration}</span>
+                    <span className="text-sm text-gray-600">{formattedDuration}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    {visit.source === 'Google' && <SearchIcon className="w-4 h-4 text-blue-500" />}
-                    {visit.source === 'Instagram' && <MessageCircleIcon className="w-4 h-4 text-pink-500" />}
-                    {visit.source === 'WhatsApp' && <MessageCircleIcon className="w-4 h-4 text-green-500" />}
-                    <span className="text-sm font-medium text-gray-700">{visit.source}</span>
+                    {source === 'Google' && <SearchIcon className="w-4 h-4 text-blue-500" />}
+                    {source === 'Instagram' && <MessageCircleIcon className="w-4 h-4 text-pink-500" />}
+                    {source === 'WhatsApp' && <MessageCircleIcon className="w-4 h-4 text-green-500" />}
+                    {source === 'Facebook' && <ShareIcon className="w-4 h-4 text-blue-700" />}
+                    {source === 'YouTube' && <YoutubeIcon className="w-4 h-4 text-red-700" />}
+                    {source === 'TikTok' && <MessageCircleIcon className="w-4 h-4 text-gray-900 bg-white rounded" />}
+                    {source === 'LinkedIn' && <LinkedinIcon className="w-4 h-4 text-blue-700" />}
+                    {source === 'Twitter' && <TwitterIcon className="w-4 h-4 text-blue-500" />}
+                    {source === 'Direct' && <GlobeIcon className="w-4 h-4 text-green-600" />}
+                    <span className="text-sm font-medium text-gray-700">{source}</span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-sm text-gray-600">
-                  <span>Página: {visit.page}</span>
+                  <span>Página: {event.page_url || '/'}</span>
                   <div className="flex items-center gap-4">
-                    <span>Dispositivo: {visit.device}</span>
-                    <span>Local: {visit.location}</span>
+                    <span>Dispositivo: {event.device_type || 'Unknown'}</span>
+                    <span>Local: {event.country || 'Unknown'}</span>
                   </div>
                 </div>
               </div>
-              ))
-            ) : (
-              <div className="text-center py-8">
-                <ActivityIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 mb-2">Nenhuma visita registrada ainda</p>
-                <p className="text-sm text-gray-500">Os dados aparecerão aqui quando houver visitas ao site</p>
-              </div>
-            )}
+                  ));
+                })()
+              ) : (
+                <div className="text-center py-8">
+                  <ActivityIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 mb-2">Nenhuma visita registrada ainda</p>
+                  <p className="text-sm text-gray-500">Os dados aparecerão aqui quando houver visitas ao site</p>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
