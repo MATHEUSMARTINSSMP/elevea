@@ -87,21 +87,30 @@ export function useAuth() {
         
         const data: MeResp = await r.json().catch(() => ({} as any));
         console.log("🔍 useAuth: Resposta n8n", data);
+        console.log("🔍 useAuth: Status da resposta", r.status);
+        console.log("🔍 useAuth: data.success =", data?.success);
+        console.log("🔍 useAuth: data.user =", data?.user);
         
         if (!alive) return;
         
-        if ((data?.ok || data?.success) && data.user) {
+        // O n8n retorna um array com um objeto que tem success: true e user: {...}
+        const responseData = Array.isArray(data) ? data[0] : data;
+        console.log("🔍 useAuth: responseData processado", responseData);
+        
+        if (responseData?.success === true && responseData?.user) {
           console.log("🔍 useAuth: Sessão válida, salvando no localStorage");
           const userData = {
-            email: data.user.email,
-            role: data.user.role,
-            siteSlug: data.user.siteSlug || "",
-            plan: data.user.plan || "",
+            email: responseData.user.email,
+            role: responseData.user.role,
+            siteSlug: responseData.user.site_slug || responseData.user.siteSlug || "",
+            plan: responseData.user.user_plan || responseData.user.plan || "",
           };
+          console.log("🔍 useAuth: userData final", userData);
           setUser(userData);
           try { localStorage.setItem("auth", JSON.stringify(userData)); } catch {}
         } else {
           console.log("🔍 useAuth: Sessão inválida, limpando dados");
+          console.log("🔍 useAuth: Motivo - success:", responseData?.success, "user:", !!responseData?.user);
           setUser(null);
           try { localStorage.removeItem("auth"); } catch {}
           try { localStorage.removeItem("elevea_last_email"); } catch {}
