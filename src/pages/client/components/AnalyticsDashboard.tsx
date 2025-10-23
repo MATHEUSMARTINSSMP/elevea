@@ -24,16 +24,19 @@ interface AnalyticsDashboardProps {
 // Cores para gráficos
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
-// Buscar dados reais do GAS
+// Buscar dados reais do N8N Analytics Complete
 const fetchAnalyticsData = async (siteSlug: string, vipPin?: string): Promise<AnalyticsData | null> => {
   try {
-    const response = await fetch('/.netlify/functions/client-api', {
+    const response = await fetch('https://fluxos.eleveaagencia.com.br/webhook/api/analytics/complete', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-APP-KEY': '#mmP220411'
+      },
       body: JSON.stringify({
-        action: 'get_analytics',
-        site: siteSlug,
-        pin: vipPin,
+        action: 'analytics_get_dashboard',
+        site_slug: siteSlug,
+        vip_pin: vipPin,
         range: '30d'
       })
     });
@@ -41,7 +44,7 @@ const fetchAnalyticsData = async (siteSlug: string, vipPin?: string): Promise<An
     if (!response.ok) throw new Error('Falha ao carregar analytics');
 
     const result = await response.json();
-    if (result.ok) {
+    if (result.success) {
       return result.data;
     } else {
       throw new Error(result.error || 'Erro desconhecido');
@@ -69,6 +72,33 @@ const formatPercentage = (num: number): string => {
   return `${num.toFixed(1)}%`;
 };
 
+// Rastrear evento usando N8N Analytics Complete
+const trackEvent = async (siteSlug: string, event: string, properties?: Record<string, any>): Promise<boolean> => {
+  try {
+    const response = await fetch('https://fluxos.eleveaagencia.com.br/webhook/api/analytics/complete', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-APP-KEY': '#mmP220411'
+      },
+      body: JSON.stringify({
+        action: 'analytics_track_event',
+        site_slug: siteSlug,
+        event: event,
+        properties: properties || {},
+        timestamp: new Date().toISOString()
+      })
+    });
+
+    if (!response.ok) return false;
+    const result = await response.json();
+    return result.success || false;
+  } catch (error) {
+    console.error('Erro ao rastrear evento:', error);
+    return false;
+  }
+};
+
 export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashboardProps) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -81,17 +111,35 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
     else setLoading(true);
     setError(null);
 
+    // Rastrear evento de carregamento
+    await trackEvent(siteSlug, 'analytics_dashboard_viewed', { 
+      time_range: timeRange,
+      is_refresh: isRefresh 
+    });
+
     try {
       const analyticsData = await fetchAnalyticsData(siteSlug, vipPin);
       if (analyticsData) {
         setData(analyticsData);
         setError(null);
+        
+        // Rastrear evento de sucesso
+        await trackEvent(siteSlug, 'analytics_data_loaded', { 
+          time_range: timeRange,
+          has_data: true 
+        });
       } else {
         throw new Error('Não foi possível carregar os dados de analytics');
       }
     } catch (err: any) {
       console.error('Erro ao carregar analytics:', err);
       setError(err.message);
+      
+      // Rastrear evento de erro
+      await trackEvent(siteSlug, 'analytics_load_error', { 
+        error: err.message,
+        time_range: timeRange 
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -188,7 +236,13 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                   key={range}
                   variant={timeRange === range ? 'default' : 'outline'}
                   size="sm"
-                  onClick={() => setTimeRange(range)}
+                  onClick={async () => {
+                    setTimeRange(range);
+                    await trackEvent(siteSlug, 'analytics_time_range_changed', { 
+                      new_range: range,
+                      previous_range: timeRange 
+                    });
+                  }}
                   className="text-xs"
                 >
                   {range}
