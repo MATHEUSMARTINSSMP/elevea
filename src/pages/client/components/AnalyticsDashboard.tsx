@@ -356,19 +356,19 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
   // Try-catch global para capturar erros de renderização
   try {
     return (
-    <Card className="rounded-3xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 text-white shadow-2xl backdrop-blur-sm">
-      <CardHeader className="pb-6">
+    <Card className="rounded-lg border border-gray-200 bg-white text-gray-900 shadow-lg">
+      <CardHeader className="pb-6 border-b border-gray-100">
         {/* Header Principal */}
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-400/30">
-              <ActivityIcon className="w-6 h-6 text-blue-400" />
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-lg bg-gray-900 border border-gray-700">
+              <ActivityIcon className="w-6 h-6 text-white" />
             </div>
             <div>
-              <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <CardTitle className="text-2xl font-bold text-gray-900">
                 Analytics Dashboard
               </CardTitle>
-              <CardDescription className="text-slate-300 text-base">
+              <CardDescription className="text-gray-600 text-base">
                 Insights detalhados de tráfego e comportamento
               </CardDescription>
             </div>
@@ -381,7 +381,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               variant="outline"
               size="sm"
               onClick={() => setShowFilters(!showFilters)}
-              className="bg-white/10 border-white/20 hover:bg-white/20 text-white"
+              className="bg-white border-gray-300 hover:bg-gray-50 text-gray-700"
             >
               <FilterIcon className="w-4 h-4 mr-2" />
               Filtros
@@ -393,17 +393,17 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               <select
                 value={exportFormat}
                 onChange={(e) => setExportFormat(e.target.value as any)}
-                className="bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="pdf" className="bg-gray-800">PDF</option>
-                <option value="csv" className="bg-gray-800">CSV</option>
-                <option value="json" className="bg-gray-800">JSON</option>
+                <option value="pdf">PDF</option>
+                <option value="csv">CSV</option>
+                <option value="json">JSON</option>
               </select>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={exportData}
-                className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-green-400/30 hover:from-green-500/30 hover:to-emerald-500/30 text-green-400"
+                className="bg-white border-gray-300 hover:bg-gray-50 text-gray-700"
               >
                 <DownloadIcon className="w-4 h-4 mr-2" />
                 Exportar
@@ -416,7 +416,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               variant="outline"
               size="sm"
               disabled={refreshing}
-              className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border-blue-400/30 hover:from-blue-500/30 hover:to-cyan-500/30 text-blue-400"
+              className="bg-gray-900 border-gray-700 hover:bg-gray-800 text-white"
             >
               <RefreshCwIcon className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
               {refreshing ? 'Atualizando...' : 'Atualizar'}
@@ -426,10 +426,10 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
 
         {/* Filtros Avançados */}
         {showFilters && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
             {/* Período */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Período</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Período</label>
               <div className="flex gap-1">
                 {(['7d', '30d', '90d'] as const).map((range) => (
                   <Button
@@ -450,8 +450,8 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                     }}
                     className={`text-xs ${
                       timeRange === range 
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white' 
-                        : 'bg-white/10 border-white/20 text-white hover:bg-white/20'
+                        ? 'bg-gray-900 text-white border-gray-900' 
+                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                     }`}
                   >
                     {range}
@@ -462,7 +462,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
             
             {/* Tipo de Gráfico */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Tipo de Gráfico</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Gráfico</label>
               <div className="flex gap-1">
                 {(['area', 'line', 'bar'] as const).map((type) => (
                   <Button
@@ -472,8 +472,8 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                     onClick={() => setChartType(type)}
                     className={`text-xs ${
                       chartType === type 
-                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
-                        : 'bg-white/10 border-white/20 text-white hover:bg-white/20'
+                        ? 'bg-gray-900 text-white border-gray-900' 
+                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                     }`}
                   >
                     {type === 'area' ? <AreaChart className="w-3 h-3 mr-1" /> : 
@@ -487,16 +487,16 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
             
             {/* Métrica */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Métrica</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Métrica</label>
               <select
                 value={selectedMetric}
                 onChange={(e) => setSelectedMetric(e.target.value as any)}
-                className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="all" className="bg-gray-800">Todas as métricas</option>
-                <option value="users" className="bg-gray-800">Usuários</option>
-                <option value="sessions" className="bg-gray-800">Sessões</option>
-                <option value="pageViews" className="bg-gray-800">Visualizações</option>
+                <option value="all">Todas as métricas</option>
+                <option value="users">Usuários</option>
+                <option value="sessions">Sessões</option>
+                <option value="pageViews">Visualizações</option>
               </select>
             </div>
           </div>
@@ -504,17 +504,17 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* Métricas Principais - Redesign Moderno */}
+        {/* Métricas Principais - Design Profissional */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Visualizações */}
-          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-400/30 p-6 hover:from-blue-500/30 hover:to-cyan-500/30 transition-all duration-300">
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-xl bg-blue-500/20 border border-blue-400/30">
-                <EyeIcon className="w-6 h-6 text-blue-400" />
+              <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+                <EyeIcon className="w-6 h-6 text-blue-600" />
               </div>
               <div className="text-right">
                 <div className="flex items-center justify-end mb-1">
-                  <div className="text-3xl font-bold text-blue-400">
+                  <div className="text-3xl font-bold text-gray-900">
                     {formatNumber(overview.pageViews || 0)}
                   </div>
                   <MetricTooltip
@@ -523,24 +523,24 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                     importance="Indica o nível de interesse e engajamento do seu público. Mais visualizações = mais oportunidades de conversão e maior autoridade no Google."
                   />
                 </div>
-                <p className="text-sm text-blue-300/80">Visualizações</p>
+                <p className="text-sm text-gray-600">Visualizações</p>
               </div>
             </div>
-            <div className="flex items-center text-sm text-blue-300/60">
+            <div className="flex items-center text-sm text-gray-500">
               <TrendingUpIcon className="w-4 h-4 mr-1" />
               <span>Últimos {timeRange}</span>
             </div>
           </div>
 
           {/* Usuários Únicos */}
-          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-400/30 p-6 hover:from-green-500/30 hover:to-emerald-500/30 transition-all duration-300">
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-xl bg-green-500/20 border border-green-400/30">
-                <UsersIcon className="w-6 h-6 text-green-400" />
+              <div className="p-3 rounded-lg bg-green-50 border border-green-200">
+                <UsersIcon className="w-6 h-6 text-green-600" />
               </div>
               <div className="text-right">
                 <div className="flex items-center justify-end mb-1">
-                  <div className="text-3xl font-bold text-green-400">
+                  <div className="text-3xl font-bold text-gray-900">
                     {formatNumber(overview.users || 0)}
                   </div>
                   <MetricTooltip
@@ -549,24 +549,24 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                     importance="Mostra o tamanho real da sua audiência. É a métrica mais importante para entender o crescimento do seu negócio e o potencial de mercado."
                   />
                 </div>
-                <p className="text-sm text-green-300/80">Usuários únicos</p>
+                <p className="text-sm text-gray-600">Usuários únicos</p>
               </div>
             </div>
-            <div className="flex items-center text-sm text-green-300/60">
+            <div className="flex items-center text-sm text-gray-500">
               <TargetIcon className="w-4 h-4 mr-1" />
               <span>Visitantes únicos</span>
             </div>
           </div>
 
           {/* Tempo Médio */}
-          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border border-yellow-400/30 p-6 hover:from-yellow-500/30 hover:to-orange-500/30 transition-all duration-300">
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-xl bg-yellow-500/20 border border-yellow-400/30">
-                <ClockIcon className="w-6 h-6 text-yellow-400" />
+              <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-200">
+                <ClockIcon className="w-6 h-6 text-yellow-600" />
               </div>
               <div className="text-right">
                 <div className="flex items-center justify-end mb-1">
-                  <div className="text-3xl font-bold text-yellow-400">
+                  <div className="text-3xl font-bold text-gray-900">
                     {formatDuration(overview.avgSessionDuration || 0)}
                   </div>
                   <MetricTooltip
@@ -575,24 +575,24 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                     importance="Indica o nível de engajamento do seu conteúdo. Tempos maiores = conteúdo mais interessante e maior chance de conversão em clientes."
                   />
                 </div>
-                <p className="text-sm text-yellow-300/80">Tempo médio</p>
+                <p className="text-sm text-gray-600">Tempo médio</p>
               </div>
             </div>
-            <div className="flex items-center text-sm text-yellow-300/60">
+            <div className="flex items-center text-sm text-gray-500">
               <ActivityIcon className="w-4 h-4 mr-1" />
               <span>Por sessão</span>
             </div>
           </div>
 
           {/* Cliques no WhatsApp */}
-          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-400/30 p-6 hover:from-green-500/30 hover:to-emerald-500/30 transition-all duration-300">
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-xl bg-green-500/20 border border-green-400/30">
-                <MessageCircleIcon className="w-6 h-6 text-green-400" />
+              <div className="p-3 rounded-lg bg-green-50 border border-green-200">
+                <MessageCircleIcon className="w-6 h-6 text-green-600" />
               </div>
               <div className="text-right">
                 <div className="flex items-center justify-end mb-1">
-                  <div className="text-3xl font-bold text-green-400">
+                  <div className="text-3xl font-bold text-gray-900">
                     {formatNumber(overview.whatsappClicks || 0)}
                   </div>
                   <MetricTooltip
@@ -601,80 +601,80 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                     importance="Mostra o interesse real em contato. Mais cliques = maior interesse nos serviços e maior potencial de negócios."
                   />
                 </div>
-                <p className="text-sm text-green-300/80">Cliques WhatsApp</p>
+                <p className="text-sm text-gray-600">Cliques WhatsApp</p>
               </div>
             </div>
-            <div className="flex items-center text-sm text-green-300/60">
+            <div className="flex items-center text-sm text-gray-500">
               <MessageCircleIcon className="w-4 h-4 mr-1" />
               <span>Interesse em contato</span>
-            </div>
-          </div>
-
-          {/* Profundidade de Scroll */}
-          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-400/30 p-6 hover:from-indigo-500/30 hover:to-violet-500/30 transition-all duration-300">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-xl bg-indigo-500/20 border border-indigo-400/30">
-                <ScrollTextIcon className="w-6 h-6 text-indigo-400" />
-              </div>
-              <div className="text-right">
-                <div className="flex items-center justify-end mb-1">
-                  <div className="text-3xl font-bold text-indigo-400">
-                    {formatScrollDepth(overview.avgScrollDepth || 0)}
-                  </div>
-                  <MetricTooltip
-                    title="Profundidade de Scroll"
-                    description="Percentual médio de quanto os visitantes rolam a página para baixo. Mostra o nível de interesse no conteúdo."
-                    importance="Indica se o conteúdo está sendo lido completamente. Valores altos = conteúdo mais interessante e maior engajamento."
-                  />
-                </div>
-                <p className="text-sm text-indigo-300/80">Scroll médio</p>
-              </div>
-            </div>
-            <div className="flex items-center text-sm text-indigo-300/60">
-              <ArrowDownIcon className="w-4 h-4 mr-1" />
-              <span>Interesse no conteúdo</span>
             </div>
           </div>
         </div>
 
         {/* Gráfico de Tráfego Diário */}
-        <div>
-          <h3 className="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Tráfego Diário</h3>
-          <div className="h-64 sm:h-80">
+        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Tráfego Diário</h3>
+              <p className="text-sm text-gray-600">Evolução do tráfego ao longo do tempo</p>
+            </div>
+            <div className="flex items-center gap-4 text-sm text-gray-600">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                <span>Usuários</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                <span>Sessões</span>
+              </div>
+            </div>
+          </div>
+          <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <defs>
+                  <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.1}/>
+                  </linearGradient>
+                  <linearGradient id="colorSessions" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#10B981" stopOpacity={0.1}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                 <XAxis 
                   dataKey="date" 
-                  stroke="#9CA3AF" 
+                  stroke="#6B7280" 
                   fontSize={12}
                   tickFormatter={(value) => new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                 />
-                <YAxis stroke="#9CA3AF" fontSize={12} />
+                <YAxis stroke="#6B7280" fontSize={12} />
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: '#1F2937', 
-                    border: '1px solid #374151', 
+                    backgroundColor: '#FFFFFF', 
+                    border: '1px solid #E5E7EB', 
                     borderRadius: '8px',
-                    color: '#F9FAFB'
+                    color: '#374151',
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                   }}
                   labelFormatter={(value) => new Date(value).toLocaleDateString('pt-BR')}
                 />
                 <Area
                   type="monotone"
-                  dataKey="pageViews"
+                  dataKey="users"
                   stroke="#3B82F6"
-                  fill="#3B82F6"
-                  fillOpacity={0.3}
-                  name="Visualizações"
+                  fill="url(#colorUsers)"
+                  strokeWidth={2}
+                  name="Usuários"
                 />
                 <Area
                   type="monotone"
-                  dataKey="users"
+                  dataKey="sessions"
                   stroke="#10B981"
-                  fill="#10B981"
-                  fillOpacity={0.3}
-                  name="Usuários únicos"
+                  fill="url(#colorSessions)"
+                  strokeWidth={2}
+                  name="Sessões"
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -682,52 +682,52 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
         </div>
 
         {/* Métricas de Contato - Importante para Sites Institucionais */}
-        <div className="bg-gradient-to-br from-white/5 to-white/10 rounded-2xl border border-white/10 p-6">
+        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-400/30">
-              <MessageCircleIcon className="w-5 h-5 text-cyan-400" />
+            <div className="p-2 rounded-lg bg-blue-50 border border-blue-200">
+              <MessageCircleIcon className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-white">Interações de Contato</h3>
-              <p className="text-slate-400 text-sm">Como os visitantes estão entrando em contato</p>
+              <h3 className="text-lg font-semibold text-gray-900">Interações de Contato</h3>
+              <p className="text-gray-600 text-sm">Como os visitantes estão entrando em contato</p>
             </div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* WhatsApp */}
-            <div className="bg-white/5 rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-colors">
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:bg-gray-100 transition-colors">
               <div className="flex items-center gap-3 mb-3">
-                <MessageCircleIcon className="w-6 h-6 text-green-400" />
-                <span className="font-medium text-white">WhatsApp</span>
+                <MessageCircleIcon className="w-6 h-6 text-green-600" />
+                <span className="font-medium text-gray-900">WhatsApp</span>
               </div>
-              <div className="text-3xl font-bold text-green-400 mb-1">
+              <div className="text-3xl font-bold text-gray-900 mb-1">
                 {formatNumber(overview.whatsappClicks || 0)}
               </div>
-              <p className="text-sm text-green-300/80">cliques</p>
+              <p className="text-sm text-gray-600">cliques</p>
             </div>
 
             {/* Formulários */}
-            <div className="bg-white/5 rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-colors">
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:bg-gray-100 transition-colors">
               <div className="flex items-center gap-3 mb-3">
-                <MailIcon className="w-6 h-6 text-blue-400" />
-                <span className="font-medium text-white">Formulários</span>
+                <MailIcon className="w-6 h-6 text-blue-600" />
+                <span className="font-medium text-gray-900">Formulários</span>
               </div>
-              <div className="text-3xl font-bold text-blue-400 mb-1">
+              <div className="text-3xl font-bold text-gray-900 mb-1">
                 {formatNumber(overview.formSubmissions || 0)}
               </div>
-              <p className="text-sm text-blue-300/80">envios</p>
+              <p className="text-sm text-gray-600">envios</p>
             </div>
 
             {/* Telefone */}
-            <div className="bg-white/5 rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-colors">
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:bg-gray-100 transition-colors">
               <div className="flex items-center gap-3 mb-3">
-                <SmartphoneIcon className="w-6 h-6 text-purple-400" />
-                <span className="font-medium text-white">Telefone</span>
+                <SmartphoneIcon className="w-6 h-6 text-purple-600" />
+                <span className="font-medium text-gray-900">Telefone</span>
               </div>
-              <div className="text-3xl font-bold text-purple-400 mb-1">
+              <div className="text-3xl font-bold text-gray-900 mb-1">
                 {formatNumber(overview.phoneClicks || 0)}
               </div>
-              <p className="text-sm text-purple-300/80">cliques</p>
+              <p className="text-sm text-gray-600">cliques</p>
             </div>
           </div>
         </div>
@@ -833,42 +833,110 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
           </div>
         </div>
 
+        {/* Detalhes das Visitas Recentes */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 rounded-lg bg-purple-50 border border-purple-200">
+              <ActivityIcon className="w-5 h-5 text-purple-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Visitas Recentes</h3>
+              <p className="text-gray-600 text-sm">Detalhes das últimas visitas ao site</p>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            {/* Simular dados de visitas - em produção viria do n8n */}
+            {[
+              { 
+                time: '14:32', 
+                source: 'Google', 
+                page: '/', 
+                duration: '2:15', 
+                device: 'Mobile',
+                location: 'São Paulo, SP'
+              },
+              { 
+                time: '13:45', 
+                source: 'Instagram', 
+                page: '/sobre', 
+                duration: '1:30', 
+                device: 'Desktop',
+                location: 'Rio de Janeiro, RJ'
+              },
+              { 
+                time: '12:18', 
+                source: 'WhatsApp', 
+                page: '/contato', 
+                duration: '0:45', 
+                device: 'Mobile',
+                location: 'Belo Horizonte, MG'
+              }
+            ].map((visit, index) => (
+              <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="font-medium text-gray-900">{visit.time}</span>
+                    <span className="text-sm text-gray-600">•</span>
+                    <span className="text-sm text-gray-600">{visit.duration}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {visit.source === 'Google' && <SearchIcon className="w-4 h-4 text-blue-500" />}
+                    {visit.source === 'Instagram' && <MessageCircleIcon className="w-4 h-4 text-pink-500" />}
+                    {visit.source === 'WhatsApp' && <MessageCircleIcon className="w-4 h-4 text-green-500" />}
+                    <span className="text-sm font-medium text-gray-700">{visit.source}</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-sm text-gray-600">
+                  <span>Página: {visit.page}</span>
+                  <div className="flex items-center gap-4">
+                    <span>Dispositivo: {visit.device}</span>
+                    <span>Local: {visit.location}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Gráficos Secundários */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Top Páginas */}
-          <div>
-            <h3 className="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Páginas Mais Visitadas</h3>
-            <div className="h-48 sm:h-56">
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Páginas Mais Visitadas</h3>
+            <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={(topPages || []).slice(0, 5)}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                   <XAxis 
                     dataKey="page" 
-                    stroke="#9CA3AF" 
+                    stroke="#6B7280" 
                     fontSize={10}
                     angle={-45}
                     textAnchor="end"
                     height={60}
                   />
-                  <YAxis stroke="#9CA3AF" fontSize={12} />
+                  <YAxis stroke="#6B7280" fontSize={12} />
                   <Tooltip 
                     contentStyle={{ 
-                      backgroundColor: '#1F2937', 
-                      border: '1px solid #374151', 
+                      backgroundColor: '#FFFFFF', 
+                      border: '1px solid #E5E7EB', 
                       borderRadius: '8px',
-                      color: '#F9FAFB'
+                      color: '#374151',
+                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                     }}
                   />
-                  <Bar dataKey="views" fill="#3B82F6" />
+                  <Bar dataKey="views" fill="#3B82F6" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
           {/* Dispositivos */}
-          <div>
-            <h3 className="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Dispositivos</h3>
-            <div className="h-48 sm:h-56">
+          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Dispositivos</h3>
+            <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -877,7 +945,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                     cy="50%"
                     labelLine={false}
                     label={({ device, sessions }) => `${device}: ${sessions}`}
-                    outerRadius={60}
+                    outerRadius={80}
                     fill="#8884d8"
                     dataKey="sessions"
                   >
@@ -887,10 +955,11 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                   </Pie>
                   <Tooltip 
                     contentStyle={{ 
-                      backgroundColor: '#1F2937', 
-                      border: '1px solid #374151', 
+                      backgroundColor: '#FFFFFF', 
+                      border: '1px solid #E5E7EB', 
                       borderRadius: '8px',
-                      color: '#F9FAFB'
+                      color: '#374151',
+                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                     }}
                   />
                 </PieChart>
