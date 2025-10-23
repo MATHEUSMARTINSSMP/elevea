@@ -80,6 +80,16 @@ interface AnalyticsData {
     users: number;
     percentage: number;
   }>;
+  recentVisits: Array<{
+    time: string;
+    source: string;
+    page: string;
+    duration: string;
+    device: string;
+    location: string;
+    ip: string;
+    userAgent: string;
+  }>;
 }
 
 interface AnalyticsDashboardProps {
@@ -846,33 +856,9 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
           </div>
           
           <div className="space-y-4">
-            {/* Simular dados de visitas - em produção viria do n8n */}
-            {[
-              { 
-                time: '14:32', 
-                source: 'Google', 
-                page: '/', 
-                duration: '2:15', 
-                device: 'Mobile',
-                location: 'São Paulo, SP'
-              },
-              { 
-                time: '13:45', 
-                source: 'Instagram', 
-                page: '/sobre', 
-                duration: '1:30', 
-                device: 'Desktop',
-                location: 'Rio de Janeiro, RJ'
-              },
-              { 
-                time: '12:18', 
-                source: 'WhatsApp', 
-                page: '/contato', 
-                duration: '0:45', 
-                device: 'Mobile',
-                location: 'Belo Horizonte, MG'
-              }
-            ].map((visit, index) => (
+            {/* Dados dinâmicos do webhook n8n */}
+            {(data.recentVisits || []).length > 0 ? (
+              (data.recentVisits || []).slice(0, 10).map((visit, index) => (
               <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-3">
@@ -896,7 +882,14 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                   </div>
                 </div>
               </div>
-            ))}
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <ActivityIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 mb-2">Nenhuma visita registrada ainda</p>
+                <p className="text-sm text-gray-500">Os dados aparecerão aqui quando houver visitas ao site</p>
+              </div>
+            )}
           </div>
         </div>
 
