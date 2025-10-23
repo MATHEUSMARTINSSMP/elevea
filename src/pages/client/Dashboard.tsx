@@ -844,7 +844,17 @@ useEffect(() => {
     authLogout();
   }
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-[#0B1220]">
+        <div className="text-white text-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
+          <p>Carregando dados do usuário...</p>
+          <p className="text-sm text-gray-400">Se não carregar, faça login novamente</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0B1220] p-3 sm:p-6 text-white">
