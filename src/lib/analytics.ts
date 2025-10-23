@@ -1,8 +1,22 @@
 // src/lib/analytics.ts
-// Sistema de rastreamento de analytics para sites dos clientes
+// Sistema de rastreamento de analytics integrado com n8n
 
-const GAS_URL = import.meta.env.VITE_GAS_BASE_URL || import.meta.env.ELEVEA_GAS_URL;
-const SITE_SLUG = import.meta.env.ELEVEA_SITE_SLUG;
+const N8N_BASE_URL = 'https://fluxos.eleveaagencia.com.br/webhook';
+const ANALYTICS_URL = `${N8N_BASE_URL}/api/analytics/complete`;
+const TRACK_URL = `${N8N_BASE_URL}/api/analytics/track`;
+const FEEDBACK_URL = `${N8N_BASE_URL}/api/feedback/submit`;
+const FEEDBACK_PUBLIC_URL = `${N8N_BASE_URL}/api/feedback/public`;
+
+const APP_KEY_HEADER = "X-APP-KEY";
+// fallback ajuda em build local; em produção deixe via env
+const APP_KEY = (import.meta as any).env?.VITE_APP_KEY || "#mmP220411";
+
+function analyticsHeaders(): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    ...(APP_KEY ? { [APP_KEY_HEADER]: APP_KEY } : {}),
+  };
+}
 
 // Interface para dados de analytics
 interface AnalyticsHit {
@@ -24,6 +38,36 @@ interface AnalyticsEvent {
   category: string;
   value?: number;
   metadata?: Record<string, any>;
+}
+
+interface AnalyticsData {
+  overview: {
+    users: number;
+    sessions: number;
+    pageViews: number;
+    bounceRate: number;
+    avgSessionDuration: number;
+    conversions: number;
+  };
+  chartData: Array<{
+    date: string;
+    users: number;
+    sessions: number;
+    pageViews: number;
+  }>;
+  topPages: Array<{
+    page: string;
+    views: number;
+  }>;
+  deviceBreakdown: Array<{
+    device: string;
+    sessions: number;
+    percentage: number;
+  }>;
+  countryBreakdown: Array<{
+    country: string;
+    users: number;
+  }>;
 }
 
 // Detectar informações do dispositivo
@@ -80,7 +124,7 @@ function getUTMParams() {
   };
 }
 
-// Enviar hit para o GAS
+// Enviar hit para o n8n
 export async function recordHit(data: Partial<AnalyticsHit> = {}) {
   try {
     const deviceInfo = getDeviceInfo();
@@ -88,7 +132,8 @@ export async function recordHit(data: Partial<AnalyticsHit> = {}) {
     const utmParams = getUTMParams();
     
     const hitData = {
-      site: SITE_SLUG,
+      action: 'analytics_track_hit',
+      site_slug: data.site_slug || window.location.hostname,
       path: data.path || window.location.pathname,
       referrer: data.referrer || document.referrer,
       utm: { ...utmParams, ...data.utm },
@@ -101,28 +146,31 @@ export async function recordHit(data: Partial<AnalyticsHit> = {}) {
       ...data
     };
 
-    const response = await fetch(`${GAS_URL}?type=recordHit_&site=${encodeURIComponent(SITE_SLUG)}`, {
+    const response = await fetch(TRACK_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: analyticsHeaders(),
       body: JSON.stringify(hitData)
     });
 
+    let result: any = {};
+    try { result = await response.json(); } catch {}
+
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(result?.error || result?.message || `HTTP ${response.status}`);
     }
 
-    return await response.json();
+    return result;
   } catch (error) {
     console.error('Erro ao registrar hit:', error);
     return { ok: false, error: error.message };
   }
 }
 
-// Enviar evento para o GAS
-export async function recordEvent(data: AnalyticsEvent & { site?: string }) {
+// Enviar evento para o n8n
+export async function recordEvent(data: AnalyticsEvent & { site_slug?: string }) {
   try {
     const deviceInfo = getDeviceInfo();
-    const siteSlug = data.site || SITE_SLUG;
+    const siteSlug = data.site_slug || window.location.hostname;
     
     // Se não tem site, não registrar evento
     if (!siteSlug) {
@@ -131,7 +179,8 @@ export async function recordEvent(data: AnalyticsEvent & { site?: string }) {
     }
     
     const eventData = {
-      site: siteSlug,
+      action: 'analytics_track_event',
+      site_slug: siteSlug,
       event: data.event,
       category: data.category,
       value: data.value || 0,
@@ -142,20 +191,56 @@ export async function recordEvent(data: AnalyticsEvent & { site?: string }) {
       }
     };
 
-    const response = await fetch(`${GAS_URL}?type=recordEvent_&site=${encodeURIComponent(siteSlug)}`, {
+    const response = await fetch(TRACK_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: analyticsHeaders(),
       body: JSON.stringify(eventData)
     });
 
+    let result: any = {};
+    try { result = await response.json(); } catch {}
+
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(result?.error || result?.message || `HTTP ${response.status}`);
     }
 
-    return await response.json();
+    return result;
   } catch (error) {
     console.error('Erro ao registrar evento:', error);
     return { ok: false, error: error.message };
+  }
+}
+
+// Buscar dados de analytics do n8n
+export async function fetchAnalyticsData(siteSlug: string, range: string = '30d', vipPin?: string): Promise<AnalyticsData | null> {
+  try {
+    const response = await fetch(ANALYTICS_URL, {
+      method: 'POST',
+      headers: analyticsHeaders(),
+      body: JSON.stringify({
+        action: 'analytics_get_dashboard',
+        site_slug: siteSlug,
+        range: range,
+        vip_pin: vipPin
+      })
+    });
+
+    let result: any = {};
+    try { result = await response.json(); } catch {}
+
+    if (!response.ok) {
+      throw new Error(result?.error || result?.message || `HTTP ${response.status}`);
+    }
+
+    // Verificar se a resposta indica sucesso (seguindo padrão do login)
+    if (result?.success === true || result?.ok === true) {
+      return result.data || null;
+    } else {
+      throw new Error(result?.error || result?.message || 'Erro desconhecido');
+    }
+  } catch (error) {
+    console.error('Erro ao buscar dados de analytics:', error);
+    return null;
   }
 }
 
@@ -363,32 +448,38 @@ export function initAnalytics() {
   // Rastrear saída da página
   window.addEventListener('beforeunload', stopPageTracking);
   
-  console.log('Analytics inicializado com sucesso');
+  console.log('Analytics inicializado com sucesso (n8n)');
 }
 
-// Função para enviar feedback
+// Função para enviar feedback via n8n
 export async function submitFeedback(data: {
   name: string;
   email?: string;
   phone?: string;
   rating: number;
   message: string;
+  site_slug?: string;
 }) {
   try {
-    const response = await fetch(`${GAS_URL}?type=feedback&action=submit&site=${encodeURIComponent(SITE_SLUG)}`, {
+    const response = await fetch(FEEDBACK_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      headers: analyticsHeaders(),
+      body: JSON.stringify({
+        action: 'feedback_submit',
+        ...data,
+        site_slug: data.site_slug || window.location.hostname
+      })
     });
 
+    let result: any = {};
+    try { result = await response.json(); } catch {}
+
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(result?.error || result?.message || `HTTP ${response.status}`);
     }
 
-    const result = await response.json();
-    
     // Rastrear envio de feedback
-    if (result.ok) {
+    if (result?.success === true || result?.ok === true) {
       recordEvent({
         event: 'feedback_submit',
         category: 'conversion',
@@ -408,16 +499,26 @@ export async function submitFeedback(data: {
   }
 }
 
-// Função para buscar feedbacks públicos
-export async function getPublicFeedbacks() {
+// Função para buscar feedbacks públicos via n8n
+export async function getPublicFeedbacks(siteSlug: string) {
   try {
-    const response = await fetch(`${GAS_URL}?type=feedback&action=get_public&site=${encodeURIComponent(SITE_SLUG)}`);
+    const response = await fetch(FEEDBACK_PUBLIC_URL, {
+      method: 'POST',
+      headers: analyticsHeaders(),
+      body: JSON.stringify({
+        action: 'feedback_get_public',
+        site_slug: siteSlug
+      })
+    });
     
+    let result: any = {};
+    try { result = await response.json(); } catch {}
+
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(result?.error || result?.message || `HTTP ${response.status}`);
     }
 
-    return await response.json();
+    return result;
   } catch (error) {
     console.error('Erro ao buscar feedbacks:', error);
     return { ok: false, data: { feedbacks: [] } };

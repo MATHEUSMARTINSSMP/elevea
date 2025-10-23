@@ -3,17 +3,36 @@ import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, X
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RefreshCwIcon, TrendingUpIcon, UsersIcon, EyeIcon, ClockIcon, MousePointerIcon } from 'lucide-react';
+import { fetchAnalyticsData, recordEvent } from '@/lib/analytics';
 
 interface AnalyticsData {
-  pageViews: number;
-  uniqueVisitors: number;
-  avgTimeOnPage: number;
-  bounceRate: number;
-  topPages: Array<{ path: string; count: number }>;
-  trafficSources: Array<{ source: string; count: number }>;
-  devices: Array<{ device: string; count: number }>;
-  events: Array<{ event: string; count: number }>;
-  dailyStats: Array<{ date: string; pageViews: number; uniqueVisitors: number }>;
+  overview: {
+    users: number;
+    sessions: number;
+    pageViews: number;
+    bounceRate: number;
+    avgSessionDuration: number;
+    conversions: number;
+  };
+  chartData: Array<{
+    date: string;
+    users: number;
+    sessions: number;
+    pageViews: number;
+  }>;
+  topPages: Array<{
+    page: string;
+    views: number;
+  }>;
+  deviceBreakdown: Array<{
+    device: string;
+    sessions: number;
+    percentage: number;
+  }>;
+  countryBreakdown: Array<{
+    country: string;
+    users: number;
+  }>;
 }
 
 interface AnalyticsDashboardProps {
@@ -24,36 +43,7 @@ interface AnalyticsDashboardProps {
 // Cores para gráficos
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
-// Buscar dados reais do N8N Analytics Complete
-const fetchAnalyticsData = async (siteSlug: string, vipPin?: string): Promise<AnalyticsData | null> => {
-  try {
-    const response = await fetch('https://fluxos.eleveaagencia.com.br/webhook/api/analytics/complete', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'X-APP-KEY': '#mmP220411'
-      },
-      body: JSON.stringify({
-        action: 'analytics_get_dashboard',
-        site_slug: siteSlug,
-        vip_pin: vipPin,
-        range: '30d'
-      })
-    });
-
-    if (!response.ok) throw new Error('Falha ao carregar analytics');
-
-    const result = await response.json();
-    if (result.success) {
-      return result.data;
-    } else {
-      throw new Error(result.error || 'Erro desconhecido');
-    }
-  } catch (error) {
-    console.error('Erro ao buscar dados de analytics:', error);
-    return null;
-  }
-};
+// Usar a função da lib analytics
 
 // Formatar duração da sessão
 const formatDuration = (seconds: number): string => {
@@ -72,32 +62,7 @@ const formatPercentage = (num: number): string => {
   return `${num.toFixed(1)}%`;
 };
 
-// Rastrear evento usando N8N Analytics Complete
-const trackEvent = async (siteSlug: string, event: string, properties?: Record<string, any>): Promise<boolean> => {
-  try {
-    const response = await fetch('https://fluxos.eleveaagencia.com.br/webhook/api/analytics/complete', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'X-APP-KEY': '#mmP220411'
-      },
-      body: JSON.stringify({
-        action: 'analytics_track_event',
-        site_slug: siteSlug,
-        event: event,
-        properties: properties || {},
-        timestamp: new Date().toISOString()
-      })
-    });
-
-    if (!response.ok) return false;
-    const result = await response.json();
-    return result.success || false;
-  } catch (error) {
-    console.error('Erro ao rastrear evento:', error);
-    return false;
-  }
-};
+// Usar a função da lib analytics
 
 export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashboardProps) {
   const [loading, setLoading] = useState(true);
@@ -112,21 +77,31 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
     setError(null);
 
     // Rastrear evento de carregamento
-    await trackEvent(siteSlug, 'analytics_dashboard_viewed', { 
-      time_range: timeRange,
-      is_refresh: isRefresh 
+    await recordEvent({
+      event: 'analytics_dashboard_viewed',
+      category: 'engagement',
+      site_slug: siteSlug,
+      metadata: { 
+        time_range: timeRange,
+        is_refresh: isRefresh 
+      }
     });
 
     try {
-      const analyticsData = await fetchAnalyticsData(siteSlug, vipPin);
+      const analyticsData = await fetchAnalyticsData(siteSlug, timeRange, vipPin);
       if (analyticsData) {
         setData(analyticsData);
         setError(null);
         
         // Rastrear evento de sucesso
-        await trackEvent(siteSlug, 'analytics_data_loaded', { 
-          time_range: timeRange,
-          has_data: true 
+        await recordEvent({
+          event: 'analytics_data_loaded',
+          category: 'engagement',
+          site_slug: siteSlug,
+          metadata: { 
+            time_range: timeRange,
+            has_data: true 
+          }
         });
       } else {
         throw new Error('Não foi possível carregar os dados de analytics');
@@ -136,9 +111,14 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
       setError(err.message);
       
       // Rastrear evento de erro
-      await trackEvent(siteSlug, 'analytics_load_error', { 
-        error: err.message,
-        time_range: timeRange 
+      await recordEvent({
+        event: 'analytics_load_error',
+        category: 'error',
+        site_slug: siteSlug,
+        metadata: { 
+          error: err.message,
+          time_range: timeRange 
+        }
       });
     } finally {
       setLoading(false);
@@ -214,7 +194,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
     );
   }
 
-  const { pageViews, uniqueVisitors, avgTimeOnPage, bounceRate, topPages, trafficSources, devices, events, dailyStats } = data;
+  const { overview, chartData, topPages, deviceBreakdown, countryBreakdown } = data;
 
   return (
     <Card className="rounded-2xl border border-white/10 bg-white/5 text-white">
@@ -238,9 +218,14 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                   size="sm"
                   onClick={async () => {
                     setTimeRange(range);
-                    await trackEvent(siteSlug, 'analytics_time_range_changed', { 
-                      new_range: range,
-                      previous_range: timeRange 
+                    await recordEvent({
+                      event: 'analytics_time_range_changed',
+                      category: 'engagement',
+                      site_slug: siteSlug,
+                      metadata: { 
+                        new_range: range,
+                        previous_range: timeRange 
+                      }
                     });
                   }}
                   className="text-xs"
@@ -271,7 +256,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               <EyeIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
             </div>
             <div className="text-lg sm:text-xl font-bold text-blue-400 mb-1">
-              {formatNumber(pageViews)}
+              {formatNumber(overview.pageViews)}
             </div>
             <p className="text-xs sm:text-sm text-slate-400">Visualizações</p>
           </div>
@@ -281,9 +266,9 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               <UsersIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
             </div>
             <div className="text-lg sm:text-xl font-bold text-green-400 mb-1">
-              {formatNumber(uniqueVisitors)}
+              {formatNumber(overview.users)}
             </div>
-            <p className="text-xs sm:text-sm text-slate-400">Visitantes únicos</p>
+            <p className="text-xs sm:text-sm text-slate-400">Usuários únicos</p>
           </div>
 
           <div className="text-center p-3 sm:p-4 bg-white/10 rounded-lg">
@@ -291,7 +276,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               <ClockIcon className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
             </div>
             <div className="text-lg sm:text-xl font-bold text-yellow-400 mb-1">
-              {formatDuration(avgTimeOnPage)}
+              {formatDuration(overview.avgSessionDuration)}
             </div>
             <p className="text-xs sm:text-sm text-slate-400">Tempo médio</p>
           </div>
@@ -301,7 +286,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               <MousePointerIcon className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
             </div>
             <div className="text-lg sm:text-xl font-bold text-purple-400 mb-1">
-              {formatPercentage(bounceRate)}
+              {formatPercentage(overview.bounceRate)}
             </div>
             <p className="text-xs sm:text-sm text-slate-400">Taxa de rejeição</p>
           </div>
@@ -312,7 +297,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
           <h3 className="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Tráfego Diário</h3>
           <div className="h-64 sm:h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={dailyStats}>
+              <AreaChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis 
                   dataKey="date" 
@@ -340,11 +325,11 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                 />
                 <Area
                   type="monotone"
-                  dataKey="uniqueVisitors"
+                  dataKey="users"
                   stroke="#10B981"
                   fill="#10B981"
                   fillOpacity={0.3}
-                  name="Visitantes únicos"
+                  name="Usuários únicos"
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -361,7 +346,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                 <BarChart data={topPages.slice(0, 5)}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                   <XAxis 
-                    dataKey="path" 
+                    dataKey="page" 
                     stroke="#9CA3AF" 
                     fontSize={10}
                     angle={-45}
@@ -377,7 +362,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                       color: '#F9FAFB'
                     }}
                   />
-                  <Bar dataKey="count" fill="#3B82F6" />
+                  <Bar dataKey="views" fill="#3B82F6" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -390,16 +375,16 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={devices}
+                    data={deviceBreakdown}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ device, count }) => `${device}: ${count}`}
+                    label={({ device, sessions }) => `${device}: ${sessions}`}
                     outerRadius={60}
                     fill="#8884d8"
-                    dataKey="count"
+                    dataKey="sessions"
                   >
-                    {devices.map((entry, index) => (
+                    {deviceBreakdown.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
@@ -417,39 +402,24 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
           </div>
         </div>
 
-        {/* Fontes de Tráfego */}
+        {/* Países */}
         <div>
-          <h3 className="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Fontes de Tráfego</h3>
+          <h3 className="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Países</h3>
           <div className="space-y-2">
-            {trafficSources.slice(0, 5).map((source, index) => (
-              <div key={source.source} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
+            {countryBreakdown.slice(0, 5).map((country, index) => (
+              <div key={country.country} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
                 <div className="flex items-center gap-2">
                   <div 
                     className="w-3 h-3 rounded-full" 
                     style={{ backgroundColor: COLORS[index % COLORS.length] }}
                   />
-                  <span className="text-sm text-slate-300">{source.source}</span>
+                  <span className="text-sm text-slate-300">{country.country}</span>
                 </div>
-                <span className="text-sm font-medium text-white">{formatNumber(source.count)}</span>
+                <span className="text-sm font-medium text-white">{formatNumber(country.users)}</span>
               </div>
             ))}
           </div>
         </div>
-
-        {/* Eventos Mais Comuns */}
-        {events.length > 0 && (
-          <div>
-            <h3 className="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Eventos Mais Comuns</h3>
-            <div className="space-y-2">
-              {events.slice(0, 5).map((event, index) => (
-                <div key={event.event} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
-                  <span className="text-sm text-slate-300">{event.event}</span>
-                  <span className="text-sm font-medium text-white">{formatNumber(event.count)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   );

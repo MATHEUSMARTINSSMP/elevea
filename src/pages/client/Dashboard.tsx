@@ -838,6 +838,9 @@ useEffect(() => {
   }
 
   function logout() {
+    // Limpar localStorage que o useSession usa
+    localStorage.removeItem("auth");
+    // Chamar logout do useAuth
     authLogout();
   }
 
