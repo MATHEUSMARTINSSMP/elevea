@@ -89,7 +89,16 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
 
     try {
       const analyticsData = await fetchAnalyticsData(siteSlug, timeRange, vipPin);
+      console.log('🔍 AnalyticsDashboard: Dados recebidos', analyticsData);
       if (analyticsData) {
+        console.log('🔍 AnalyticsDashboard: Estrutura dos dados', {
+          hasOverview: !!analyticsData.overview,
+          hasChartData: !!analyticsData.chartData,
+          hasTopPages: !!analyticsData.topPages,
+          hasDeviceBreakdown: !!analyticsData.deviceBreakdown,
+          hasCountryBreakdown: !!analyticsData.countryBreakdown,
+          overviewKeys: analyticsData.overview ? Object.keys(analyticsData.overview) : 'undefined'
+        });
         setData(analyticsData);
         setError(null);
         
@@ -194,6 +203,20 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
     );
   }
 
+  // Verificar se data existe e tem a estrutura esperada
+  if (!data || !data.overview) {
+    return (
+      <Card className="rounded-2xl border border-white/10 bg-white/5 text-white">
+        <CardContent className="p-6">
+          <div className="text-center text-red-400">
+            <p>Dados de analytics não disponíveis</p>
+            <p className="text-sm text-slate-400 mt-2">Estrutura de dados inválida</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const { overview, chartData, topPages, deviceBreakdown, countryBreakdown } = data;
 
   return (
@@ -256,7 +279,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               <EyeIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
             </div>
             <div className="text-lg sm:text-xl font-bold text-blue-400 mb-1">
-              {formatNumber(overview.pageViews)}
+              {formatNumber(overview.pageViews || 0)}
             </div>
             <p className="text-xs sm:text-sm text-slate-400">Visualizações</p>
           </div>
@@ -266,7 +289,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               <UsersIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
             </div>
             <div className="text-lg sm:text-xl font-bold text-green-400 mb-1">
-              {formatNumber(overview.users)}
+              {formatNumber(overview.users || 0)}
             </div>
             <p className="text-xs sm:text-sm text-slate-400">Usuários únicos</p>
           </div>
@@ -276,7 +299,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               <ClockIcon className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
             </div>
             <div className="text-lg sm:text-xl font-bold text-yellow-400 mb-1">
-              {formatDuration(overview.avgSessionDuration)}
+              {formatDuration(overview.avgSessionDuration || 0)}
             </div>
             <p className="text-xs sm:text-sm text-slate-400">Tempo médio</p>
           </div>
@@ -286,7 +309,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               <MousePointerIcon className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
             </div>
             <div className="text-lg sm:text-xl font-bold text-purple-400 mb-1">
-              {formatPercentage(overview.bounceRate)}
+              {formatPercentage(overview.bounceRate || 0)}
             </div>
             <p className="text-xs sm:text-sm text-slate-400">Taxa de rejeição</p>
           </div>
@@ -297,7 +320,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
           <h3 className="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Tráfego Diário</h3>
           <div className="h-64 sm:h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
+              <AreaChart data={chartData || []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis 
                   dataKey="date" 
@@ -343,7 +366,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
             <h3 className="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Páginas Mais Visitadas</h3>
             <div className="h-48 sm:h-56">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topPages.slice(0, 5)}>
+                <BarChart data={(topPages || []).slice(0, 5)}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                   <XAxis 
                     dataKey="page" 
@@ -375,7 +398,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={deviceBreakdown}
+                    data={deviceBreakdown || []}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
