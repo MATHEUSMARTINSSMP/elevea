@@ -18,7 +18,14 @@ function url(path: string) {
 }
 
 async function post<T = any>(path: string, body: Json): Promise<T> {
-  const res = await fetch(url(path), {
+  const finalUrl = url(path);
+  
+  // Verificar se temos uma URL válida
+  if (!BASE && !USE_PROXY) {
+    throw new Error("n8n não configurado: VITE_N8N_BASE_URL não definido");
+  }
+  
+  const res = await fetch(finalUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body ?? {}),
@@ -29,7 +36,14 @@ async function post<T = any>(path: string, body: Json): Promise<T> {
 }
 
 async function get<T = any>(path: string): Promise<T> {
-  const res = await fetch(url(path));
+  const finalUrl = url(path);
+  
+  // Verificar se temos uma URL válida
+  if (!BASE && !USE_PROXY) {
+    throw new Error("n8n não configurado: VITE_N8N_BASE_URL não definido");
+  }
+  
+  const res = await fetch(finalUrl);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data.error || data.message || `HTTP ${res.status}`));
   return data as T;
