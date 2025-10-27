@@ -12,7 +12,8 @@ import {
   User,
   Mail,
   Phone,
-  Calendar
+  Calendar,
+  MessageCircle
 } from 'lucide-react';
 import { DashboardCardSkeleton } from '@/components/ui/loading-skeletons';
 import { n8n } from '@/lib/n8n';
@@ -328,16 +329,22 @@ export default function FeedbackManager({ siteSlug, vipPin }: FeedbackManagerPro
 
         {/* Lista de Feedbacks */}
         <div className="space-y-3 sm:space-y-4 max-h-96 overflow-y-auto">
-          {feedbacks.length === 0 ? (
-            <div className="text-center py-8">
-              <MessageSquare className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-4 opacity-50" />
-              <h4 className="text-sm sm:text-base mb-2">Nenhum feedback encontrado</h4>
-              <p className="text-xs sm:text-sm text-slate-400">
-                {statusFilter === 'all' ? 'Ainda não há feedbacks' : `Nenhum feedback ${getStatusLabel(statusFilter).toLowerCase()}`}
-              </p>
-            </div>
-          ) : (
-            feedbacks.map((feedback) => (
+          {(() => {
+            // Filtrar feedbacks por status
+            const filteredFeedbacks = statusFilter === 'all' 
+              ? feedbacks 
+              : feedbacks.filter(fb => fb.status === statusFilter);
+            
+            return filteredFeedbacks.length === 0 ? (
+              <div className="text-center py-8">
+                <MessageSquare className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-4 opacity-50" />
+                <h4 className="text-sm sm:text-base mb-2">Nenhum feedback encontrado</h4>
+                <p className="text-xs sm:text-sm text-slate-400">
+                  {statusFilter === 'all' ? 'Ainda não há feedbacks' : `Nenhum feedback ${getStatusLabel(statusFilter).toLowerCase()}`}
+                </p>
+              </div>
+            ) : (
+              filteredFeedbacks.map((feedback) => (
               <div key={feedback.id} className="border border-white/10 rounded-lg p-3 sm:p-4 bg-white/5">
                 <div className="flex flex-col sm:flex-row gap-3">
                   <div className="flex-1">
@@ -385,19 +392,19 @@ export default function FeedbackManager({ siteSlug, vipPin }: FeedbackManagerPro
                           href={`https://wa.me/55${feedback.phone.replace(/\D/g, '')}?text=Olá, aqui é da ${siteSlug}, recebemos seu feedback e gostaríamos de saber mais sobre sua experiência.`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors"
+                          className="inline-flex items-center gap-1.5 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
                         >
-                          <MessageSquare className="w-3 h-3" />
-                          Entrar em Contato
+                          <Phone className="w-3.5 h-3.5" />
+                          WhatsApp
                         </a>
                       )}
                       {feedback.email && (
                         <a
                           href={`mailto:${feedback.email}?subject=Feedback recebido - ${siteSlug}`}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+                          className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors"
                         >
-                          <Mail className="w-3 h-3" />
-                          Enviar Email
+                          <Mail className="w-3.5 h-3.5" />
+                          Email
                         </a>
                       )}
                     </div>
@@ -501,8 +508,9 @@ export default function FeedbackManager({ siteSlug, vipPin }: FeedbackManagerPro
                   )}
                 </div>
               </div>
-            ))
-          )}
+              ))
+            );
+          })()}
         </div>
       </CardContent>
     </Card>
