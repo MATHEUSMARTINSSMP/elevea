@@ -3,7 +3,8 @@ type Json = Record<string, unknown>;
 const BASE = (import.meta.env.VITE_N8N_BASE_URL || "").replace(/\/$/, "");
 const MODE = (import.meta.env.VITE_N8N_MODE || "prod").toLowerCase(); // prod|test
 const PREFIX = MODE === "test" ? "/webhook-test" : "/webhook";
-const AUTH_HEADER = import.meta.env.VITE_N8N_AUTH_HEADER || "";
+const AUTH_HEADER = import.meta.env.VITE_N8N_AUTH_HEADER || "#mmP220411";
+const AUTH_HEADER_NAME = "X-APP-KEY";
 
 function url(path: string) {
   const clean = path.startsWith("/") ? path : `/${path}`;
@@ -31,7 +32,7 @@ async function post<T = any>(path: string, body: Json): Promise<T> {
   };
   
   if (AUTH_HEADER) {
-    headers["Authorization"] = AUTH_HEADER;
+    headers[AUTH_HEADER_NAME] = AUTH_HEADER;
   }
   
   const res = await fetch(finalUrl, {
@@ -56,7 +57,7 @@ async function get<T = any>(path: string): Promise<T> {
   const headers: Record<string, string> = {};
   
   if (AUTH_HEADER) {
-    headers["Authorization"] = AUTH_HEADER;
+    headers[AUTH_HEADER_NAME] = AUTH_HEADER;
   }
   
   const res = await fetch(finalUrl, { headers });
