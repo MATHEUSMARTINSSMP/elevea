@@ -89,6 +89,8 @@ export default function FeedbackManager({ siteSlug, vipPin }: FeedbackManagerPro
         limit: 50
       });
       
+      console.log('Feedbacks result:', result);
+      
       if (result.success && result.feedbacks) {
         // Adaptar formato do n8n para o formato esperado
         const adaptedFeedbacks = result.feedbacks.map((fb: any) => ({
@@ -116,6 +118,17 @@ export default function FeedbackManager({ siteSlug, vipPin }: FeedbackManagerPro
           averageRating: result.averageRating || 0
         };
         setStats(stats);
+      } else {
+        // Retorno sem sucesso ou sem dados
+        console.warn('Feedbacks response:', result);
+        setFeedbacks([]);
+        setStats({
+          total: 0,
+          pending: 0,
+          approved: 0,
+          rejected: 0,
+          averageRating: 0
+        });
       }
       
       setError(null);

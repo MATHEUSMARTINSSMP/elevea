@@ -7,7 +7,14 @@ const USE_PROXY = String(import.meta.env.VITE_USE_N8N_PROXY || "0") === "1";
 
 function url(path: string) {
   const clean = path.startsWith("/") ? path : `/${path}`;
-  return USE_PROXY ? `/api/n8n${clean}` : `${BASE}${PREFIX}${clean}`;
+  const fullUrl = USE_PROXY ? `/api/n8n${clean}` : `${BASE}${PREFIX}${clean}`;
+  
+  // Debug: log em desenvolvimento
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+    console.log(`[n8n] Calling: ${fullUrl}`);
+  }
+  
+  return fullUrl;
 }
 
 async function post<T = any>(path: string, body: Json): Promise<T> {
