@@ -83,24 +83,41 @@ export default function FeedbackManager({ siteSlug, vipPin }: FeedbackManagerPro
     else setLoading(true);
     
     try {
-      // Usar GET direto para o GAS (contornar CORS)
-      const params = new URLSearchParams({
-        action: 'list_feedbacks_secure',
-        site: siteSlug,
-        pin: vipPin,
-        page: '1',
-        pageSize: '50'
+      // Buscar feedbacks via n8n webhook
+      const result = await n8n.listFeedbacks({ 
+        site_slug: siteSlug, 
+        limit: 50
       });
       
-      const response = await fetch(`https://script.google.com/macros/s/AKfycbyd3JdxPkWM2xhAUikFOXi0jVGwN1H4sqNg5fnc4iABGDAsSkFtpjOPY40EBLssYc_z/exec?${params.toString()}`);
-
-      if (!response.ok) throw new Error('Falha ao carregar feedbacks');
-
-      const data = await response.json();
-      if (!data.ok) throw new Error(data.error || 'Erro ao carregar feedbacks');
-
-      setFeedbacks(data.data?.feedbacks || []);
-      setStats(data.data?.stats || null);
+      if (result.success && result.feedbacks) {
+        // Adaptar formato do n8n para o formato esperado
+        const adaptedFeedbacks = result.feedbacks.map((fb: any) => ({
+          id: fb.id || fb.feedback_id,
+          name: fb.client_name || fb.clientName,
+          email: fb.client_email || fb.clientEmail,
+          phone: fb.phone || '',
+          rating: fb.rating,
+          message: fb.comment || fb.message,
+          source: fb.source || 'website',
+          status: fb.status || 'pending',
+          approved: fb.status === 'approved',
+          createdAt: fb.createdAt || fb.created_at,
+          updatedAt: fb.updatedAt || fb.updated_at
+        }));
+        
+        setFeedbacks(adaptedFeedbacks);
+        
+        // Calcular stats
+        const stats = {
+          total: result.count || adaptedFeedbacks.length,
+          pending: adaptedFeedbacks.filter((f: any) => f.status === 'pending').length,
+          approved: adaptedFeedbacks.filter((f: any) => f.status === 'approved').length,
+          rejected: adaptedFeedbacks.filter((f: any) => f.status === 'rejected').length,
+          averageRating: result.averageRating || 0
+        };
+        setStats(stats);
+      }
+      
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar feedbacks');
@@ -113,30 +130,23 @@ export default function FeedbackManager({ siteSlug, vipPin }: FeedbackManagerPro
   const handleAction = async (action: 'approve' | 'reject', feedbackId: string) => {
     setActionLoading(feedbackId);
     try {
-      // Usar GET direto para o GAS (contornar CORS)
-      const params = new URLSearchParams({
-        action: 'feedback_set_approval',
-        site: siteSlug,
-        id: feedbackId,
-        approved: action === 'approve' ? 'true' : 'false',
-        pin: vipPin
-      });
-      
-      const response = await fetch(`https://script.google.com/macros/s/AKfycbyd3JdxPkWM2xhAUikFOXi0jVGwN1H4sqNg5fnc4iABGDAsSkFtpjOPY40EBLssYc_z/exec?${params.toString()}`);
+      if (action === 'approve') {
+        // Aprovar feedback via n8n
+        await n8n.approveFeedback({
+          feedbackId,
+          site_slug: siteSlug,
+          approved_by: 'admin@elevea.com'
+        });
+      } else if (action === 'reject') {
+        // Rejeitar = soft delete
+        await n8n.deleteFeedback({
+          feedbackId,
+          site_slug: siteSlug,
+          hard: false
+        });
+      }
 
-      if (!response.ok) throw new Error('Falha ao processar ação');
-
-      const data = await response.json();
-      if (!data.ok) throw new Error(data.error || 'Erro ao processar ação');
-
-      // Atualizar feedback localmente
-      setFeedbacks(prev => prev.map(f => 
-        f.id === feedbackId 
-          ? { ...f, status: action === 'approve' ? 'approved' : 'rejected' }
-          : f
-      ));
-
-      // Recarregar estatísticas
+      // Recarregar feedbacks
       await fetchFeedbacks(true);
     } catch (err: any) {
       setError(err.message || 'Erro ao processar ação');
