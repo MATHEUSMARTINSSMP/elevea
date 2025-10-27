@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StarIcon, MessageSquareIcon, XIcon, CheckIcon, SendIcon } from 'lucide-react';
+import { n8n } from '@/lib/n8n';
 
 interface FeedbackWidgetProps {
   siteSlug: string;
@@ -35,11 +36,20 @@ export default function FeedbackWidget({ siteSlug, className = '' }: FeedbackWid
   const fetchFeedbacks = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/.netlify/functions/feedback?action=get_public&site=${siteSlug}&limit=5`);
-      const result = await response.json();
+      const result = await n8n.listFeedbacks({ 
+        site_slug: siteSlug, 
+        limit: 5,
+        status: 'approved'
+      });
       
-      if (result.ok) {
-        setFeedbacks(result.data.feedbacks);
+      if (result.success && result.feedbacks) {
+        setFeedbacks(result.feedbacks.map((fb) => ({
+          id: fb.id || fb.feedback_id,
+          name: fb.client_name || fb.clientName,
+          rating: fb.rating,
+          message: fb.comment || fb.message,
+          createdAt: fb.createdAt || fb.created_at
+        })));
       }
     } catch (error) {
       console.error('Erro ao buscar feedbacks:', error);
@@ -49,7 +59,7 @@ export default function FeedbackWidget({ siteSlug, className = '' }: FeedbackWid
   };
 
   // Submeter feedback
-  const submitFeedback = async (e: React.FormEvent) => {
+  const submitFeedback = async (e) => {
     e.preventDefault();
     
     if (!formData.name || !formData.rating || !formData.message) {
@@ -60,27 +70,18 @@ export default function FeedbackWidget({ siteSlug, className = '' }: FeedbackWid
     setSubmitting(true);
     
     try {
-      const response = await fetch('/.netlify/functions/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'submit',
-          siteSlug,
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          rating: formData.rating,
-          message: formData.message,
-          source: 'website'
-        })
+      const result = await n8n.submitFeedback({
+        site_slug: siteSlug,
+        client_name: formData.name,
+        client_email: formData.email,
+        rating: formData.rating,
+        comment: formData.message,
+        source: 'website'
       });
-
-      const result = await response.json();
       
-      if (result.ok) {
+      if (result.feedback_id) {
         setSubmitted(true);
         setFormData({ name: '', email: '', phone: '', rating: 0, message: '' });
-        // Atualizar lista após 2 segundos
         setTimeout(() => {
           fetchFeedbacks();
           setSubmitted(false);
