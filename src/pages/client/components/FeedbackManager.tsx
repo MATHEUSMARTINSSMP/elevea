@@ -29,6 +29,7 @@ interface Feedback {
   approved: boolean;
   createdAt: string;
   updatedAt: string;
+  deleted_at?: string | null;
 }
 
 interface FeedbackStats {
@@ -97,15 +98,16 @@ export default function FeedbackManager({ siteSlug, vipPin }: FeedbackManagerPro
           id: fb.id || fb.feedback_id,
           name: fb.client_name || fb.clientName,
           email: fb.client_email || fb.clientEmail,
-          phone: fb.phone || '',
+          phone: fb.phone || fb.client_phone || '',
           rating: fb.rating,
           message: fb.comment || fb.message,
           source: fb.source || 'website',
           status: fb.status || 'pending',
           approved: fb.status === 'approved',
           createdAt: fb.createdAt || fb.created_at,
-          updatedAt: fb.updatedAt || fb.updated_at
-        }));
+          updatedAt: fb.updatedAt || fb.updated_at,
+          deleted_at: fb.deleted_at || null
+        })).filter((fb: Feedback) => !fb.deleted_at); // Filtrar deletados
         
         setFeedbacks(adaptedFeedbacks);
         
@@ -360,7 +362,7 @@ export default function FeedbackManager({ siteSlug, vipPin }: FeedbackManagerPro
                     </p>
                     
                     {(feedback.email || feedback.phone) && (
-                      <div className="flex flex-wrap gap-3 text-xs text-slate-400 mb-2">
+                      <div className="flex flex-wrap gap-2 items-center text-xs text-slate-400 mb-3">
                         {feedback.email && (
                           <div className="flex items-center gap-1">
                             <Mail className="w-3 h-3" />
@@ -375,6 +377,30 @@ export default function FeedbackManager({ siteSlug, vipPin }: FeedbackManagerPro
                         )}
                       </div>
                     )}
+
+                    {/* Botões de Contato */}
+                    <div className="flex flex-wrap gap-2">
+                      {feedback.phone && (
+                        <a
+                          href={`https://wa.me/55${feedback.phone.replace(/\D/g, '')}?text=Olá, aqui é da ${siteSlug}, recebemos seu feedback e gostaríamos de saber mais sobre sua experiência.`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors"
+                        >
+                          <MessageSquare className="w-3 h-3" />
+                          Entrar em Contato
+                        </a>
+                      )}
+                      {feedback.email && (
+                        <a
+                          href={`mailto:${feedback.email}?subject=Feedback recebido - ${siteSlug}`}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+                        >
+                          <Mail className="w-3 h-3" />
+                          Enviar Email
+                        </a>
+                      )}
+                    </div>
                   </div>
                   
                   {feedback.status === 'pending' && (
