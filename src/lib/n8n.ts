@@ -3,11 +3,11 @@ type Json = Record<string, unknown>;
 const BASE = (import.meta.env.VITE_N8N_BASE_URL || "").replace(/\/$/, "");
 const MODE = (import.meta.env.VITE_N8N_MODE || "prod").toLowerCase(); // prod|test
 const PREFIX = MODE === "test" ? "/webhook-test" : "/webhook";
-const USE_PROXY = String(import.meta.env.VITE_USE_N8N_PROXY || "0") === "1";
+const AUTH_HEADER = import.meta.env.VITE_N8N_AUTH_HEADER || "";
 
 function url(path: string) {
   const clean = path.startsWith("/") ? path : `/${path}`;
-  const fullUrl = USE_PROXY ? `/api/n8n${clean}` : `${BASE}${PREFIX}${clean}`;
+  const fullUrl = `${BASE}${PREFIX}${clean}`;
   
   // Debug: log em desenvolvimento
   if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
@@ -21,13 +21,22 @@ async function post<T = any>(path: string, body: Json): Promise<T> {
   const finalUrl = url(path);
   
   // Verificar se temos uma URL válida
-  if (!BASE && !USE_PROXY) {
+  if (!BASE) {
     throw new Error("n8n não configurado: VITE_N8N_BASE_URL não definido");
+  }
+  
+  // Montar headers com autenticação
+  const headers: Record<string, string> = { 
+    "Content-Type": "application/json"
+  };
+  
+  if (AUTH_HEADER) {
+    headers["Authorization"] = AUTH_HEADER;
   }
   
   const res = await fetch(finalUrl, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body ?? {}),
   });
   const data = await res.json().catch(() => ({}));
@@ -39,11 +48,18 @@ async function get<T = any>(path: string): Promise<T> {
   const finalUrl = url(path);
   
   // Verificar se temos uma URL válida
-  if (!BASE && !USE_PROXY) {
+  if (!BASE) {
     throw new Error("n8n não configurado: VITE_N8N_BASE_URL não definido");
   }
   
-  const res = await fetch(finalUrl);
+  // Montar headers com autenticação
+  const headers: Record<string, string> = {};
+  
+  if (AUTH_HEADER) {
+    headers["Authorization"] = AUTH_HEADER;
+  }
+  
+  const res = await fetch(finalUrl, { headers });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data.error || data.message || `HTTP ${res.status}`));
   return data as T;
