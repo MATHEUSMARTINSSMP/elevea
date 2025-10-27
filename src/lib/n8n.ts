@@ -91,4 +91,22 @@ export const n8n = {
   
   getStats: (params: { site_slug: string }) => 
     get(`/api/feedback/stats?${new URLSearchParams(params as any).toString()}`),
+
+  // Onboarding APIs (n8n webhooks)
+  startOnboarding: (data: { 
+    site_slug: string; 
+    email: string; 
+    phone?: string; 
+    company?: string; 
+    address?: string; 
+    plan?: string;
+    logoUrl?: string;
+    photos?: string[];
+    about?: string;
+    services?: string;
+    founded?: string;
+    paletteId?: string;
+    templateId?: string;
+    driveFolderUrl?: string;
+  }) => post("/api/onboarding/start", data),
 };
