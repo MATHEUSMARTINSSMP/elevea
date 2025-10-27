@@ -439,28 +439,19 @@ export default function FeedbackManager({ siteSlug, vipPin }: FeedbackManagerPro
                               
                               if (!confirmed) return;
                               
-                              // Usar GET direto para o GAS (contornar CORS)
-                              const params = new URLSearchParams({
-                                action: 'publish_feedback_to_site',
-                                site: siteSlug,
-                                feedbackId: feedback.id,
-                                pin: vipPin
+                              // Publicar via n8n
+                              await n8n.publishFeedback({
+                                feedback_id: feedback.id,
+                                site_slug: siteSlug,
+                                published_by: 'admin@elevea.com'
                               });
                               
-                              const response = await fetch(`https://script.google.com/macros/s/AKfycbyd3JdxPkWM2xhAUikFOXi0jVGwN1H4sqNg5fnc4iABGDAsSkFtpjOPY40EBLssYc_z/exec?${params.toString()}`);
-                              
-                              const result = await response.json();
-                              
-                              if (result.ok) {
-                                alert(`✅ ${result.message}\n\nOs feedbacks aprovados aparecem automaticamente no site do cliente via API do GAS.`);
-                                // Recarregar feedbacks para atualizar status
-                                fetchFeedbacks();
-                              } else {
-                                alert(`❌ Erro ao publicar: ${result.error}`);
-                              }
-                            } catch (error) {
+                              alert(`✅ Feedback publicado com sucesso!\n\nOs feedbacks aprovados aparecem automaticamente no site do cliente.`);
+                              // Recarregar feedbacks para atualizar status
+                              fetchFeedbacks();
+                            } catch (error: any) {
                               console.error('Erro ao publicar feedback:', error);
-                              alert(`❌ Erro na requisição: ${error.message}`);
+                              alert(`❌ Erro ao publicar: ${error.message}`);
                             }
                           }}
                         >
