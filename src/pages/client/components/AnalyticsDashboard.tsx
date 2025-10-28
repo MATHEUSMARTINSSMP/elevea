@@ -46,8 +46,8 @@ interface AnalyticsData {
   overview: {
     users: number;
     sessions: number;
-    pageViews: number;
-    bounceRate: number;
+  pageViews: number;
+  bounceRate: number;
     avgSessionDuration: number;
     avgScrollDepth: number;
     whatsappClicks: number;
@@ -226,8 +226,8 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
       category: 'engagement',
       site_slug: siteSlug,
       metadata: { 
-        time_range: timeRange,
-        is_refresh: isRefresh 
+      time_range: timeRange,
+      is_refresh: isRefresh 
       }
     });
 
@@ -252,8 +252,8 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
           category: 'engagement',
           site_slug: siteSlug,
           metadata: { 
-            time_range: timeRange,
-            has_data: true 
+          time_range: timeRange,
+          has_data: true 
           }
         });
       } else {
@@ -269,8 +269,8 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
         category: 'error',
         site_slug: siteSlug,
         metadata: { 
-          error: err.message,
-          time_range: timeRange 
+        error: err.message,
+        time_range: timeRange 
         }
       });
     } finally {
@@ -349,8 +349,8 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
 
   // Verificar se data existe e tem a estrutura esperada
   if (!data || !data.overview || Object.keys(data.overview).length === 0) {
-    return (
-      <Card className="rounded-2xl border border-white/10 bg-white/5 text-white">
+  return (
+    <Card className="rounded-2xl border border-white/10 bg-white/5 text-white">
         <CardContent className="p-6">
           <div className="text-center text-red-400">
             <p>Dados de analytics não disponíveis</p>
@@ -428,13 +428,13 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
             <div className="p-3 rounded-lg bg-gray-900 border border-gray-700">
               <ActivityIcon className="w-6 h-6 text-white" />
             </div>
-            <div>
+          <div>
               <CardTitle className="text-2xl font-bold text-gray-900">
                 Analytics Dashboard
-              </CardTitle>
+            </CardTitle>
               <CardDescription className="text-gray-600 text-base">
                 Insights detalhados de tráfego e comportamento
-              </CardDescription>
+            </CardDescription>
             </div>
           </div>
           
@@ -463,15 +463,15 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                 <option value="csv">CSV</option>
                 <option value="json">JSON</option>
               </select>
-              <Button
+                <Button
                 variant="outline"
-                size="sm"
+                  size="sm"
                 onClick={exportData}
                 className="bg-white border-gray-300 hover:bg-gray-50 text-gray-700"
               >
                 <DownloadIcon className="w-4 h-4 mr-2" />
                 Exportar
-              </Button>
+                </Button>
             </div>
             
             {/* Atualizar */}
@@ -678,7 +678,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
         {/* Gráfico de Tráfego Diário */}
         <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
           <div className="flex items-center justify-between mb-6">
-            <div>
+        <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-1">Tráfego Diário</h3>
               <p className="text-sm text-gray-600">Evolução do tráfego ao longo do tempo</p>
             </div>
@@ -1080,7 +1080,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
         </div>
       </CardContent>
     </Card>
-    );
+  );
   } catch (error) {
     console.error('🔍 AnalyticsDashboard: Erro de renderização', error);
     return (

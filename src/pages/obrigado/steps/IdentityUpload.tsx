@@ -184,86 +184,58 @@ function IdentityUpload(p: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* LOGO */}
-        <div className="space-y-2">
-          <label className="text-sm text-white/70">Envie sua <b>logo</b></label>
-          <div className="flex items-center gap-2">
-            <label className="inline-flex items-center gap-2 border border-white/10 bg-white/[0.03] text-white rounded-xl px-3 py-2 cursor-pointer hover:bg-white/[0.06]">
-              <Upload className="h-4 w-4" />
-              <span>Selecionar arquivo</span>
-              <input
-                type="file"
-                accept=".png,.jpg,.jpeg,.svg"
-                className="hidden"
-                onChange={(e) => p.setLogoFile(e.target.files?.[0] || null)}
-              />
-            </label>
-            <span className="text-xs text-white/50">
-              {p.logoFile ? p.logoFile.name : "PNG/JPG/SVG"}
-            </span>
+      {/* Instruções para envio de imagens */}
+      <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4">
+        <div className="flex items-start gap-2 mb-3">
+          <span className="text-2xl">📸</span>
+          <div>
+            <h3 className="text-white font-medium mb-1">Envie suas imagens</h3>
+            <p className="text-sm text-white/70">
+              Cole aqui os links públicos das suas imagens. A pasta precisa estar configurada como pública!
+            </p>
           </div>
+        </div>
+        
+        <div className="bg-white/5 rounded-lg p-3 mb-3">
+          <p className="text-xs text-white/80 font-medium mb-2">📌 Como compartilhar no Google Drive:</p>
+          <ol className="text-xs text-white/70 space-y-1 list-decimal list-inside">
+            <li>Clique com o botão direito no arquivo</li>
+            <li>Selecione "Obter link" ou "Compartilhar"</li>
+            <li>Altere para "Qualquer pessoa com o link"</li>
+            <li>Copie o link e cole aqui</li>
+          </ol>
+        </div>
+
+        <div className="bg-white/5 rounded-lg p-3">
+          <p className="text-xs text-white/80 font-medium mb-1">💡 Também aceitamos:</p>
+          <p className="text-xs text-white/70">Dropbox, OneDrive, Imgur, ou qualquer link público de imagem</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className="text-sm text-white/70">Link da logo</label>
           <input
             className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-white placeholder:text-white/40"
-            placeholder="Ou cole o link (Drive/WeTransfer/Dropbox)"
+            placeholder="https://drive.google.com/file/d/..."
             value={p.logoLink}
             onChange={(e) => p.setLogoLink(e.target.value)}
           />
         </div>
 
-        {/* FOTOS */}
         <div className="space-y-2">
-          <label className="text-sm text-white/70">Envie <b>fotos</b> da empresa/produtos</label>
-          <div className="flex items-center gap-2">
-            <label className="inline-flex items-center gap-2 border border-white/10 bg-white/[0.03] text-white rounded-xl px-3 py-2 cursor-pointer hover:bg-white/[0.06]">
-              <Upload className="h-4 w-4" />
-              <span>Selecionar arquivos</span>
-              <input
-                type="file"
-                multiple
-                accept=".png,.jpg,.jpeg"
-                className="hidden"
-                onChange={(e) => p.setFotoFiles(e.target.files || null)}
-              />
-            </label>
-            <span className="text-xs text-white/50">
-              {p.fotoFiles?.length ? `${p.fotoFiles.length} arquivo(s)` : "PNG/JPG"}
-            </span>
-          </div>
-          <input
-            className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-white placeholder:text-white/40"
-            placeholder="Ou cole link com as fotos (Drive/WeTransfer/Dropbox)"
+          <label className="text-sm text-white/70">Links das fotos (logo, empresa, produtos)</label>
+          <textarea
+            className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-white placeholder:text-white/40 min-h-[80px]"
+            placeholder="https://drive.google.com/file/d/...&#10;https://drive.google.com/file/d/..."
             value={p.fotosLink}
             onChange={(e) => p.setFotosLink(e.target.value)}
           />
+          <p className="text-xs text-red-400">
+            ⚠️ Certifique-se de que TODOS os links estão públicos
+          </p>
         </div>
       </div>
-
-      <div className="flex items-center gap-3">
-        <Button
-          type="button"
-          className="bg-white text-gray-900 hover:bg-white/90"
-          onClick={usingExternalUpload ? p.onUploadClick : uploadInternalBase64}
-          disabled={effectiveBusy}
-        >
-          {effectiveBusy ? "Enviando..." : "Enviar arquivos para o Drive"}
-        </Button>
-
-        {p.driveFolderUrl && (
-          <a
-            className="text-sm underline text-emerald-400 hover:text-emerald-300"
-            href={p.driveFolderUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Abrir pasta criada no Drive
-          </a>
-        )}
-      </div>
-
-      <p className="text-xs text-white/50">
-        Você pode enviar agora ou mandar depois pelo WhatsApp.
-      </p>
     </div>
   );
 }

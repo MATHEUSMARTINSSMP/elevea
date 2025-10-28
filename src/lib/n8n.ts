@@ -94,19 +94,50 @@ export const n8n = {
 
   // Onboarding APIs (n8n webhooks)
   startOnboarding: (data: { 
-    site_slug: string; 
-    email: string; 
-    phone?: string; 
-    company?: string; 
-    address?: string; 
+    // Campos obrigatórios
+    email: string;
+    name: string;
+    company: string;
+    phone?: string;
+    
+    // Site slug (opcional, será gerado automaticamente se não fornecido)
+    site_slug?: string;
+    
+    // Enums de personalização
+    theme_style?: 'moderno' | 'natural' | 'futurista' | 'monocromatico' | 'colorido' | 'clássico' | 'minimalista';
+    voice_tone?: 'neutro' | 'amigavel' | 'profissional' | 'premium' | 'popular' | 'divertido' | 'educativo';
+    
+    // Conteúdo da empresa
+    company_history?: string;
+    mission?: string;
+    vision?: string;
+    values?: string;
+    main_products?: string;
+    services_description?: string;
+    
+    // Contato
+    address?: string;
+    whatsapp?: string;
+    instagram?: string;
+    facebook?: string;
+    business_hours?: string;
+    
+    // Branding
+    color_primary?: string;
+    color_secondary?: string;
+    color_accent?: string;
+    visual_style?: string;
+    logo_url?: string;
+    
+    // Configurações do site
+    site_type?: string;
+    desired_sections?: string;
+    
+    // Observações
+    observations?: string;
+    
+    // Campos técnicos opcionais
+    user_id?: string;
     plan?: string;
-    logoUrl?: string;
-    photos?: string[];
-    about?: string;
-    services?: string;
-    founded?: string;
-    paletteId?: string;
-    templateId?: string;
-    driveFolderUrl?: string;
   }) => post("/api/onboarding/start", data),
 };

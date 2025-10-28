@@ -1,15 +1,11 @@
 // /src/pages/obrigado/index.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { n8n } from "@/lib/n8n";
+import { Loader2 } from "lucide-react";
 import { IdentityUpload, ContentStep, StyleStep, TemplateStep } from "./steps";
 import { AddressStep } from "./steps/AddressStep";
 import { ReviewStep } from "./steps/ReviewStep";
-
-// ====== ENVs ======
-const APPS_URL =
-  (import.meta.env.VITE_APPS_WEBAPP_URL as string)?.trim() ||
-  (import.meta.env.VITE_SHEETS_WEBAPP_URL as string)?.trim() ||
-  "";
 
 const WHATSAPP_URL =
   (import.meta.env.VITE_WHATSAPP_URL as string)?.trim() ||
@@ -21,44 +17,12 @@ function q(param: string, def = "") {
   return sp.get(param) || def;
 }
 
-// ====== Helpers upload base64 (evitam preflight/CORS) ======
-async function fileToB64Obj(file: File | null) {
-  if (!file) return null;
-  const buf = await file.arrayBuffer();
-  const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-  return { name: file.name, mime: file.type || "application/octet-stream", b64 };
-}
-async function filesToB64Array(list: FileList | null) {
-  if (!list?.length) return [];
-  const out: Array<{ name: string; mime: string; b64: string }> = [];
-  for (let i = 0; i < list.length; i++) {
-    const f = list.item(i);
-    if (!f) continue;
-    const o = await fileToB64Obj(f);
-    if (o) out.push(o);
-  }
-  return out;
-}
-
-// POST simples, sem headers → evita preflight/CORS no GAS
-async function postSimple<T = any>(url: string, body: any) {
-  const r = await fetch(url, {
-    method: "POST",
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
-  // se der erro de CORS, o fetch lança; se o GAS responder, tentamos ler JSON
-  const j = await r.json().catch(() => ({} as any));
-  if (!r.ok || j?.ok === false) throw new Error(j?.error || `HTTP ${r.status}`);
-  return j as T;
-}
 
 export default function ObrigadoPage() {
   // Plano detectado pela URL (sem seletor na UI)
   const planFromURL = useMemo(() => q("plano", "").toLowerCase(), []);
   const plano: "vip" | "essential" = planFromURL.includes("vip") ? "vip" : "essential";
 
-  const showEnvBanner = import.meta.env.DEV && !APPS_URL;
 
   // ---------- Identidade ----------
   const [email, setEmail] = useState("");
@@ -116,114 +80,47 @@ export default function ObrigadoPage() {
     el?.focus();
   }, []);
 
-  // ========== Upload via JSON/base64 ==========
+  // Função de upload desabilitada - usar links públicos
   const onUploadClick = async () => {
-    if (!APPS_URL) {
-      alert("Ambiente sem APPS_URL configurada.");
-      return;
-    }
-    if (!siteSlugInput || !email) {
-      alert("Preencha e-mail e o nome do site (slug).");
-      return;
-    }
-
-    try {
-      setUploading(true);
-
-      const logoObj = await fileToB64Obj(logoFile);
-      const fotosArr = await filesToB64Array(fotoFiles);
-
-      const payload: any = {
-        type: "upload_base64",
-        siteSlug: siteSlugInput.trim(),
-        email: (email || "").trim().toLowerCase(),
-        phone,
-        document: documentCPF,
-        logoLink,
-        fotosLink,
-      };
-      if (logoObj) payload.logo = logoObj;
-      if (fotosArr.length) payload.fotos = fotosArr;
-
-      // Usar função do Netlify
-      const r = await fetch("/.netlify/functions/upload-drive", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        cache: "no-store",
-      });
-      const j = await r.json().catch(() => ({} as any));
-      if (!r.ok || j?.ok !== true) throw new Error(j?.error || `Falha no upload (${r.status})`);
-
-      if (j.driveFolderUrl) setDriveFolderUrl(String(j.driveFolderUrl));
-      alert("Arquivos enviados! Sua pasta no Drive foi atualizada.");
-    } catch (e: any) {
-      console.error(e);
-      alert(e?.message || "Falha ao enviar. Tente novamente.");
-    } finally {
-      setUploading(false);
-    }
+    alert("⚠️ Upload de arquivos desabilitado.\n\nPor favor, use links públicos do Google Drive, Dropbox ou OneDrive nos campos de logo e fotos.");
   };
 
-  // ========== Submit final (salva + gera prompt) ==========
+  // ========== Submit final via n8n ==========
   const onSubmitAll = async () => {
-    if (!APPS_URL) {
-      alert("Ambiente sem APPS_URL configurada.");
-      return;
-    }
-    if (!siteSlugInput || !email) {
-      alert("Preencha e-mail e o nome do site (slug).");
+    if (!email) {
+      alert("Preencha pelo menos o e-mail.");
       return;
     }
 
     try {
       setSubmitting(true);
 
-      // 1) Salvar onboarding via Netlify
-      await postSimple("/.netlify/functions/submit-onboarding", {
-        type: "onboarding",
-        siteSlug: siteSlugInput,
-        plan: plano,
+      // Combinar logoLink e fotosLink em uma única string (separados por vírgula)
+      const allImagesUrls = [logoLink, fotosLink].filter(Boolean).join(',');
+      
+      const result = await n8n.startOnboarding({
         email,
-        phone: phone,
-        document: documentCPF,
-        driveFolderUrl: driveFolderUrl,
-        logoUrl: "",
-        fotosUrls: [],
-        historia,
-        produtos,
-        fundacao,
-        paleta,
-        template,
-        endereco,
-        // Novos campos para personalização
-        tipoNegocio,
-        publicoAlvo,
-        diferencial,
-        valores,
-        missao,
-        visao,
-        especialidades,
-        horarios,
-        formasPagamento,
-        promocoes,
-        certificacoes,
-        premios,
-        depoimentos,
-        redesSociais,
-        secoesPersonalizadas,
+        name: email.split('@')[0], // fallback para nome se não tiver
+        company: siteSlugInput || "Minha Empresa",
+        phone,
+        site_slug: siteSlugInput || email.split('@')[0],
+        plan: plano,
+        company_history: historia,
+        main_products: produtos,
+        mission: missao,
+        vision: visao,
+        values: valores,
+        address: `${endereco.logradouro}, ${endereco.bairro}, ${endereco.cidade} - ${endereco.uf}`,
+        logo_url: allImagesUrls || '', // Todas as imagens em um único campo
+        observations: `Tipo: ${tipoNegocio}\nPúblico: ${publicoAlvo}\nHorários: ${horarios}\n${secoesPersonalizadas ? `Seções: ${secoesPersonalizadas}` : ''}`,
       });
 
-      // 2) Gerar prompt do Lovable via Netlify
-      await postSimple("/.netlify/functions/generate-prompt", {
-        siteSlug: siteSlugInput,
-      });
-
-      alert("Informações enviadas! Obrigado — nossa equipe já está preparando seu site.");
-      // window.location.href = "/";
+      console.log("Onboarding criado:", result);
+      alert(`✅ Onboarding criado com sucesso!\n\nSite: ${result.site_slug || siteSlugInput}\nID: ${result.onboarding_id || 'criado'}`);
+      
     } catch (e: any) {
       console.error(e);
-      alert(e?.message || "Falha ao enviar. Tente novamente.");
+      alert(e?.message || "Erro ao enviar. Tente novamente.");
     } finally {
       setSubmitting(false);
     }
@@ -279,11 +176,6 @@ export default function ObrigadoPage() {
             </div>
           </div>
 
-          {showEnvBanner && (
-            <div className="mt-4 rounded-xl border border-amber-300/40 bg-amber-50 text-amber-900 px-4 py-3 text-sm">
-              <b>Dev:</b> defina <code>VITE_APPS_WEBAPP_URL</code> (ou <code>VITE_SHEETS_WEBAPP_URL</code>). Em produção esse aviso não aparece.
-            </div>
-          )}
         </div>
       </div>
 
@@ -444,7 +336,14 @@ export default function ObrigadoPage() {
                 disabled={submitting}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white"
               >
-                {submitting ? "Enviando..." : "Enviar dados"}
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  "Enviar dados"
+                )}
               </Button>
             </div>
           </section>
