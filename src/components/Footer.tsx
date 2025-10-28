@@ -125,9 +125,9 @@ const Footer = () => {
               <h4 className="font-semibold mb-4">Suporte</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><a href="#contato" className="hover:text-primary transition-colors">Contato</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Central de Ajuda</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Política de Privacidade</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Termos de Uso</a></li>
+                <li><a href="https://www.instagram.com/elevea.agencia" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Instagram</a></li>
+                <li><a href="/politicas" className="hover:text-primary transition-colors">Política de Privacidade</a></li>
+                <li><a href="/politicas#termos" className="hover:text-primary transition-colors">Termos de Uso</a></li>
               </ul>
             </div>
           </div>

@@ -123,6 +123,13 @@ const Index = () => {
     );
     upsertMetaByName('robots', 'index,follow,max-image-preview:large');
     upsertMetaByName('content-language', 'pt-BR');
+    
+    // Google Search Console Verification (substitua pelo seu código)
+    const googleVerification = import.meta.env.VITE_GOOGLE_SITE_VERIFICATION;
+    if (googleVerification) {
+      upsertMetaByName('google-site-verification', googleVerification);
+    }
+    
     upsertLink('canonical', SITE_URL);
     upsertLink('alternate', SITE_URL, { hreflang: 'pt-BR' });
     upsertMetaByName('theme-color', '#1f2937');
