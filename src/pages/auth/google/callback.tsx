@@ -47,11 +47,14 @@ export default function GoogleCallback() {
 
         setMsg("Processando autorização...");
 
-        // Fazer POST para exchange (não redirect)
+        // Fazer POST para exchange via n8n
         try {
-          const response = await fetch('/.netlify/functions/gmb-oauth-exchange', {
+          const response = await fetch(`${import.meta.env.VITE_N8N_BASE_URL || ''}/webhook/api/auth/google/callback`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'X-APP-KEY': import.meta.env.VITE_N8N_AUTH_HEADER || '#mmP220411'
+            },
             body: JSON.stringify({
               code,
               state,

@@ -73,13 +73,16 @@ export default function GoogleReviews({ siteSlug, vipPin, userEmail }: GoogleRev
     try {
       console.log('🔍 Buscando reviews para:', { site: siteSlug, email: userEmail });
       
-      const response = await fetch('/.netlify/functions/client-api', {
+      const response = await fetch(`${import.meta.env.VITE_N8N_BASE_URL || ''}/webhook/api/google/reviews`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-APP-KEY': import.meta.env.VITE_N8N_AUTH_HEADER || '#mmP220411'
+        },
         body: JSON.stringify({
-          action: 'gmb_get_reviews',
-          site: siteSlug,
-          email: userEmail
+          siteSlug,
+          vipPin,
+          userEmail
         })
       });
 
@@ -224,13 +227,11 @@ export default function GoogleReviews({ siteSlug, vipPin, userEmail }: GoogleRev
                     try {
                       console.log('🔄 Iniciando OAuth para:', { site: siteSlug, email: userEmail });
                       
-                      const response = await fetch('/.netlify/functions/gmb-oauth-start', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          siteSlug: siteSlug,
-                          email: userEmail
-                        })
+                      const response = await fetch(`${import.meta.env.VITE_N8N_BASE_URL || ''}/webhook/api/auth/google/start?customerId=${encodeURIComponent(userEmail || '')}&siteSlug=${encodeURIComponent(siteSlug)}`, {
+                        method: 'GET',
+                        headers: {
+                          'X-APP-KEY': import.meta.env.VITE_N8N_AUTH_HEADER || '#mmP220411'
+                        }
                       });
                       
                       const result = await response.json();
