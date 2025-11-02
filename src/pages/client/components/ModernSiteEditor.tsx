@@ -59,6 +59,7 @@ import {
 } from 'lucide-react'
 import ImageManager from './ImageManager'
 import ImageLightbox from './ImageLightbox'
+import FAQEditor from './FAQEditor'
 import * as n8nSites from '@/lib/n8n-sites'
 import type { SiteSection, SiteMedia } from '@/lib/n8n-sites'
 import { toast } from 'sonner'
@@ -721,6 +722,34 @@ export default function ModernSiteEditor({
                             className="mt-1"
                           />
                         </div>
+                        
+                        {/* Editor de FAQ - aparece se for seção FAQ */}
+                        {(section.type === 'custom' && 
+                          (section.title?.toLowerCase().includes('faq') || 
+                           section.title?.toLowerCase().includes('perguntas') ||
+                           section.title?.toLowerCase().includes('frequentes'))) && (
+                          <div className="border-t pt-4">
+                            <FAQEditor
+                              faqs={(sectionEditData[section.id]?.customFields?.faqs || 
+                                     section.customFields?.faqs || 
+                                     section.custom_fields?.faqs || []).map((faq: any, idx: number) => ({
+                                id: faq.id || `faq-${idx}`,
+                                question: faq.question || '',
+                                answer: faq.answer || ''
+                              }))}
+                              onChange={(faqs) => {
+                                const currentCustomFields = sectionEditData[section.id]?.customFields || 
+                                                           section.customFields || 
+                                                           section.custom_fields || {}
+                                handleSectionFieldChange(section.id, 'customFields', {
+                                  ...currentCustomFields,
+                                  faqs: faqs,
+                                  faq_count: faqs.length
+                                })
+                              }}
+                            />
+                          </div>
+                        )}
                         
                         <div>
                           <Label>Imagem</Label>
