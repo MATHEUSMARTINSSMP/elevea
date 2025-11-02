@@ -58,19 +58,19 @@ export default function FeedbackManager({ siteSlug, vipPin }: FeedbackManagerPro
   // Guarda de segurança - verificar se props VIP estão presentes
   if (!siteSlug || !vipPin) {
     return (
-      <Card className="rounded-2xl border border-white/10 bg-white/5 text-white">
+      <Card className="rounded-2xl border dashboard-border dashboard-card dashboard-shadow">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+          <CardTitle className="text-lg font-semibold flex items-center gap-2 dashboard-text">
             <MessageSquare className="w-5 h-5" />
             Feedback dos Clientes
           </CardTitle>
-          <CardDescription className="text-slate-400">
+          <CardDescription className="dashboard-text-muted">
             Acesso restrito: Recurso VIP não disponível
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
-            <p className="text-slate-400 mb-4">Este recurso requer acesso VIP.</p>
+            <p className="dashboard-text-muted mb-4">Este recurso requer acesso VIP.</p>
             <Button variant="outline" disabled>
               Acesso Bloqueado
             </Button>
@@ -252,15 +252,15 @@ export default function FeedbackManager({ siteSlug, vipPin }: FeedbackManagerPro
   }
 
   return (
-    <Card className="rounded-2xl border border-white/10 bg-white/5 text-white">
+    <Card className="rounded-2xl border dashboard-border dashboard-card dashboard-shadow">
       <CardHeader className="pb-3">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold dashboard-text">
               <MessageSquare className="w-4 w-4 sm:h-5 sm:w-5" />
               Feedback dos Clientes
             </CardTitle>
-            <CardDescription className="text-slate-400 text-sm">
+            <CardDescription className="dashboard-text-muted text-sm">
               Gerencie os feedbacks recebidos
             </CardDescription>
           </div>
@@ -281,29 +281,29 @@ export default function FeedbackManager({ siteSlug, vipPin }: FeedbackManagerPro
         {/* Estatísticas */}
         {stats && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
-            <div className="text-center p-3 sm:p-4 bg-white/10 rounded-lg">
-              <div className="text-lg sm:text-xl font-bold text-blue-400 mb-1">
+            <div className="text-center p-3 sm:p-4 dashboard-card rounded-lg border dashboard-border dashboard-shadow">
+              <div className="text-lg sm:text-xl font-bold text-blue-500 dark:text-blue-400 mb-1">
                 {stats.total || 0}
               </div>
-              <p className="text-xs sm:text-sm text-slate-400">Total</p>
+              <p className="text-xs sm:text-sm dashboard-text-muted font-medium">Total</p>
             </div>
-            <div className="text-center p-3 sm:p-4 bg-white/10 rounded-lg">
-              <div className="text-lg sm:text-xl font-bold text-yellow-400 mb-1">
+            <div className="text-center p-3 sm:p-4 dashboard-card rounded-lg border dashboard-border dashboard-shadow">
+              <div className="text-lg sm:text-xl font-bold text-orange-500 dark:text-yellow-400 mb-1">
                 {stats.pending || 0}
               </div>
-              <p className="text-xs sm:text-sm text-slate-400">Pendentes</p>
+              <p className="text-xs sm:text-sm dashboard-text-muted font-medium">Pendentes</p>
             </div>
-            <div className="text-center p-3 sm:p-4 bg-white/10 rounded-lg">
-              <div className="text-lg sm:text-xl font-bold text-green-400 mb-1">
+            <div className="text-center p-3 sm:p-4 dashboard-card rounded-lg border dashboard-border dashboard-shadow">
+              <div className="text-lg sm:text-xl font-bold text-green-500 dark:text-green-400 mb-1">
                 {stats.approved || 0}
               </div>
-              <p className="text-xs sm:text-sm text-slate-400">Aprovados</p>
+              <p className="text-xs sm:text-sm dashboard-text-muted font-medium">Aprovados</p>
             </div>
-            <div className="text-center p-3 sm:p-4 bg-white/10 rounded-lg">
-              <div className="text-lg sm:text-xl font-bold text-purple-400 mb-1">
+            <div className="text-center p-3 sm:p-4 dashboard-card rounded-lg border dashboard-border dashboard-shadow">
+              <div className="text-lg sm:text-xl font-bold text-purple-500 dark:text-purple-400 mb-1">
                 {stats.averageRating ? stats.averageRating.toFixed(1) : '0.0'}
               </div>
-              <p className="text-xs sm:text-sm text-slate-400">Avaliação Média</p>
+              <p className="text-xs sm:text-sm dashboard-text-muted font-medium">Avaliação Média</p>
             </div>
           </div>
         )}
@@ -318,8 +318,8 @@ export default function FeedbackManager({ siteSlug, vipPin }: FeedbackManagerPro
               onClick={() => setStatusFilter(status as any)}
               className={`text-xs font-medium ${
                 statusFilter === status 
-                  ? 'bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500' 
-                  : 'border-white/30 text-white hover:bg-white/10 bg-transparent'
+                  ? 'bg-primary hover:opacity-90 text-white border-primary' 
+                  : 'border dashboard-border dashboard-text hover:bg-dashboard-hover dashboard-card/50'
               }`}
             >
               {status === 'all' ? 'Todos' : getStatusLabel(status)}
@@ -338,18 +338,18 @@ export default function FeedbackManager({ siteSlug, vipPin }: FeedbackManagerPro
             return filteredFeedbacks.length === 0 ? (
               <div className="text-center py-8">
                 <MessageSquare className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-4 opacity-50" />
-                <h4 className="text-sm sm:text-base mb-2">Nenhum feedback encontrado</h4>
-                <p className="text-xs sm:text-sm text-slate-400">
+                <h4 className="text-sm sm:text-base mb-2 dashboard-text">Nenhum feedback encontrado</h4>
+                <p className="text-xs sm:text-sm dashboard-text-muted">
                   {statusFilter === 'all' ? 'Ainda não há feedbacks' : `Nenhum feedback ${getStatusLabel(statusFilter).toLowerCase()}`}
                 </p>
               </div>
             ) : (
               filteredFeedbacks.map((feedback) => (
-              <div key={feedback.id} className="border border-white/10 rounded-lg p-3 sm:p-4 bg-white/5">
+              <div key={feedback.id} className="border dashboard-border rounded-lg p-3 sm:p-4 dashboard-card dashboard-shadow">
                 <div className="flex flex-col sm:flex-row gap-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <h4 className="font-medium text-sm sm:text-base text-white">
+                      <h4 className="font-medium text-sm sm:text-base dashboard-text">
                         {feedback.name}
                       </h4>
                       <Badge className={`text-xs ${getStatusColor(feedback.status)}`}>
@@ -359,17 +359,17 @@ export default function FeedbackManager({ siteSlug, vipPin }: FeedbackManagerPro
                     
                     <div className="flex items-center gap-2 mb-2">
                       <div className="flex">{renderStars(feedback.rating)}</div>
-                      <span className="text-xs text-slate-400">
+                      <span className="text-xs dashboard-text-muted">
                         {formatDate(feedback.createdAt)}
                       </span>
                     </div>
                     
-                    <p className="text-sm text-slate-300 mb-3">
+                    <p className="text-sm dashboard-text mb-3">
                       {feedback.message}
                     </p>
                     
                     {(feedback.email || feedback.phone) && (
-                      <div className="flex flex-wrap gap-2 items-center text-xs text-slate-400 mb-3">
+                      <div className="flex flex-wrap gap-2 items-center text-xs dashboard-text-muted mb-3">
                         {feedback.email && (
                           <div className="flex items-center gap-1">
                             <Mail className="w-3 h-3" />

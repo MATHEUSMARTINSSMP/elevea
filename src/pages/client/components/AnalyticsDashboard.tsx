@@ -285,18 +285,18 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
 
   if (loading) {
     return (
-      <Card className="rounded-2xl border border-white/10 bg-white/5 text-white">
+      <Card className="rounded-2xl border dashboard-border dashboard-card dashboard-shadow">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 dashboard-text">
             <TrendingUpIcon className="w-5 h-5" />
             Analytics
           </CardTitle>
-          <CardDescription>Carregando dados de analytics...</CardDescription>
+          <CardDescription className="dashboard-text-muted">Carregando dados de analytics...</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
-            <RefreshCwIcon className="w-8 h-8 mx-auto mb-4 animate-spin" />
-            <p className="text-slate-400">Carregando dados...</p>
+            <RefreshCwIcon className="w-8 h-8 mx-auto mb-4 animate-spin text-primary" />
+            <p className="dashboard-text-muted">Carregando dados...</p>
           </div>
         </CardContent>
       </Card>
@@ -305,17 +305,17 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
 
   if (error) {
     return (
-      <Card className="rounded-2xl border border-red-400/30 bg-red-900/10 text-white">
+      <Card className="rounded-2xl border border-red-400/30 bg-red-900/10 dark:bg-red-900/20">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-red-400">
+          <CardTitle className="flex items-center gap-2 text-red-500 dark:text-red-400">
             <TrendingUpIcon className="w-5 h-5" />
             Analytics
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-6">
-            <p className="text-red-400 mb-4">{error}</p>
-            <Button onClick={() => loadData()} variant="outline" size="sm" className="text-red-400 border-red-400 hover:bg-red-900/20">
+            <p className="text-red-500 dark:text-red-400 mb-4">{error}</p>
+            <Button onClick={() => loadData()} variant="outline" size="sm" className="text-red-500 dark:text-red-400 border-red-500 dark:border-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
               <RefreshCwIcon className="w-4 h-4 mr-2" />
               Tentar Novamente
             </Button>
@@ -327,16 +327,16 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
 
   if (!data) {
     return (
-      <Card className="rounded-2xl border border-white/10 bg-white/5 text-white">
+      <Card className="rounded-2xl border dashboard-border dashboard-card dashboard-shadow">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 dashboard-text">
             <TrendingUpIcon className="w-5 h-5" />
             Analytics
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-6">
-            <p className="text-slate-400 mb-4">Nenhum dado de analytics disponível</p>
+            <p className="dashboard-text-muted mb-4">Nenhum dado de analytics disponível</p>
             <Button onClick={() => loadData()} variant="outline" size="sm">
               <RefreshCwIcon className="w-4 h-4 mr-2" />
               Atualizar
@@ -350,12 +350,12 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
   // Verificar se data existe e tem a estrutura esperada
   if (!data || !data.overview || Object.keys(data.overview).length === 0) {
   return (
-    <Card className="rounded-2xl border border-white/10 bg-white/5 text-white">
+    <Card className="rounded-2xl border dashboard-border dashboard-card dashboard-shadow">
         <CardContent className="p-6">
-          <div className="text-center text-red-400">
+          <div className="text-center text-red-500 dark:text-red-400">
             <p>Dados de analytics não disponíveis</p>
-            <p className="text-sm text-slate-400 mt-2">Estrutura de dados inválida ou vazia</p>
-            <p className="text-xs text-slate-500 mt-1">Overview: {JSON.stringify(data?.overview)}</p>
+            <p className="text-sm dashboard-text-muted mt-2">Estrutura de dados inválida ou vazia</p>
+            <p className="text-xs dashboard-text-subtle mt-1">Overview: {JSON.stringify(data?.overview)}</p>
           </div>
         </CardContent>
       </Card>
@@ -420,19 +420,19 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
   // Try-catch global para capturar erros de renderização
   try {
     return (
-    <Card className="rounded-lg border border-gray-200 bg-white text-gray-900 shadow-lg">
-      <CardHeader className="pb-6 border-b border-gray-100">
+    <Card className="rounded-lg border dashboard-border dashboard-card dashboard-shadow-lg">
+      <CardHeader className="pb-6 border-b dashboard-divider">
         {/* Header Principal */}
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-gray-900 border border-gray-700">
-              <ActivityIcon className="w-6 h-6 text-white" />
+            <div className="p-3 rounded-lg dashboard-card border dashboard-border">
+              <ActivityIcon className="w-6 h-6 dashboard-text" />
             </div>
           <div>
-              <CardTitle className="text-2xl font-bold text-gray-900">
+              <CardTitle className="text-2xl font-bold dashboard-text">
                 Analytics Dashboard
             </CardTitle>
-              <CardDescription className="text-gray-600 text-base">
+              <CardDescription className="dashboard-text-muted text-base">
                 Insights detalhados de tráfego e comportamento
             </CardDescription>
             </div>
@@ -445,7 +445,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               variant="outline"
               size="sm"
               onClick={() => setShowFilters(!showFilters)}
-              className="bg-white border-gray-300 hover:bg-gray-50 text-gray-700"
+              className="dashboard-card border dashboard-border dashboard-text hover:bg-dashboard-hover"
             >
               <FilterIcon className="w-4 h-4 mr-2" />
               Filtros
@@ -457,7 +457,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               <select
                 value={exportFormat}
                 onChange={(e) => setExportFormat(e.target.value as any)}
-                className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="dashboard-card border dashboard-border rounded-md px-3 py-2 text-sm dashboard-text focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dashboard-input"
               >
                 <option value="pdf">PDF</option>
                 <option value="csv">CSV</option>
@@ -467,7 +467,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                 variant="outline"
                   size="sm"
                 onClick={exportData}
-                className="bg-white border-gray-300 hover:bg-gray-50 text-gray-700"
+                className="dashboard-card border dashboard-border dashboard-text hover:bg-dashboard-hover"
               >
                 <DownloadIcon className="w-4 h-4 mr-2" />
                 Exportar
@@ -480,7 +480,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               variant="outline"
               size="sm"
               disabled={refreshing}
-              className="bg-gray-900 border-gray-700 hover:bg-gray-800 text-white"
+              className="bg-primary text-white border-primary hover:opacity-90"
             >
               <RefreshCwIcon className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
               {refreshing ? 'Atualizando...' : 'Atualizar'}
@@ -490,10 +490,10 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
 
         {/* Filtros Avançados */}
         {showFilters && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 dashboard-card/50 rounded-lg border dashboard-border">
             {/* Período */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Período</label>
+              <label className="block text-sm font-medium dashboard-text mb-2">Período</label>
               <div className="flex gap-1">
                 {(['7d', '30d', '90d'] as const).map((range) => (
                   <Button
@@ -514,8 +514,8 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                     }}
                     className={`text-xs ${
                       timeRange === range 
-                        ? 'bg-gray-900 text-white border-gray-900' 
-                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                        ? 'bg-primary text-white border-primary' 
+                        : 'dashboard-card border dashboard-border dashboard-text hover:bg-dashboard-hover'
                     }`}
                   >
                     {range}
@@ -526,7 +526,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
             
             {/* Tipo de Gráfico */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Gráfico</label>
+              <label className="block text-sm font-medium dashboard-text mb-2">Tipo de Gráfico</label>
               <div className="flex gap-1">
                 {(['area', 'line', 'bar'] as const).map((type) => (
                   <Button
@@ -536,8 +536,8 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                     onClick={() => setChartType(type)}
                     className={`text-xs ${
                       chartType === type 
-                        ? 'bg-gray-900 text-white border-gray-900' 
-                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                        ? 'bg-primary text-white border-primary' 
+                        : 'dashboard-card border dashboard-border dashboard-text hover:bg-dashboard-hover'
                     }`}
                   >
                     {type === 'area' ? <AreaChart className="w-3 h-3 mr-1" /> : 
@@ -551,11 +551,11 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
             
             {/* Métrica */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Métrica</label>
+              <label className="block text-sm font-medium dashboard-text mb-2">Métrica</label>
               <select
                 value={selectedMetric}
                 onChange={(e) => setSelectedMetric(e.target.value as any)}
-                className="w-full bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full dashboard-card border dashboard-border rounded-md px-3 py-2 text-sm dashboard-text focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dashboard-input"
               >
                 <option value="all">Todas as métricas</option>
                 <option value="users">Usuários</option>
@@ -571,14 +571,14 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
         {/* Métricas Principais - Design Profissional */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Visualizações */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="dashboard-card border dashboard-border rounded-lg p-6 dashboard-shadow hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
-                <EyeIcon className="w-6 h-6 text-blue-600" />
+              <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800">
+                <EyeIcon className="w-6 h-6 text-blue-600 dark:text-blue-400 dark:text-blue-400" />
               </div>
               <div className="text-right">
                 <div className="flex items-center justify-end mb-1">
-                  <div className="text-3xl font-bold text-gray-900">
+                  <div className="text-3xl font-bold dashboard-text">
                     {formatNumber(processedOverview.pageViews || 0)}
                   </div>
                   <MetricTooltip
@@ -587,24 +587,24 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                     importance="Indica o nível de interesse e engajamento do seu público. Mais visualizações = mais oportunidades de conversão e maior autoridade no Google."
                   />
                 </div>
-                <p className="text-sm text-gray-600">Visualizações</p>
+                <p className="text-sm dashboard-text-muted">Visualizações</p>
               </div>
             </div>
-            <div className="flex items-center text-sm text-gray-500">
+            <div className="flex items-center text-sm dashboard-text-subtle">
               <TrendingUpIcon className="w-4 h-4 mr-1" />
               <span>Últimos {timeRange}</span>
             </div>
           </div>
 
           {/* Usuários Únicos */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="dashboard-card border dashboard-border rounded-lg p-6 dashboard-shadow hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-lg bg-green-50 border border-green-200">
-                <UsersIcon className="w-6 h-6 text-green-600" />
+              <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800">
+                <UsersIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
               <div className="text-right">
                 <div className="flex items-center justify-end mb-1">
-                  <div className="text-3xl font-bold text-gray-900">
+                  <div className="text-3xl font-bold dashboard-text">
                     {formatNumber(processedOverview.users || 0)}
                   </div>
                   <MetricTooltip
@@ -613,24 +613,24 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                     importance="Mostra o tamanho real da sua audiência. É a métrica mais importante para entender o crescimento do seu negócio e o potencial de mercado."
                   />
                 </div>
-                <p className="text-sm text-gray-600">Usuários únicos</p>
+                <p className="text-sm dashboard-text-muted">Usuários únicos</p>
               </div>
             </div>
-            <div className="flex items-center text-sm text-gray-500">
+            <div className="flex items-center text-sm dashboard-text-subtle">
               <TargetIcon className="w-4 h-4 mr-1" />
               <span>Visitantes únicos</span>
             </div>
           </div>
 
           {/* Tempo Médio */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="dashboard-card border dashboard-border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-200">
                 <ClockIcon className="w-6 h-6 text-yellow-600" />
               </div>
               <div className="text-right">
                 <div className="flex items-center justify-end mb-1">
-                  <div className="text-3xl font-bold text-gray-900">
+                  <div className="text-3xl font-bold dashboard-text">
                     {formatDuration(processedOverview.avgSessionDuration || 0)}
                   </div>
                   <MetricTooltip
@@ -639,24 +639,24 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                     importance="Indica o nível de engajamento do seu conteúdo. Tempos maiores = conteúdo mais interessante e maior chance de conversão em clientes."
                   />
                 </div>
-                <p className="text-sm text-gray-600">Tempo médio</p>
+                <p className="text-sm dashboard-text-muted">Tempo médio</p>
               </div>
             </div>
-            <div className="flex items-center text-sm text-gray-500">
+            <div className="flex items-center text-sm dashboard-text-subtle">
               <ActivityIcon className="w-4 h-4 mr-1" />
               <span>Por sessão</span>
             </div>
           </div>
 
           {/* Cliques no WhatsApp */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div className="dashboard-card border dashboard-border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 rounded-lg bg-green-50 border border-green-200">
                 <MessageCircleIcon className="w-6 h-6 text-green-600" />
               </div>
               <div className="text-right">
                 <div className="flex items-center justify-end mb-1">
-                  <div className="text-3xl font-bold text-gray-900">
+                  <div className="text-3xl font-bold dashboard-text">
                     {formatNumber(processedOverview.whatsappClicks || 0)}
                   </div>
                   <MetricTooltip
@@ -665,10 +665,10 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                     importance="Mostra o interesse real em contato. Mais cliques = maior interesse nos serviços e maior potencial de negócios."
                   />
                 </div>
-                <p className="text-sm text-gray-600">Cliques WhatsApp</p>
+                <p className="text-sm dashboard-text-muted">Cliques WhatsApp</p>
               </div>
             </div>
-            <div className="flex items-center text-sm text-gray-500">
+            <div className="flex items-center text-sm dashboard-text-subtle">
               <MessageCircleIcon className="w-4 h-4 mr-1" />
               <span>Interesse em contato</span>
             </div>
@@ -676,13 +676,13 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
         </div>
 
         {/* Gráfico de Tráfego Diário */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <div className="dashboard-card border dashboard-border rounded-lg p-6 shadow-sm">
           <div className="flex items-center justify-between mb-6">
         <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">Tráfego Diário</h3>
-              <p className="text-sm text-gray-600">Evolução do tráfego ao longo do tempo</p>
+              <h3 className="text-lg font-semibold dashboard-text mb-1">Tráfego Diário</h3>
+              <p className="text-sm dashboard-text-muted">Evolução do tráfego ao longo do tempo</p>
             </div>
-            <div className="flex items-center gap-4 text-sm text-gray-600">
+            <div className="flex items-center gap-4 text-sm dashboard-text-muted">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                 <span>Usuários</span>
@@ -746,14 +746,14 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
         </div>
 
         {/* Métricas de Contato - Importante para Sites Institucionais */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <div className="dashboard-card border dashboard-border rounded-lg p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 rounded-lg bg-blue-50 border border-blue-200">
-              <MessageCircleIcon className="w-5 h-5 text-blue-600" />
+            <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800">
+              <MessageCircleIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Interações de Contato</h3>
-              <p className="text-gray-600 text-sm">Como os visitantes estão entrando em contato</p>
+              <h3 className="text-lg font-semibold dashboard-text">Interações de Contato</h3>
+              <p className="dashboard-text-muted text-sm">Como os visitantes estão entrando em contato</p>
             </div>
           </div>
           
@@ -762,36 +762,36 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
             <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:bg-gray-100 transition-colors">
               <div className="flex items-center gap-3 mb-3">
                 <MessageCircleIcon className="w-6 h-6 text-green-600" />
-                <span className="font-medium text-gray-900">WhatsApp</span>
+                <span className="font-medium dashboard-text">WhatsApp</span>
               </div>
-              <div className="text-3xl font-bold text-gray-900 mb-1">
+              <div className="text-3xl font-bold dashboard-text mb-1">
                 {formatNumber(processedOverview.whatsappClicks || 0)}
               </div>
-              <p className="text-sm text-gray-600">cliques</p>
+              <p className="text-sm dashboard-text-muted">cliques</p>
             </div>
 
             {/* Formulários */}
             <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:bg-gray-100 transition-colors">
               <div className="flex items-center gap-3 mb-3">
-                <MailIcon className="w-6 h-6 text-blue-600" />
-                <span className="font-medium text-gray-900">Formulários</span>
+                <MailIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                <span className="font-medium dashboard-text">Formulários</span>
               </div>
-              <div className="text-3xl font-bold text-gray-900 mb-1">
+              <div className="text-3xl font-bold dashboard-text mb-1">
                 {formatNumber(processedOverview.formSubmissions || 0)}
               </div>
-              <p className="text-sm text-gray-600">envios</p>
+              <p className="text-sm dashboard-text-muted">envios</p>
             </div>
 
             {/* Telefone */}
             <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:bg-gray-100 transition-colors">
               <div className="flex items-center gap-3 mb-3">
                 <SmartphoneIcon className="w-6 h-6 text-purple-600" />
-                <span className="font-medium text-gray-900">Telefone</span>
+                <span className="font-medium dashboard-text">Telefone</span>
               </div>
-              <div className="text-3xl font-bold text-gray-900 mb-1">
+              <div className="text-3xl font-bold dashboard-text mb-1">
                 {formatNumber(processedOverview.phoneClicks || 0)}
               </div>
-              <p className="text-sm text-gray-600">cliques</p>
+              <p className="text-sm dashboard-text-muted">cliques</p>
             </div>
           </div>
         </div>
@@ -825,7 +825,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                     
                     {/* Facebook */}
                     {source.source.toLowerCase().includes('facebook') && 
-                      <ShareIcon className="w-5 h-5 text-blue-600" />}
+                      <ShareIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />}
                     
                     {/* WhatsApp */}
                     {source.source.toLowerCase().includes('whatsapp') && 
@@ -898,14 +898,14 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
         </div>
 
         {/* Detalhes das Visitas Recentes */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <div className="dashboard-card border dashboard-border rounded-lg p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 rounded-lg bg-purple-50 border border-purple-200">
               <ActivityIcon className="w-5 h-5 text-purple-600" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Visitas Recentes</h3>
-              <p className="text-gray-600 text-sm">Detalhes das últimas visitas ao site</p>
+              <h3 className="text-lg font-semibold dashboard-text">Visitas Recentes</h3>
+              <p className="dashboard-text-muted text-sm">Detalhes das últimas visitas ao site</p>
             </div>
           </div>
           
@@ -952,9 +952,9 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-3">
                           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                          <span className="font-medium text-gray-900">{timeStr}</span>
-                          <span className="text-sm text-gray-600">•</span>
-                          <span className="text-sm text-gray-600">{formattedDuration}</span>
+                          <span className="font-medium dashboard-text">{timeStr}</span>
+                          <span className="text-sm dashboard-text-muted">•</span>
+                          <span className="text-sm dashboard-text-muted">{formattedDuration}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           {source === 'Google' && <SearchIcon className="w-4 h-4 text-blue-500" />}
@@ -962,14 +962,14 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                           {source === 'WhatsApp' && <MessageCircleIcon className="w-4 h-4 text-green-500" />}
                           {source === 'Facebook' && <ShareIcon className="w-4 h-4 text-blue-700" />}
                           {source === 'YouTube' && <YoutubeIcon className="w-4 h-4 text-red-700" />}
-                          {source === 'TikTok' && <MessageCircleIcon className="w-4 h-4 text-gray-900 bg-white rounded" />}
+                          {source === 'TikTok' && <MessageCircleIcon className="w-4 h-4 dashboard-text bg-white rounded" />}
                           {source === 'LinkedIn' && <LinkedinIcon className="w-4 h-4 text-blue-700" />}
                           {source === 'Twitter' && <TwitterIcon className="w-4 h-4 text-blue-500" />}
                           {source === 'Direct' && <GlobeIcon className="w-4 h-4 text-green-600" />}
                           <span className="text-sm font-medium text-gray-700">{source}</span>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between text-sm text-gray-600">
+                      <div className="flex items-center justify-between text-sm dashboard-text-muted">
                         <span>Página: {event.page_url || '/'}</span>
                         <div className="flex items-center gap-4">
                           <span>Dispositivo: {event.device_type || 'Unknown'}</span>
@@ -983,8 +983,8 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                 return (
                   <div className="text-center py-8">
                     <ActivityIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 mb-2">Nenhuma visita registrada ainda</p>
-                    <p className="text-sm text-gray-500">Os dados aparecerão aqui quando houver visitas ao site</p>
+                    <p className="dashboard-text-muted mb-2">Nenhuma visita registrada ainda</p>
+                    <p className="text-sm dashboard-text-subtle">Os dados aparecerão aqui quando houver visitas ao site</p>
                   </div>
                 );
               }
@@ -995,8 +995,8 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
         {/* Gráficos Secundários */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Top Páginas */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Páginas Mais Visitadas</h3>
+          <div className="dashboard-card border dashboard-border rounded-lg p-6 shadow-sm">
+            <h3 className="text-lg font-semibold dashboard-text mb-4">Páginas Mais Visitadas</h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={processedTopPages.slice(0, 5)}>
@@ -1026,8 +1026,8 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
           </div>
 
           {/* Dispositivos */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Dispositivos</h3>
+          <div className="dashboard-card border dashboard-border rounded-lg p-6 shadow-sm">
+            <h3 className="text-lg font-semibold dashboard-text mb-4">Dispositivos</h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
