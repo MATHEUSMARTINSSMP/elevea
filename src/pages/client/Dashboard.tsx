@@ -18,7 +18,7 @@ import FeatureManager from "./components/FeatureManager";
 import { EcommerceDashboard } from "./components/EcommerceDashboard";
 import TemplateMarketplace from "./components/TemplateMarketplace";
 import AuditLogs from "./components/AuditLogs";
-import SiteEditor from "./components/SiteEditor";
+import ModernSiteEditor from "./components/ModernSiteEditor";
 
 // === Extras / UI ===
 import { AICopywriter } from "@/components/ui/ai-copywriter";
@@ -267,10 +267,7 @@ export default function ClientDashboard() {
   /* Gerador de Conteúdo IA */
   const [showContentGenerator, setShowContentGenerator] = useState(false);
 
-  /* Estrutura do site (personalização VIP) */
-  const [siteStructure, setSiteStructure] = useState<any>(null);
-  const [loadingStructure, setLoadingStructure] = useState(true);
-  const [savingStructure, setSavingStructure] = useState(false);
+  // Estrutura do site removida - edição agora via n8n (SiteEditor component)
 
   // Persistir vipPin sempre que mudar
   useEffect(() => {
@@ -427,7 +424,7 @@ export default function ClientDashboard() {
     if (!canQuery) {
       setLoadingAssets(false);
       setLoadingSettings(false);
-      setLoadingStructure(false);
+      // setLoadingStructure removido
       setLoadingFeedbacks(false);
       setFeaturesLoaded(true);
       return;
@@ -627,38 +624,7 @@ useEffect(() => {
 }, [canQuery, user?.siteSlug, vipEnabled, vipPin, DEV_FORCE_VIP]);
 
   /* 4) ESTRUTURA DO SITE */
-  useEffect(() => {
-    // VIP pode ver estrutura, mas precisa de PIN para salvar
-    if (!canQuery || !vipEnabled) {
-      setSiteStructure(null);
-      setLoadingStructure(false);
-      return;
-    }
-
-    let alive = true;
-    (async () => {
-      setLoadingStructure(true);
-      try {
-        const response = await getJSON<{
-          ok: boolean;
-          structure?: any;
-          isDefault?: boolean;
-        }>(
-          `/.netlify/functions/site-structure?site=${encodeURIComponent(user!.siteSlug!)}`,
-          CARDS_TIMEOUT_MS
-        );
-
-        if (!alive) return;
-        if (response.ok && response.structure) setSiteStructure(response.structure);
-      } catch (e) {
-        console.log("Erro ao carregar estrutura:", e);
-      } finally {
-        if (alive) setLoadingStructure(false);
-      }
-    })();
-
-    return () => { alive = false; };
-  }, [canQuery, user?.siteSlug, vipEnabled, vipPin, DEV_FORCE_VIP]);
+  // useEffect para site-structure removido - edição agora via n8n
 
   /* Ações */
   async function saveSettings(partial: Partial<ClientSettings>) {
@@ -716,58 +682,14 @@ useEffect(() => {
   }
 }
 
-  async function saveSiteStructure(updatedStructure?: any) {
-    if (!canQuery || !canPerformVipAction(true)) return; // true = requer PIN para salvar
-    const structureToSave = updatedStructure || siteStructure;
-    if (!structureToSave) return;
-
-    setSavingStructure(true);
-    try {
-      const response = await postJSON<{ ok: boolean }>(
-        "/.netlify/functions/site-structure",
-        {
-          structure: structureToSave,
-          pin: vipPin || "FORCED",
-          site: user!.siteSlug!,
-        },
-        CARDS_TIMEOUT_MS
-      );
-      if (!response.ok) throw new Error("Falha ao salvar estrutura");
-      setSiteStructure(structureToSave);
-    } catch (e: any) {
-      alert(e?.message || "Erro ao salvar estrutura do site");
-    } finally {
-      setSavingStructure(false);
-    }
-  }
-
+  // saveSiteStructure, handleContentGenerated e updateSectionField removidos
+  // Edição de sites agora via n8n webhooks (SiteEditor component usa n8n-sites.ts)
+  
   const handleContentGenerated = (content: any[]) => {
-    if (!siteStructure || !content.length) return;
-    const updatedStructure = { ...siteStructure };
-    content.forEach((item, index) => {
-      if (updatedStructure.sections && updatedStructure.sections[index]) {
-        updatedStructure.sections[index] = {
-          ...updatedStructure.sections[index],
-          title: item.title || updatedStructure.sections[index].title,
-          subtitle: item.subtitle || updatedStructure.sections[index].subtitle,
-          description: item.description || updatedStructure.sections[index].description,
-        };
-      }
-    });
-    setSiteStructure(updatedStructure);
-    saveSiteStructure(updatedStructure);
+    // Função mantida apenas para compatibilidade com AIContentGenerator
+    // Mas não salva mais estrutura antiga - edição agora via SiteEditor/n8n
+    console.log('Conteúdo gerado:', content);
   };
-
-    function updateSectionField(sectionId: string, field: string, value: any) {
-    if (!siteStructure) return;
-    const updatedStructure = {
-      ...siteStructure,
-      sections: siteStructure.sections.map((section: any) =>
-        section.id === sectionId ? { ...section, [field]: value } : section
-      ),
-    };
-    setSiteStructure(updatedStructure);
-  }
 
   function logout() {
     // Limpar localStorage que o useSession usa
@@ -926,10 +848,10 @@ useEffect(() => {
               </section>
             )}
 
-            {/* Editor de Site */}
+            {/* Editor de Site - Moderno e Funcional */}
             {isFeatureEnabled("site-editor") && (
               <section className="space-y-6">
-                <SiteEditor 
+                <ModernSiteEditor 
                   siteSlug={user.siteSlug || ""} 
                   vipPin={vipPin || "FORCED"}
                   onContentUpdated={(sectionId, field, value) => {
@@ -1190,7 +1112,7 @@ useEffect(() => {
               <section className="space-y-6">
                 <BusinessInsights
                   siteSlug={user.siteSlug || ""}
-                  businessType={siteStructure?.category || "geral"}
+                  businessType="geral"
                   businessName={user?.siteSlug || "seu negócio"}
                   vipPin={vipPin || "FORCED"}
                   analytics={{
@@ -1235,9 +1157,9 @@ useEffect(() => {
                 vipPin={vipPin || "FORCED"}
                 businessData={{
                   name: user.siteSlug || "seu negócio",
-                  type: siteStructure?.category || "negócio",
+                  type: "negócio",
                   location: "Brasil",
-                  description: siteStructure?.description || "",
+                  description: "",
                 }}
               />
             </section>
@@ -1247,8 +1169,8 @@ useEffect(() => {
               <div className="rounded-2xl border border-white/10 bg-white text-slate-900 p-6">
                 <AICopywriter
                   businessName={user.siteSlug || "seu negócio"}
-                  businessType={siteStructure?.category || "negócio"}
-                  businessDescription={siteStructure?.description || ""}
+                  businessType="negócio"
+                  businessDescription=""
                 />
               </div>
             </section>
@@ -1318,9 +1240,9 @@ useEffect(() => {
       {/* Gerador de Conteúdo IA Modal */}
       {showContentGenerator && vipEnabled && (
         <AIContentGenerator
-          businessType={siteStructure?.category || "geral"}
+          businessType="geral"
           businessName={user?.siteSlug || "seu negócio"}
-          businessDescription={siteStructure?.description}
+          businessDescription=""
           onContentGenerated={handleContentGenerated}
           onClose={() => setShowContentGenerator(false)}
         />

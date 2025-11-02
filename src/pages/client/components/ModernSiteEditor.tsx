@@ -1,0 +1,794 @@
+/**
+ * ============================================================
+ * MODERN SITE EDITOR - Editor de Conteúdo Moderno e Funcional
+ * ============================================================
+ * 
+ * Componente principal para edição de seções e mídias do site.
+ * Conectado 100% com n8n webhooks via n8n-sites.ts
+ * 
+ * Funcionalidades:
+ * - ✅ CRUD completo de seções (Create, Read, Update, Delete)
+ * - ✅ Gerenciamento de mídias (Upload, Delete)
+ * - ✅ Preview em tempo real
+ * - ✅ Busca e filtros avançados
+ * - ✅ Interface moderna e intuitiva
+ * - ✅ Feedback visual com toasts
+ * 
+ * Integração:
+ * - Usa n8n-sites.ts para todas as chamadas de API
+ * - Workflows n8n: 1-8 (sections, media, content)
+ * - Banco de dados: Supabase (elevea.site_sections, elevea.site_media)
+ * - GitHub: Armazenamento de arquivos de mídia
+ * 
+ * @author Elevea Agência
+ * @version 1.0.0
+ */
+
+import React, { useState, useEffect } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { 
+  Loader2, 
+  Save, 
+  Edit2, 
+  Trash2, 
+  Plus, 
+  Eye, 
+  EyeOff, 
+  Image as ImageIcon, 
+  Upload,
+  FileImage,
+  Grid3x3,
+  Layout,
+  Sparkles,
+  CheckCircle2,
+  XCircle,
+  RefreshCw,
+  Search,
+  Filter,
+  Info,
+  HelpCircle,
+  ArrowUpDown
+} from 'lucide-react'
+import ImageManager from './ImageManager'
+import * as n8nSites from '@/lib/n8n-sites'
+import type { SiteSection, SiteMedia } from '@/lib/n8n-sites'
+import { toast } from 'sonner'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+
+interface ModernSiteEditorProps {
+  siteSlug: string
+  vipPin: string
+  onContentUpdated?: (sectionId: string, field: string, value: any) => void
+}
+
+export default function ModernSiteEditor({ 
+  siteSlug, 
+  vipPin, 
+  onContentUpdated 
+}: ModernSiteEditorProps) {
+  const [sections, setSections] = useState<SiteSection[]>([])
+  const [media, setMedia] = useState<SiteMedia[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [editingSection, setEditingSection] = useState<string | null>(null)
+  const [sectionEditData, setSectionEditData] = useState<Record<string, any>>({})
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterVisible, setFilterVisible] = useState<boolean | null>(null)
+
+  // Carregar dados do site
+  useEffect(() => {
+    loadAllData()
+  }, [siteSlug])
+
+  const loadAllData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const [sectionsData, mediaData] = await Promise.all([
+        n8nSites.getSections(siteSlug),
+        n8nSites.getMedia(siteSlug).catch(() => []) // Não bloquear se falhar
+      ])
+      
+      setSections(sectionsData)
+      setMedia(mediaData)
+    } catch (err: any) {
+      setError(err.message || 'Erro ao carregar dados do site')
+      toast.error('Erro ao carregar dados')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ========== SEÇÕES ==========
+
+  const createSection = async () => {
+    try {
+      setSaving(true)
+      setError(null)
+      
+      const newSection = await n8nSites.createSection(siteSlug, {
+        type: 'custom',
+        title: 'Nova Seção',
+        subtitle: '',
+        description: '',
+        visible: true,
+        order: sections.length
+      })
+      
+      setSections(prev => [...prev, newSection])
+      toast.success('Seção criada com sucesso!')
+      setEditingSection(newSection.id)
+      setSectionEditData({ [newSection.id]: { ...newSection } })
+    } catch (err: any) {
+      setError(err.message || 'Erro ao criar seção')
+      toast.error('Erro ao criar seção')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const updateSection = async (sectionId: string) => {
+    try {
+      setSaving(true)
+      setError(null)
+      
+      const updates = sectionEditData[sectionId] || {}
+      
+      const updatedSection = await n8nSites.updateSection(siteSlug, sectionId, {
+        title: updates.title,
+        subtitle: updates.subtitle,
+        description: updates.description,
+        image_url: updates.image || updates.image_url,
+        type: updates.type,
+        order: updates.order,
+        visible: updates.visible,
+        custom_fields: updates.customFields || updates.custom_fields
+      })
+      
+      setSections(prev => prev.map(s => s.id === sectionId ? updatedSection : s))
+      setEditingSection(null)
+      setSectionEditData(prev => {
+        const newData = { ...prev }
+        delete newData[sectionId]
+        return newData
+      })
+      
+      toast.success('Seção atualizada!')
+      onContentUpdated?.(sectionId, 'section', updatedSection)
+    } catch (err: any) {
+      setError(err.message || 'Erro ao atualizar seção')
+      toast.error('Erro ao atualizar seção')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const deleteSection = async (sectionId: string) => {
+    if (!confirm('Tem certeza que deseja deletar esta seção? Esta ação não pode ser desfeita.')) {
+      return
+    }
+    
+    try {
+      setSaving(true)
+      setError(null)
+      
+      await n8nSites.deleteSection(siteSlug, sectionId)
+      setSections(prev => prev.filter(s => s.id !== sectionId))
+      toast.success('Seção deletada!')
+    } catch (err: any) {
+      setError(err.message || 'Erro ao deletar seção')
+      toast.error('Erro ao deletar seção')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const startEditSection = (section: SiteSection) => {
+    setEditingSection(section.id)
+    setSectionEditData({
+      [section.id]: {
+        title: section.title,
+        subtitle: section.subtitle,
+        description: section.description,
+        image: section.image || section.image_url,
+        type: section.type,
+        order: section.order,
+        visible: section.visible,
+        customFields: section.customFields || section.custom_fields || {}
+      }
+    })
+  }
+
+  const cancelEditSection = (sectionId: string) => {
+    setEditingSection(null)
+    setSectionEditData(prev => {
+      const newData = { ...prev }
+      delete newData[sectionId]
+      return newData
+    })
+  }
+
+  const handleSectionFieldChange = (sectionId: string, field: string, value: any) => {
+    setSectionEditData(prev => ({
+      ...prev,
+      [sectionId]: {
+        ...prev[sectionId],
+        [field]: value
+      }
+    }))
+  }
+
+  // ========== MÍDIAS ==========
+
+  const deleteMedia = async (mediaId: string) => {
+    if (!confirm('Tem certeza que deseja deletar esta mídia? Esta ação não pode ser desfeita.')) {
+      return
+    }
+    
+    try {
+      setSaving(true)
+      setError(null)
+      
+      await n8nSites.deleteMedia(siteSlug, mediaId)
+      setMedia(prev => prev.filter(m => m.id !== mediaId))
+      toast.success('Mídia deletada!')
+    } catch (err: any) {
+      setError(err.message || 'Erro ao deletar mídia')
+      toast.error('Erro ao deletar mídia')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleMediaUploaded = (newMedia: SiteMedia) => {
+    setMedia(prev => [...prev, newMedia])
+    toast.success('Mídia enviada com sucesso!')
+  }
+
+  // ========== FILTROS E BUSCA ==========
+
+  const filteredSections = sections.filter(section => {
+    const matchesSearch = searchQuery === '' || 
+      section.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      section.subtitle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      section.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    
+    const matchesFilter = filterVisible === null || section.visible === filterVisible
+    
+    return matchesSearch && matchesFilter
+  })
+
+  const filteredMedia = media.filter(m => {
+    if (searchQuery === '') return true
+    return m.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           m.key.toLowerCase().includes(searchQuery.toLowerCase())
+  })
+
+  // ========== RENDER ==========
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 space-y-4">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="text-muted-foreground">Carregando conteúdo do site...</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header Elegante */}
+      <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-6 backdrop-blur-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Layout className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-3xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
+                  Editor de Conteúdo
+                </h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Gerencie seções e mídias do site <span className="font-medium text-foreground">{siteSlug}</span>
+                </p>
+              </div>
+            </div>
+            
+            {/* Stats rápidas */}
+            <div className="flex items-center gap-4 text-xs text-muted-foreground mt-3">
+              <div className="flex items-center gap-1.5">
+                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                <span>{sections.length} seções</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <FileImage className="h-3 w-3" />
+                <span>{media.length} mídias</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Eye className="h-3 w-3" />
+                <span>{sections.filter(s => s.visible).length} visíveis</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    onClick={loadAllData} 
+                    variant="outline" 
+                    size="sm"
+                    disabled={loading || saving}
+                    className="gap-2"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                    Atualizar
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Recarregar todas as seções e mídias</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
+            <Button 
+              onClick={createSection} 
+              size="sm"
+              disabled={saving}
+              className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+            >
+              <Plus className="h-4 w-4" />
+              Nova Seção
+            </Button>
+          </div>
+        </div>
+        
+        {/* Instruções rápidas */}
+        <div className="mt-4 pt-4 border-t border-white/10">
+          <div className="flex items-start gap-2 text-xs text-muted-foreground">
+            <HelpCircle className="h-4 w-4 mt-0.5 text-primary/60" />
+            <div className="flex-1 space-y-1">
+              <p className="font-medium text-foreground/80">💡 Dicas rápidas:</p>
+              <ul className="space-y-1 ml-4 list-disc">
+                <li>Clique em <strong>Editar</strong> para modificar uma seção</li>
+                <li>Use a <strong>busca</strong> para encontrar seções específicas</li>
+                <li>As <strong>mídias</strong> são armazenadas no GitHub automaticamente</li>
+                <li>Visualize o resultado final na aba <strong>Preview</strong></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Alerts */}
+      {error && (
+        <Alert variant="destructive">
+          <XCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Tabs */}
+      <Tabs defaultValue="sections" className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <TabsList>
+            <TabsTrigger value="sections" className="gap-2">
+              <Layout className="h-4 w-4" />
+              Seções
+              <Badge variant="secondary" className="ml-1">
+                {sections.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="media" className="gap-2">
+              <FileImage className="h-4 w-4" />
+              Mídias
+              <Badge variant="secondary" className="ml-1">
+                {media.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="preview" className="gap-2">
+              <Eye className="h-4 w-4" />
+              Preview
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Search and Filter */}
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 w-48"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setFilterVisible(filterVisible === null ? true : filterVisible === true ? false : null)}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              {filterVisible === null ? 'Todos' : filterVisible ? 'Visíveis' : 'Ocultos'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Tab: Seções */}
+        <TabsContent value="sections" className="space-y-4">
+          {filteredSections.length === 0 ? (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <Grid3x3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">
+                  {sections.length === 0 ? 'Nenhuma seção criada' : 'Nenhuma seção encontrada'}
+                </h3>
+                <p className="text-muted-foreground mb-4">
+                  {sections.length === 0 
+                    ? 'Comece criando sua primeira seção'
+                    : 'Tente ajustar os filtros de busca'
+                  }
+                </p>
+                {sections.length === 0 && (
+                  <Button onClick={createSection} disabled={saving}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Criar Primeira Seção
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {filteredSections
+                .sort((a, b) => a.order - b.order)
+                .map((section) => (
+                  <Card 
+                    key={section.id} 
+                    className="overflow-hidden hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/50 bg-gradient-to-br from-card to-card/50"
+                  >
+                    <CardHeader className="pb-3 bg-gradient-to-r from-muted/50 to-transparent">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 space-y-2">
+                          {/* Order Badge */}
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs font-mono">
+                              <ArrowUpDown className="h-3 w-3 mr-1" />
+                              #{section.order}
+                            </Badge>
+                            <Badge variant={section.visible ? "default" : "secondary"} className="text-xs">
+                              {section.visible ? (
+                                <>
+                                  <Eye className="h-3 w-3 mr-1" />
+                                  Visível
+                                </>
+                              ) : (
+                                <>
+                                  <EyeOff className="h-3 w-3 mr-1" />
+                                  Oculto
+                                </>
+                              )}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs capitalize">
+                              {section.type}
+                            </Badge>
+                          </div>
+                          
+                          {editingSection === section.id ? (
+                            <>
+                              <Input
+                                value={sectionEditData[section.id]?.title || ''}
+                                onChange={(e) => handleSectionFieldChange(section.id, 'title', e.target.value)}
+                                className="text-lg font-semibold"
+                                placeholder="Título da seção"
+                              />
+                              <Input
+                                value={sectionEditData[section.id]?.subtitle || ''}
+                                onChange={(e) => handleSectionFieldChange(section.id, 'subtitle', e.target.value)}
+                                placeholder="Subtítulo (opcional)"
+                                className="text-sm"
+                              />
+                            </>
+                          ) : (
+                            <>
+                              <CardTitle className="text-xl font-bold">
+                                {section.title}
+                              </CardTitle>
+                              {section.subtitle && (
+                                <CardDescription className="text-base">{section.subtitle}</CardDescription>
+                              )}
+                            </>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          {editingSection === section.id ? (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => updateSection(section.id)}
+                                disabled={saving}
+                                className="gap-2"
+                              >
+                                <Save className="h-4 w-4" />
+                                Salvar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => cancelEditSection(section.id)}
+                                disabled={saving}
+                              >
+                                Cancelar
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => startEditSection(section)}
+                                      disabled={saving}
+                                      className="gap-2"
+                                    >
+                                      <Edit2 className="h-4 w-4" />
+                                      Editar
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Editar esta seção</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                              
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => deleteSection(section.id)}
+                                      disabled={saving}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Deletar esta seção</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </CardHeader>
+                    
+                    {editingSection === section.id ? (
+                      <CardContent className="space-y-4 pt-4 border-t">
+                        <div>
+                          <Label>Descrição</Label>
+                          <Textarea
+                            value={sectionEditData[section.id]?.description || ''}
+                            onChange={(e) => handleSectionFieldChange(section.id, 'description', e.target.value)}
+                            placeholder="Descrição da seção"
+                            rows={4}
+                            className="mt-1"
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label>Imagem</Label>
+                          <ImageManager
+                            siteSlug={siteSlug}
+                            vipPin={vipPin}
+                            currentImageUrl={sectionEditData[section.id]?.image || ''}
+                            onImageSelected={(url) => handleSectionFieldChange(section.id, 'image', url)}
+                          />
+                        </div>
+                        
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={sectionEditData[section.id]?.visible !== false}
+                              onCheckedChange={(checked) => handleSectionFieldChange(section.id, 'visible', checked)}
+                            />
+                            <Label>Seção visível</Label>
+                          </div>
+                          
+                          <div>
+                            <Label>Ordem</Label>
+                            <Input
+                              type="number"
+                              value={sectionEditData[section.id]?.order || 0}
+                              onChange={(e) => handleSectionFieldChange(section.id, 'order', parseInt(e.target.value))}
+                              className="w-20 mt-1"
+                            />
+                          </div>
+                        </div>
+                      </CardContent>
+                    ) : (
+                      section.description && (
+                        <CardContent>
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {section.description}
+                          </p>
+                          {section.image && (
+                            <div className="mt-4">
+                              <img 
+                                src={section.image} 
+                                alt={section.title}
+                                className="w-full h-48 object-cover rounded-lg"
+                              />
+                            </div>
+                          )}
+                        </CardContent>
+                      )
+                    )}
+                  </Card>
+                ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Tab: Mídias */}
+        <TabsContent value="media" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5" />
+                Upload de Mídia
+              </CardTitle>
+              <CardDescription>
+                Envie imagens que serão armazenadas no GitHub
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ImageManager
+                siteSlug={siteSlug}
+                vipPin={vipPin}
+                onImageSelected={(url) => {
+                  // Recarregar mídias após upload
+                  n8nSites.getMedia(siteSlug).then(setMedia).catch(console.error)
+                }}
+              />
+            </CardContent>
+          </Card>
+
+          {filteredMedia.length === 0 ? (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <FileImage className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">
+                  {media.length === 0 ? 'Nenhuma mídia enviada' : 'Nenhuma mídia encontrada'}
+                </h3>
+                <p className="text-muted-foreground">
+                  {media.length === 0 
+                    ? 'Comece fazendo upload de imagens'
+                    : 'Tente ajustar a busca'
+                  }
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredMedia.map((item) => (
+                <Card key={item.id} className="overflow-hidden group hover:shadow-lg transition-shadow">
+                  <div className="relative aspect-video bg-muted">
+                    <img
+                      src={item.url}
+                      alt={item.fileName}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none'
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => deleteMedia(item.id)}
+                        disabled={saving}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Deletar
+                      </Button>
+                    </div>
+                  </div>
+                  <CardContent className="p-3">
+                    <p className="text-sm font-medium truncate" title={item.fileName}>
+                      {item.fileName}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {item.key}
+                    </p>
+                    {item.size && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {(item.size / 1024).toFixed(2)} KB
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Tab: Preview */}
+        <TabsContent value="preview" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5" />
+                Preview do Site
+              </CardTitle>
+              <CardDescription>
+                Visualize como as seções aparecerão no site
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-8">
+                {sections
+                  .filter(s => s.visible)
+                  .sort((a, b) => a.order - b.order)
+                  .map((section) => (
+                    <div key={section.id} className="border rounded-lg p-6 space-y-4">
+                      <div>
+                        <h3 className="text-2xl font-bold mb-2">{section.title}</h3>
+                        {section.subtitle && (
+                          <p className="text-lg text-muted-foreground mb-4">{section.subtitle}</p>
+                        )}
+                        {section.description && (
+                          <p className="text-base mb-4">{section.description}</p>
+                        )}
+                      </div>
+                      {section.image && (
+                        <img 
+                          src={section.image} 
+                          alt={section.title}
+                          className="w-full h-64 object-cover rounded-lg"
+                        />
+                      )}
+                      <div className="flex items-center gap-2 pt-4 border-t">
+                        <Badge variant="outline">{section.type}</Badge>
+                        <Badge variant="secondary">
+                          Ordem: {section.order}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                
+                {sections.filter(s => s.visible).length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <EyeOff className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Nenhuma seção visível para exibir</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}
+

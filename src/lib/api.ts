@@ -3,12 +3,11 @@
 /**
  * Configuração de endpoints da API
  * - Migrado 100% para n8n
+ * - Edição de sites agora via n8n webhooks (n8n-sites.ts)
  */
 
 export const APPS_ENDPOINT =
-  import.meta.env.VITE_APPS_WEBAPP_URL ||
-  import.meta.env.VITE_ELEVEA_GAS_URL ||
-  "https://script.google.com/macros/s/AKfycbxPbvLefGLGZJXLBXeXYtSOWVl7gQwl3G0v1NTVDovBiPW5J_yTm_a-3v6nOXh5D6NNBQ/exec";
+  import.meta.env.VITE_APPS_WEBAPP_URL || "";
 
 // Base para n8n webhooks
 const N8N_BASE = import.meta.env.VITE_N8N_BASE_URL || "";

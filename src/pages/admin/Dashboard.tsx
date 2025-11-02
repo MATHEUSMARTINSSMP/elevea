@@ -3,9 +3,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { DashboardCardSkeleton, TableRowSkeleton } from "@/components/ui/loading-skeletons";
 
 /** Endpoints (Netlify Functions do PAINEL Elevea) */
-const APPS_ENDPOINT = "/.netlify/functions/sheets-proxy";
+// APPS_ENDPOINT removido - edição de sites agora via n8n (n8n-sites.ts)
 const ADMIN_TOGGLE_FN = "/.netlify/functions/admin-toggle";
-const CLIENT_API = "/.netlify/functions/client-api"; // Para relatórios
+const CLIENT_API = "/.netlify/functions/client-api"; // Para relatórios (não edição de sites)
 
 /** ===== Tipos ===== */
 type SiteStatus = {
@@ -756,84 +756,26 @@ function FeatureControl({ slug }: { slug: string }) {
 function SchemaEditor({ slug }: { slug: string }) {
   const [loading, setLoading] = useState(true);
   const [jsonText, setJsonText] = useState<string>("");
-
-  async function load() {
-    setLoading(true);
-    try {
-      const r = await fetch(`/.netlify/functions/client-api?action=get_settings&site=${encodeURIComponent(slug)}&nc=${Date.now()}`, {
-        cache: "no-store",
-      });
-      const j = await r.json();
-      const defs = j?.settings?.sections?.defs || [];
-      setJsonText(JSON.stringify(defs, null, 2));
-    } catch {
-      setJsonText("[]");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [info, setInfo] = useState<string>("");
 
   useEffect(() => {
-    load();
+    setInfo("Editor de schema desativado. Seções agora são gerenciadas via n8n webhooks.");
+    setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
-
-  async function save() {
-    try {
-      const parsed = JSON.parse(jsonText || "[]");
-      const rr = await fetch("/.netlify/functions/client-api", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "save_settings",
-          site: slug,
-          settings: { sections: { defs: parsed } }, // mantemos data existente como está
-        }),
-      });
-      if (!rr.ok) throw new Error(`HTTP ${rr.status}`);
-      alert("Schema salvo com sucesso.");
-    } catch (e: any) {
-      alert(e?.message || "Falha ao salvar schema.");
-    }
-  }
 
   return (
     <div className="mt-2">
       {loading ? (
         <div className="text-sm text-slate-500">Carregando…</div>
       ) : (
-        <>
-          <div className="text-xs text-slate-600 mb-2">
-            Edite o <b>array</b> de sessões. Exemplo rápido:
-            <pre className="mt-2 bg-slate-50 border rounded p-2 overflow-auto">
-{`[
-  {
-    "id": "hero",
-    "name": "Sessão: Hero",
-    "fields": [
-      { "key": "title", "label": "Título" },
-      { "key": "subtitle", "label": "Subtítulo" }
-    ],
-    "slots": [
-      { "key": "hero_img_1", "label": "Foto 1" },
-      { "key": "hero_img_2", "label": "Foto 2" }
-    ]
-  }
-]`}
-            </pre>
-          </div>
-          <textarea
-            className="w-full h-56 border rounded p-2 font-mono text-xs"
-            value={jsonText}
-            onChange={(e) => setJsonText(e.target.value)}
-          />
-          <div className="mt-2 flex gap-2">
-            <button onClick={load} className="border rounded px-3 py-1.5 text-sm">Recarregar</button>
-            <button onClick={save} className="bg-black text-white rounded px-3 py-1.5 text-sm">Salvar schema</button>
-          </div>
-        </>
+        <div className="text-sm text-slate-600 p-4 bg-slate-50 border rounded">
+          <p className="font-medium mb-2">Editor de Schema Desativado</p>
+          <p className="text-xs text-slate-500">
+            As seções dos sites agora são gerenciadas diretamente via n8n webhooks.
+            Use o dashboard do cliente para editar seções e mídias.
+          </p>
+        </div>
       )}
     </div>
   );
