@@ -112,7 +112,7 @@ const MetricTooltip = ({ title, description, importance }: { title: string; desc
         onMouseLeave={() => setShowTooltip(false)}
         className="ml-2 p-1 rounded-full hover:bg-white/10 transition-colors"
       >
-        <InfoIcon className="w-4 h-4 text-slate-400 hover:text-white" />
+        <InfoIcon className="w-4 h-4 dashboard-text-muted hover:dashboard-text" />
       </button>
       
       {showTooltip && (
@@ -759,58 +759,58 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* WhatsApp */}
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:bg-gray-100 transition-colors">
+            <div className="dashboard-card rounded-lg p-4 border dashboard-border hover:bg-dashboard-hover transition-colors dashboard-shadow">
               <div className="flex items-center gap-3 mb-3">
-                <MessageCircleIcon className="w-6 h-6 text-green-600" />
+                <MessageCircleIcon className="w-6 h-6 text-green-500 dark:text-green-400" />
                 <span className="font-medium dashboard-text">WhatsApp</span>
               </div>
               <div className="text-3xl font-bold dashboard-text mb-1">
                 {formatNumber(processedOverview.whatsappClicks || 0)}
               </div>
-              <p className="text-sm dashboard-text-muted">cliques</p>
+              <p className="text-sm dashboard-text-muted font-medium">cliques</p>
             </div>
 
             {/* Formulários */}
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:bg-gray-100 transition-colors">
+            <div className="dashboard-card rounded-lg p-4 border dashboard-border hover:bg-dashboard-hover transition-colors dashboard-shadow">
               <div className="flex items-center gap-3 mb-3">
-                <MailIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                <MailIcon className="w-6 h-6 text-blue-500 dark:text-blue-400" />
                 <span className="font-medium dashboard-text">Formulários</span>
               </div>
               <div className="text-3xl font-bold dashboard-text mb-1">
                 {formatNumber(processedOverview.formSubmissions || 0)}
               </div>
-              <p className="text-sm dashboard-text-muted">envios</p>
+              <p className="text-sm dashboard-text-muted font-medium">envios</p>
             </div>
 
             {/* Telefone */}
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:bg-gray-100 transition-colors">
+            <div className="dashboard-card rounded-lg p-4 border dashboard-border hover:bg-dashboard-hover transition-colors dashboard-shadow">
               <div className="flex items-center gap-3 mb-3">
-                <SmartphoneIcon className="w-6 h-6 text-purple-600" />
+                <SmartphoneIcon className="w-6 h-6 text-purple-500 dark:text-purple-400" />
                 <span className="font-medium dashboard-text">Telefone</span>
               </div>
               <div className="text-3xl font-bold dashboard-text mb-1">
                 {formatNumber(processedOverview.phoneClicks || 0)}
               </div>
-              <p className="text-sm dashboard-text-muted">cliques</p>
+              <p className="text-sm dashboard-text-muted font-medium">cliques</p>
             </div>
           </div>
         </div>
 
         {/* Fontes de Tráfego - Nova Seção */}
-        <div className="bg-gradient-to-br from-white/5 to-white/10 rounded-2xl border border-white/10 p-6">
+        <div className="dashboard-card rounded-2xl border dashboard-border p-6 dashboard-shadow">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-400/30">
-              <ExternalLinkIcon className="w-5 h-5 text-orange-400" />
+            <div className="p-2 rounded-xl bg-orange-500/20 dark:bg-orange-500/30 border border-orange-400/30 dark:border-orange-400/50">
+              <ExternalLinkIcon className="w-5 h-5 text-orange-500 dark:text-orange-400" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-white">Fontes de Tráfego</h3>
-              <p className="text-slate-400 text-sm">De onde vêm seus visitantes</p>
+              <h3 className="text-xl font-bold dashboard-text">Fontes de Tráfego</h3>
+              <p className="dashboard-text-muted text-sm">De onde vêm seus visitantes</p>
             </div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {mockTrafficSources.slice(0, 6).map((source, index) => (
-              <div key={source.source} className="bg-white/5 rounded-xl p-4 border border-white/10 hover:bg-white/10 transition-colors">
+              <div key={source.source} className="dashboard-card/50 rounded-xl p-4 border dashboard-border hover:bg-dashboard-hover transition-colors dashboard-shadow">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
                     {/* Google / Busca Orgânica */}
@@ -876,17 +876,17 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                      !source.source.toLowerCase().includes('direct') &&
                      !source.source.toLowerCase().includes('none') &&
                      !source.source.toLowerCase().includes('direto') && 
-                     <ExternalLinkIcon className="w-5 h-5 text-slate-400" />}
+                     <ExternalLinkIcon className="w-5 h-5 dashboard-text-muted" />}
                     
-                    <span className="font-medium text-white text-sm">{source.source}</span>
+                    <span className="font-medium dashboard-text text-sm">{source.source}</span>
                   </div>
-                  <span className="text-xs text-slate-400">{source.percentage}%</span>
+                  <span className="text-xs dashboard-text-muted">{source.percentage}%</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-2xl font-bold text-white">{formatNumber(source.users)}</span>
-                  <span className="text-xs text-slate-400">visitantes</span>
+                  <span className="text-2xl font-bold dashboard-text">{formatNumber(source.users)}</span>
+                  <span className="text-xs dashboard-text-muted">visitantes</span>
                 </div>
-                <div className="mt-2 bg-slate-700 rounded-full h-2">
+                <div className="mt-2 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                   <div 
                     className="bg-gradient-to-r from-orange-500 to-red-500 h-2 rounded-full transition-all duration-500"
                     style={{ width: `${source.percentage}%` }}
@@ -948,7 +948,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                   });
 
                   return (
-                    <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div key={index} className="dashboard-card rounded-lg p-4 border dashboard-border dashboard-shadow">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-3">
                           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -957,16 +957,16 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                           <span className="text-sm dashboard-text-muted">{formattedDuration}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          {source === 'Google' && <SearchIcon className="w-4 h-4 text-blue-500" />}
-                          {source === 'Instagram' && <MessageCircleIcon className="w-4 h-4 text-pink-500" />}
-                          {source === 'WhatsApp' && <MessageCircleIcon className="w-4 h-4 text-green-500" />}
-                          {source === 'Facebook' && <ShareIcon className="w-4 h-4 text-blue-700" />}
-                          {source === 'YouTube' && <YoutubeIcon className="w-4 h-4 text-red-700" />}
-                          {source === 'TikTok' && <MessageCircleIcon className="w-4 h-4 dashboard-text bg-white rounded" />}
-                          {source === 'LinkedIn' && <LinkedinIcon className="w-4 h-4 text-blue-700" />}
-                          {source === 'Twitter' && <TwitterIcon className="w-4 h-4 text-blue-500" />}
-                          {source === 'Direct' && <GlobeIcon className="w-4 h-4 text-green-600" />}
-                          <span className="text-sm font-medium text-gray-700">{source}</span>
+                          {source === 'Google' && <SearchIcon className="w-4 h-4 text-blue-500 dark:text-blue-400" />}
+                          {source === 'Instagram' && <MessageCircleIcon className="w-4 h-4 text-pink-500 dark:text-pink-400" />}
+                          {source === 'WhatsApp' && <MessageCircleIcon className="w-4 h-4 text-green-500 dark:text-green-400" />}
+                          {source === 'Facebook' && <ShareIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
+                          {source === 'YouTube' && <YoutubeIcon className="w-4 h-4 text-red-600 dark:text-red-400" />}
+                          {source === 'TikTok' && <MessageCircleIcon className="w-4 h-4 dashboard-text bg-white dark:bg-gray-800 rounded" />}
+                          {source === 'LinkedIn' && <LinkedinIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
+                          {source === 'Twitter' && <TwitterIcon className="w-4 h-4 text-blue-500 dark:text-blue-400" />}
+                          {source === 'Direct' && <GlobeIcon className="w-4 h-4 text-green-600 dark:text-green-400" />}
+                          <span className="text-sm font-medium dashboard-text">{source}</span>
                         </div>
                       </div>
                       <div className="flex items-center justify-between text-sm dashboard-text-muted">
@@ -1071,9 +1071,9 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                     className="w-3 h-3 rounded-full" 
                     style={{ backgroundColor: COLORS[index % COLORS.length] }}
                   />
-                  <span className="text-sm text-slate-300">{country.country}</span>
+                  <span className="text-sm dashboard-text-muted">{country.country}</span>
                 </div>
-                <span className="text-sm font-medium text-white">{formatNumber(country.users)}</span>
+                <span className="text-sm font-medium dashboard-text">{formatNumber(country.users)}</span>
               </div>
             ))}
           </div>
@@ -1088,8 +1088,8 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
         <CardContent className="p-6">
           <div className="text-center text-red-400">
             <p>Erro ao renderizar analytics</p>
-            <p className="text-sm text-slate-400 mt-2">Detalhes: {error?.message || 'Erro desconhecido'}</p>
-            <p className="text-xs text-slate-500 mt-1">Dados: {JSON.stringify(data, null, 2)}</p>
+            <p className="text-sm dashboard-text-muted mt-2">Detalhes: {error?.message || 'Erro desconhecido'}</p>
+            <p className="text-xs dashboard-text-subtle mt-1">Dados: {JSON.stringify(data, null, 2)}</p>
           </div>
         </CardContent>
       </Card>
