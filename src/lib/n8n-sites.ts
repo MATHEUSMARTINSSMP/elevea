@@ -151,7 +151,7 @@ interface SectionResponse {
 
 // Listar seções do site
 export async function getSections(siteSlug: string): Promise<SiteSection[]> {
-  const data = await n8nRequest<SectionsResponse>(`/api/sites/${encodeURIComponent(siteSlug)}/sections`)
+  const data = await n8nRequest<SectionsResponse>(`/get-sections/api/sites/${encodeURIComponent(siteSlug)}/sections`)
   // Normalizar campos do n8n para o formato esperado pelo frontend
   return (data.sections || []).map(section => ({
     ...section,
@@ -175,7 +175,7 @@ export async function createSection(
     custom_fields?: Record<string, any>
   }
 ): Promise<SiteSection> {
-  const data = await n8nRequest<SectionResponse>(`/api/sites/${encodeURIComponent(siteSlug)}/sections`, {
+  const data = await n8nRequest<SectionResponse>(`/create-section/api/sites/${encodeURIComponent(siteSlug)}/sections`, {
     method: 'POST',
     body: JSON.stringify(section)
   })
@@ -204,7 +204,7 @@ export async function updateSection(
     custom_fields: Record<string, any>
   }>
 ): Promise<SiteSection> {
-  const data = await n8nRequest<SectionResponse>(`/api/sites/${encodeURIComponent(siteSlug)}/sections/${encodeURIComponent(sectionId)}`, {
+  const data = await n8nRequest<SectionResponse>(`/update-section/api/sites/${encodeURIComponent(siteSlug)}/sections/${encodeURIComponent(sectionId)}`, {
     method: 'PUT',
     body: JSON.stringify(updates)
   })
@@ -220,7 +220,7 @@ export async function updateSection(
 
 // Deletar seção
 export async function deleteSection(siteSlug: string, sectionId: string): Promise<void> {
-  await n8nRequest(`/api/sites/${encodeURIComponent(siteSlug)}/sections/${encodeURIComponent(sectionId)}`, {
+  await n8nRequest(`/delete-section/api/sites/${encodeURIComponent(siteSlug)}/sections/${encodeURIComponent(sectionId)}`, {
     method: 'DELETE'
   })
 }
@@ -255,7 +255,7 @@ interface MediaUploadResponse {
 
 // Listar mídias do site
 export async function getMedia(siteSlug: string): Promise<SiteMedia[]> {
-  const data = await n8nRequest<MediaResponse>(`/api/sites/${encodeURIComponent(siteSlug)}/media`)
+  const data = await n8nRequest<MediaResponse>(`/get-media/api/sites/${encodeURIComponent(siteSlug)}/media`)
   return data.media || []
 }
 
@@ -271,7 +271,7 @@ export async function uploadMedia(
     formData.append('key', key)
   }
 
-  const finalUrl = url(`/api/sites/${encodeURIComponent(siteSlug)}/media`)
+  const finalUrl = url(`/upload-media/api/sites/${encodeURIComponent(siteSlug)}/media`)
   const headers: Record<string, string> = {}
   
   if (AUTH_HEADER) {
@@ -307,7 +307,7 @@ export async function uploadMediaBase64(
   mimeType: string,
   key?: string
 ): Promise<SiteMedia> {
-  const data = await n8nRequest<MediaUploadResponse>(`/api/sites/${encodeURIComponent(siteSlug)}/media`, {
+  const data = await n8nRequest<MediaUploadResponse>(`/upload-media/api/sites/${encodeURIComponent(siteSlug)}/media`, {
     method: 'POST',
     body: JSON.stringify({
       file_base64: base64Data,
@@ -322,7 +322,7 @@ export async function uploadMediaBase64(
 
 // Deletar mídia
 export async function deleteMedia(siteSlug: string, mediaId: string): Promise<void> {
-  await n8nRequest(`/api/sites/${encodeURIComponent(siteSlug)}/media/${encodeURIComponent(mediaId)}`, {
+  await n8nRequest(`/delete-media/api/sites/${encodeURIComponent(siteSlug)}/media/${encodeURIComponent(mediaId)}`, {
     method: 'DELETE'
   })
 }
@@ -347,7 +347,7 @@ interface SiteContentResponse {
 
 // Carregar conteúdo completo do site
 export async function getSiteContent(siteSlug: string): Promise<SiteContentResponse> {
-  return n8nRequest<SiteContentResponse>(`/api/sites/${encodeURIComponent(siteSlug)}/content`)
+  return n8nRequest<SiteContentResponse>(`/get-site-content/api/sites/${encodeURIComponent(siteSlug)}/content`)
 }
 
 // ============================================
