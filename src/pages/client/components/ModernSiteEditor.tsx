@@ -58,6 +58,7 @@ import {
   ArrowUpDown
 } from 'lucide-react'
 import ImageManager from './ImageManager'
+import ImageLightbox from './ImageLightbox'
 import * as n8nSites from '@/lib/n8n-sites'
 import type { SiteSection, SiteMedia } from '@/lib/n8n-sites'
 import { toast } from 'sonner'
@@ -88,6 +89,8 @@ export default function ModernSiteEditor({
   const [sectionEditData, setSectionEditData] = useState<Record<string, any>>({})
   const [searchQuery, setSearchQuery] = useState('')
   const [filterVisible, setFilterVisible] = useState<boolean | null>(null)
+  const [lightboxImage, setLightboxImage] = useState<{url: string, title?: string, info?: any} | null>(null)
+  const [imageDimensions, setImageDimensions] = useState<Record<string, {width: number, height: number}>>({})
 
   // Carregar dados do site
   useEffect(() => {
@@ -99,6 +102,30 @@ export default function ModernSiteEditor({
       setError('siteSlug não está definido. Por favor, verifique o login.')
     }
   }, [siteSlug])
+
+  // Carregar dimensões das imagens das mídias
+  useEffect(() => {
+    const loadDimensions = async () => {
+      const dimensions: Record<string, {width: number, height: number}> = {}
+      const promises = media.map((item) => {
+        return new Promise<void>((resolve) => {
+          const img = new Image()
+          img.onload = () => {
+            dimensions[item.id] = { width: img.naturalWidth, height: img.naturalHeight }
+            resolve()
+          }
+          img.onerror = () => resolve()
+          img.src = item.url
+        })
+      })
+      await Promise.all(promises)
+      setImageDimensions(dimensions)
+    }
+    
+    if (media.length > 0) {
+      loadDimensions()
+    }
+  }, [media])
 
   const loadAllData = async () => {
     try {
@@ -406,22 +433,22 @@ export default function ModernSiteEditor({
                 <Sparkles className="h-3.5 w-3.5 text-primary" />
                 Dicas rápidas
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-muted-foreground">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-foreground/90">
                 <div className="flex items-start gap-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-                  <span>Clique em <strong className="text-foreground">Editar</strong> para modificar uma seção</span>
+                  <span className="text-sm">Clique em <strong className="text-foreground font-semibold">Editar</strong> para modificar uma seção</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-                  <span>Use a <strong className="text-foreground">busca</strong> para encontrar conteúdo específico</span>
+                  <span className="text-sm">Use a <strong className="text-foreground font-semibold">busca</strong> para encontrar conteúdo específico</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-                  <span>As <strong className="text-foreground">mídias</strong> são armazenadas no GitHub automaticamente</span>
+                  <span className="text-sm">As <strong className="text-foreground font-semibold">mídias</strong> são armazenadas no GitHub automaticamente</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-                  <span>Visualize o resultado na aba <strong className="text-foreground">Preview</strong></span>
+                  <span className="text-sm">Visualize o resultado na aba <strong className="text-foreground font-semibold">Preview</strong></span>
                 </div>
               </div>
             </div>
@@ -731,15 +758,54 @@ export default function ModernSiteEditor({
                           <p className="text-sm text-muted-foreground line-clamp-2">
                             {section.description}
                           </p>
-                          {section.image && (
-                            <div className="mt-4">
-                              <img 
-                                src={section.image} 
-                                alt={section.title}
-                                className="w-full h-48 object-cover rounded-lg"
-                              />
-                            </div>
-                          )}
+                          {section.image && (() => {
+                            const img = new Image()
+                            img.src = section.image
+                            return (
+                              <div className="mt-4">
+                                <div 
+                                  className="relative cursor-pointer group overflow-hidden rounded-lg"
+                                  onClick={async () => {
+                                    // Carregar dimensões da imagem
+                                    return new Promise<void>((resolve) => {
+                                      const tempImg = new Image()
+                                      tempImg.onload = () => {
+                                        const extension = section.image?.split('.').pop()?.toLowerCase() || 'unknown'
+                                        setLightboxImage({
+                                          url: section.image,
+                                          title: section.title,
+                                          info: {
+                                            format: extension,
+                                            width: tempImg.naturalWidth,
+                                            height: tempImg.naturalHeight,
+                                            fileName: section.image.split('/').pop()
+                                          }
+                                        })
+                                        resolve()
+                                      }
+                                      tempImg.onerror = () => resolve()
+                                      tempImg.src = section.image || ''
+                                    })
+                                  }}
+                                >
+                                  <img 
+                                    src={section.image} 
+                                    alt={section.title}
+                                    className="w-full max-h-64 object-contain rounded-lg bg-muted/20 transition-transform group-hover:scale-105"
+                                    style={{ aspectRatio: 'auto' }}
+                                  />
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <div className="bg-black/70 px-4 py-2 rounded-lg text-white text-sm font-medium backdrop-blur-sm">
+                                      Clique para ver em tamanho completo
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="mt-2 text-xs text-muted-foreground">
+                                  💡 Clique na imagem para ver em tamanho completo
+                                </div>
+                              </div>
+                            )
+                          })()}
                         </CardContent>
                       )
                     )}
@@ -806,96 +872,204 @@ export default function ModernSiteEditor({
             </Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredMedia.map((item) => (
-                <Card key={item.id} className="overflow-hidden group hover:shadow-lg transition-shadow">
-                  <div className="relative aspect-video bg-muted">
-                    <img
-                      src={item.url}
-                      alt={item.fileName}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none'
+              {filteredMedia.map((item) => {
+                const extension = item.fileName.split('.').pop()?.toLowerCase() || 'unknown'
+                return (
+                  <Card key={item.id} className="overflow-hidden group hover:shadow-lg transition-shadow">
+                    <div 
+                      className="relative bg-muted cursor-pointer"
+                      style={{ minHeight: '200px', aspectRatio: 'auto' }}
+                      onClick={async () => {
+                        return new Promise<void>((resolve) => {
+                          const tempImg = new Image()
+                          tempImg.onload = () => {
+                            setLightboxImage({
+                              url: item.url,
+                              title: item.fileName,
+                              info: {
+                                format: extension,
+                                width: tempImg.naturalWidth,
+                                height: tempImg.naturalHeight,
+                                size: item.size,
+                                fileName: item.fileName
+                              }
+                            })
+                            resolve()
+                          }
+                          tempImg.onerror = () => resolve()
+                          tempImg.src = item.url
+                        })
                       }}
-                    />
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => deleteMedia(item.id)}
-                        disabled={saving}
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Deletar
-                      </Button>
+                    >
+                      <img
+                        src={item.url}
+                        alt={item.fileName}
+                        className="w-full h-full object-contain"
+                        style={{ aspectRatio: 'auto', maxHeight: '200px' }}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none'
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
+                        <div className="text-white text-xs text-center mb-2">
+                          Clique para ver completa
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            deleteMedia(item.id)
+                          }}
+                          disabled={saving}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Deletar
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                  <CardContent className="p-3">
-                    <p className="text-sm font-medium truncate" title={item.fileName}>
-                      {item.fileName}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {item.key}
-                    </p>
-                    {item.size && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {(item.size / 1024).toFixed(2)} KB
+                    <CardContent className="p-3">
+                      <p className="text-sm font-medium truncate" title={item.fileName}>
+                        {item.fileName}
                       </p>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-xs">
+                          {extension.toUpperCase()}
+                        </Badge>
+                        {imageDimensions[item.id] ? (
+                          <span className="text-xs text-foreground/80 font-medium">
+                            {imageDimensions[item.id].width} × {imageDimensions[item.id].height}px
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Carregando dimensões...</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate mt-1">
+                        {item.key}
+                      </p>
+                      {item.size && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {(item.size / 1024).toFixed(2)} KB
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )
+              })}
             </div>
           )}
         </TabsContent>
 
-        {/* Tab: Preview */}
+        {/* Tab: Preview - Visual Melhorado */}
         <TabsContent value="preview" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5" />
+          <Card className="overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent border-b">
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                <Sparkles className="h-6 w-6 text-primary" />
                 Preview do Site
               </CardTitle>
-              <CardDescription>
-                Visualize como as seções aparecerão no site
+              <CardDescription className="text-base">
+                Visualize como as seções aparecerão no site final
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-8">
+            <CardContent className="p-8">
+              <div className="space-y-12">
                 {sections
                   .filter(s => s.visible)
                   .sort((a, b) => a.order - b.order)
-                  .map((section) => (
-                    <div key={section.id} className="border rounded-lg p-6 space-y-4">
-                      <div>
-                        <h3 className="text-2xl font-bold mb-2">{section.title}</h3>
-                        {section.subtitle && (
-                          <p className="text-lg text-muted-foreground mb-4">{section.subtitle}</p>
-                        )}
-                        {section.description && (
-                          <p className="text-base mb-4">{section.description}</p>
-                        )}
+                  .map((section, index) => (
+                    <div 
+                      key={section.id} 
+                      className="border-2 rounded-xl p-8 hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-card to-card/50"
+                    >
+                      {/* Header da Seção */}
+                      <div className="flex items-start justify-between mb-6">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <Badge variant="outline" className="font-mono">
+                              #{section.order}
+                            </Badge>
+                            <Badge variant="secondary" className="capitalize">
+                              {section.type}
+                            </Badge>
+                          </div>
+                          <h3 className="text-3xl font-bold mb-2">{section.title}</h3>
+                          {section.subtitle && (
+                            <p className="text-xl text-muted-foreground mb-4">{section.subtitle}</p>
+                          )}
+                        </div>
                       </div>
-                      {section.image && (
-                        <img 
-                          src={section.image} 
-                          alt={section.title}
-                          className="w-full h-64 object-cover rounded-lg"
-                        />
+                      
+                      {/* Descrição */}
+                      {section.description && (
+                        <p className="text-lg mb-6 leading-relaxed">{section.description}</p>
                       )}
-                      <div className="flex items-center gap-2 pt-4 border-t">
-                        <Badge variant="outline">{section.type}</Badge>
-                        <Badge variant="secondary">
-                          Ordem: {section.order}
-                        </Badge>
-                      </div>
+                      
+                      {/* Imagem */}
+                      {section.image && (
+                        <div className="mb-6">
+                          <div 
+                            className="relative cursor-pointer group rounded-lg overflow-hidden shadow-md bg-muted/20"
+                            onClick={async () => {
+                              return new Promise<void>((resolve) => {
+                                const tempImg = new Image()
+                                tempImg.onload = () => {
+                                  const extension = section.image?.split('.').pop()?.toLowerCase() || 'unknown'
+                                  setLightboxImage({
+                                    url: section.image,
+                                    title: section.title,
+                                    info: {
+                                      format: extension,
+                                      width: tempImg.naturalWidth,
+                                      height: tempImg.naturalHeight,
+                                      fileName: section.image.split('/').pop()
+                                    }
+                                  })
+                                  resolve()
+                                }
+                                tempImg.onerror = () => resolve()
+                                tempImg.src = section.image || ''
+                              })
+                            }}
+                          >
+                            <img 
+                              src={section.image} 
+                              alt={section.title}
+                              className="w-full max-h-96 object-contain"
+                              style={{ aspectRatio: 'auto' }}
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none'
+                              }}
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <div className="bg-black/70 px-4 py-2 rounded-lg text-white text-sm font-medium backdrop-blur-sm">
+                                Clique para ver em tamanho completo
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Separador */}
+                      {index < sections.filter(s => s.visible).length - 1 && (
+                        <div className="pt-6 border-t border-dashed">
+                          <div className="flex items-center justify-center">
+                            <div className="h-px w-32 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 
                 {sections.filter(s => s.visible).length === 0 && (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <EyeOff className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Nenhuma seção visível para exibir</p>
+                  <div className="text-center py-20">
+                    <div className="p-6 rounded-full bg-muted/50 w-fit mx-auto mb-6">
+                      <EyeOff className="h-16 w-16 text-muted-foreground/50" />
+                    </div>
+                    <h3 className="text-xl font-bold mb-2">Nenhuma seção visível</h3>
+                    <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                      Não há seções visíveis para exibir no preview. Ative algumas seções na aba "Seções" para vê-las aqui.
+                    </p>
                   </div>
                 )}
               </div>
@@ -903,6 +1077,17 @@ export default function ModernSiteEditor({
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Image Lightbox */}
+      {lightboxImage && (
+        <ImageLightbox
+          imageUrl={lightboxImage.url}
+          imageTitle={lightboxImage.title}
+          imageInfo={lightboxImage.info}
+          isOpen={!!lightboxImage}
+          onClose={() => setLightboxImage(null)}
+        />
+      )}
     </div>
   )
 }
