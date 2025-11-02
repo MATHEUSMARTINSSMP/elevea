@@ -27,7 +27,7 @@
         "operation": "executeQuery",
         "query": "SELECT * FROM elevea.site_settings WHERE site_slug = $1 LIMIT 1",
         "options": {
-          "queryReplacement": "$1"
+          "queryParameters": "={{ [$json.siteSlug] }}"
         }
       },
       "id": "get-settings",
