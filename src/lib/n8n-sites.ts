@@ -30,7 +30,18 @@ async function n8nRequest<T = any>(endpoint: string, options: RequestInit = {}):
   const finalUrl = url(endpoint)
   
   if (!BASE) {
-    throw new Error('n8n não configurado: VITE_N8N_BASE_URL não definido')
+    const errorMsg = 'n8n não configurado: VITE_N8N_BASE_URL não definido'
+    console.error('[n8n-sites]', errorMsg)
+    throw new Error(errorMsg)
+  }
+  
+  // Log para debug (apenas em desenvolvimento)
+  if (import.meta.env.DEV) {
+    console.log('[n8n-sites] Request:', {
+      method: options.method || 'GET',
+      url: finalUrl,
+      endpoint
+    })
   }
   
   const headers = {
@@ -38,22 +49,70 @@ async function n8nRequest<T = any>(endpoint: string, options: RequestInit = {}):
     ...options.headers
   }
   
-  const response = await fetch(finalUrl, {
-    ...options,
-    headers
-  })
-  
-  const data = await response.json().catch(() => ({}))
-  
-  if (!response.ok) {
-    throw new Error(data.error || data.message || `HTTP ${response.status}`)
+  try {
+    // Criar AbortController para timeout (compatibilidade)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 segundos
+    
+    const response = await fetch(finalUrl, {
+      ...options,
+      headers,
+      signal: controller.signal
+    })
+    
+    clearTimeout(timeoutId)
+    
+    // Verificar se a resposta é JSON antes de fazer parse
+    const contentType = response.headers.get('content-type')
+    const isJson = contentType?.includes('application/json')
+    
+    let data: any = {}
+    
+    if (isJson) {
+      data = await response.json().catch((err) => {
+        console.error('[n8n-sites] Erro ao parsear JSON:', err)
+        return {}
+      })
+    } else {
+      const text = await response.text().catch(() => '')
+      console.warn('[n8n-sites] Resposta não é JSON:', text.substring(0, 100))
+      if (text) {
+        try {
+          data = JSON.parse(text)
+        } catch {
+          throw new Error(`Resposta inválida: ${text.substring(0, 100)}`)
+        }
+      }
+    }
+    
+    if (!response.ok) {
+      const errorMsg = data.error || data.message || `HTTP ${response.status}: ${response.statusText}`
+      console.error('[n8n-sites] Erro HTTP:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorMsg,
+        url: finalUrl
+      })
+      throw new Error(errorMsg)
+    }
+    
+    if (data.success === false) {
+      const errorMsg = data.error || data.message || 'Erro na requisição'
+      console.error('[n8n-sites] Erro na resposta:', errorMsg)
+      throw new Error(errorMsg)
+    }
+    
+    return data as T
+  } catch (err: any) {
+    // Melhorar mensagens de erro de rede
+    if (err.name === 'AbortError' || err.name === 'TimeoutError') {
+      throw new Error('Timeout: A requisição demorou muito para responder')
+    }
+    if (err.name === 'TypeError' && err.message.includes('fetch')) {
+      throw new Error(`Erro de rede: Não foi possível conectar ao servidor n8n. Verifique VITE_N8N_BASE_URL`)
+    }
+    throw err
   }
-  
-  if (data.success === false) {
-    throw new Error(data.error || data.message || 'Erro na requisição')
-  }
-  
-  return data as T
 }
 
 // ============================================

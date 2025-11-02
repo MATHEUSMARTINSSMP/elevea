@@ -91,7 +91,13 @@ export default function ModernSiteEditor({
 
   // Carregar dados do site
   useEffect(() => {
-    loadAllData()
+    // Só carregar se siteSlug estiver definido
+    if (siteSlug && siteSlug.trim()) {
+      loadAllData()
+    } else {
+      setLoading(false)
+      setError('siteSlug não está definido. Por favor, verifique o login.')
+    }
   }, [siteSlug])
 
   const loadAllData = async () => {
@@ -99,16 +105,32 @@ export default function ModernSiteEditor({
       setLoading(true)
       setError(null)
       
+      // Log para debug
+      console.log('[ModernSiteEditor] Carregando dados para siteSlug:', siteSlug)
+      
       const [sectionsData, mediaData] = await Promise.all([
-        n8nSites.getSections(siteSlug),
-        n8nSites.getMedia(siteSlug).catch(() => []) // Não bloquear se falhar
+        n8nSites.getSections(siteSlug).catch((err) => {
+          console.error('[ModernSiteEditor] Erro ao carregar seções:', err)
+          throw err
+        }),
+        n8nSites.getMedia(siteSlug).catch((err) => {
+          console.warn('[ModernSiteEditor] Erro ao carregar mídias (não bloqueia):', err)
+          return [] // Não bloquear se falhar
+        })
       ])
       
-      setSections(sectionsData)
-      setMedia(mediaData)
+      console.log('[ModernSiteEditor] Dados carregados:', { 
+        sections: sectionsData.length, 
+        media: mediaData.length 
+      })
+      
+      setSections(sectionsData || [])
+      setMedia(mediaData || [])
     } catch (err: any) {
-      setError(err.message || 'Erro ao carregar dados do site')
-      toast.error('Erro ao carregar dados')
+      const errorMessage = err.message || 'Erro ao carregar dados do site'
+      console.error('[ModernSiteEditor] Erro completo:', err)
+      setError(errorMessage)
+      toast.error(`Erro: ${errorMessage}`)
     } finally {
       setLoading(false)
     }
@@ -283,9 +305,22 @@ export default function ModernSiteEditor({
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 space-y-4">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="text-muted-foreground">Carregando conteúdo do site...</p>
+      <div className="flex flex-col items-center justify-center p-16 space-y-6">
+        <div className="relative">
+          <Loader2 className="h-16 w-16 animate-spin text-primary" />
+          <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+        </div>
+        <div className="text-center space-y-2">
+          <p className="text-lg font-medium">Carregando conteúdo do site...</p>
+          <p className="text-sm text-muted-foreground">
+            Conectando ao backend n8n
+          </p>
+          {siteSlug && (
+            <p className="text-xs text-muted-foreground/70">
+              Site: <code className="bg-muted px-2 py-0.5 rounded">{siteSlug}</code>
+            </p>
+          )}
+        </div>
       </div>
     )
   }
@@ -360,28 +395,68 @@ export default function ModernSiteEditor({
           </div>
         </div>
         
-        {/* Instruções rápidas */}
+        {/* Instruções rápidas - Design Melhorado */}
         <div className="mt-4 pt-4 border-t border-white/10">
-          <div className="flex items-start gap-2 text-xs text-muted-foreground">
-            <HelpCircle className="h-4 w-4 mt-0.5 text-primary/60" />
-            <div className="flex-1 space-y-1">
-              <p className="font-medium text-foreground/80">💡 Dicas rápidas:</p>
-              <ul className="space-y-1 ml-4 list-disc">
-                <li>Clique em <strong>Editar</strong> para modificar uma seção</li>
-                <li>Use a <strong>busca</strong> para encontrar seções específicas</li>
-                <li>As <strong>mídias</strong> são armazenadas no GitHub automaticamente</li>
-                <li>Visualize o resultado final na aba <strong>Preview</strong></li>
-              </ul>
+          <div className="flex items-start gap-3 text-xs">
+            <div className="p-1.5 rounded-lg bg-primary/10">
+              <HelpCircle className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex-1 space-y-2">
+              <p className="font-semibold text-foreground flex items-center gap-2">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                Dicas rápidas
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-muted-foreground">
+                <div className="flex items-start gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
+                  <span>Clique em <strong className="text-foreground">Editar</strong> para modificar uma seção</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
+                  <span>Use a <strong className="text-foreground">busca</strong> para encontrar conteúdo específico</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
+                  <span>As <strong className="text-foreground">mídias</strong> são armazenadas no GitHub automaticamente</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
+                  <span>Visualize o resultado na aba <strong className="text-foreground">Preview</strong></span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Alerts */}
+      {/* Alerts Melhorados */}
       {error && (
-        <Alert variant="destructive">
-          <XCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
+        <Alert variant="destructive" className="border-red-500/50 bg-red-500/10 backdrop-blur-sm">
+          <div className="flex items-start gap-3">
+            <XCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+            <div className="flex-1 space-y-1">
+              <AlertDescription className="font-medium">{error}</AlertDescription>
+              <div className="text-xs text-red-400/80 space-y-1">
+                <p>💡 Dicas para resolver:</p>
+                <ul className="list-disc ml-4 space-y-0.5">
+                  <li>Verifique se a variável <code className="bg-red-500/20 px-1 rounded">VITE_N8N_BASE_URL</code> está configurada</li>
+                  <li>Confirme que os workflows n8n estão ativados</li>
+                  <li>Verifique se o <code className="bg-red-500/20 px-1 rounded">siteSlug</code> está correto: <strong>{siteSlug || 'não definido'}</strong></li>
+                  <li>Abra o console do navegador (F12) para mais detalhes</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </Alert>
+      )}
+      
+      {/* Warning se siteSlug não estiver definido */}
+      {!siteSlug && (
+        <Alert className="border-amber-500/50 bg-amber-500/10 backdrop-blur-sm">
+          <Info className="h-5 w-5" />
+          <AlertDescription>
+            <strong>Site Slug não definido.</strong> O editor precisa de um <code>siteSlug</code> válido para funcionar.
+          </AlertDescription>
         </Alert>
       )}
 
@@ -434,24 +509,48 @@ export default function ModernSiteEditor({
         {/* Tab: Seções */}
         <TabsContent value="sections" className="space-y-4">
           {filteredSections.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <Grid3x3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">
-                  {sections.length === 0 ? 'Nenhuma seção criada' : 'Nenhuma seção encontrada'}
-                </h3>
-                <p className="text-muted-foreground mb-4">
-                  {sections.length === 0 
-                    ? 'Comece criando sua primeira seção'
-                    : 'Tente ajustar os filtros de busca'
-                  }
-                </p>
-                {sections.length === 0 && (
-                  <Button onClick={createSection} disabled={saving}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Criar Primeira Seção
-                  </Button>
-                )}
+            <Card className="border-dashed border-2 hover:border-primary/50 transition-colors">
+              <CardContent className="p-16 text-center">
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="p-4 rounded-full bg-muted/50">
+                    <Grid3x3 className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold">
+                      {sections.length === 0 ? 'Nenhuma seção criada ainda' : 'Nenhuma seção encontrada'}
+                    </h3>
+                    <p className="text-muted-foreground max-w-md mx-auto">
+                      {sections.length === 0 
+                        ? 'Comece criando sua primeira seção para estruturar o conteúdo do seu site. Você pode adicionar seções hero, sobre, serviços, contato e muito mais.'
+                        : 'Nenhuma seção corresponde aos filtros aplicados. Tente ajustar a busca ou os filtros.'
+                      }
+                    </p>
+                  </div>
+                  {sections.length === 0 && (
+                    <Button 
+                      onClick={createSection} 
+                      disabled={saving}
+                      size="lg"
+                      className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 mt-4"
+                    >
+                      <Plus className="h-5 w-5" />
+                      Criar Primeira Seção
+                    </Button>
+                  )}
+                  {sections.length > 0 && (
+                    <Button 
+                      variant="outline"
+                      onClick={() => {
+                        setSearchQuery('')
+                        setFilterVisible(null)
+                      }}
+                      className="gap-2 mt-4"
+                    >
+                      <Filter className="h-4 w-4" />
+                      Limpar Filtros
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ) : (
@@ -675,18 +774,34 @@ export default function ModernSiteEditor({
           </Card>
 
           {filteredMedia.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <FileImage className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">
-                  {media.length === 0 ? 'Nenhuma mídia enviada' : 'Nenhuma mídia encontrada'}
-                </h3>
-                <p className="text-muted-foreground">
-                  {media.length === 0 
-                    ? 'Comece fazendo upload de imagens'
-                    : 'Tente ajustar a busca'
-                  }
-                </p>
+            <Card className="border-dashed border-2 hover:border-primary/50 transition-colors">
+              <CardContent className="p-16 text-center">
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="p-4 rounded-full bg-muted/50">
+                    <FileImage className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold">
+                      {media.length === 0 ? 'Nenhuma mídia enviada ainda' : 'Nenhuma mídia encontrada'}
+                    </h3>
+                    <p className="text-muted-foreground max-w-md mx-auto">
+                      {media.length === 0 
+                        ? 'Comece fazendo upload de imagens usando o formulário acima. As imagens serão armazenadas automaticamente no GitHub.'
+                        : 'Nenhuma mídia corresponde à busca. Tente outros termos.'
+                      }
+                    </p>
+                  </div>
+                  {media.length > 0 && (
+                    <Button 
+                      variant="outline"
+                      onClick={() => setSearchQuery('')}
+                      className="gap-2 mt-4"
+                    >
+                      <Search className="h-4 w-4" />
+                      Limpar Busca
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ) : (
