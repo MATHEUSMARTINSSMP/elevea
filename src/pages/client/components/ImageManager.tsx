@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, Upload, Image as ImageIcon, X, Check } from 'lucide-react'
+import { uploadMedia } from '@/lib/n8n-sites'
 
 interface ImageManagerProps {
   siteSlug: string
@@ -49,40 +50,14 @@ export default function ImageManager({
       setError(null)
       setSuccess(null)
 
-      // Converter para base64
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => {
-          const result = reader.result as string
-          // Remover prefixo data:image/...;base64,
-          const base64Data = result.split(',')[1]
-          resolve(base64Data)
-        }
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
-
-      // Upload para o GAS
-      const response = await fetch('/.netlify/functions/assets', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          site: siteSlug,
-          email: 'dashboard@elevea.com', // Email padrão para uploads do dashboard
-          base64: base64,
-          filename: file.name,
-          mimeType: file.type,
-          subfolder: 'dashboard'
-        })
-      })
-
-      const data = await response.json()
-
-      if (!data.ok) {
-        throw new Error(data.error || 'Erro no upload')
-      }
-
-      const newImageUrl = data.url || data.saved?.[0]?.url
+      // Gerar key único para a mídia
+      const timestamp = Date.now()
+      const key = `image_${timestamp}_${file.name.replace(/\s+/g, '_').toLowerCase()}`
+      
+      // Upload via n8n (GitHub + Supabase)
+      const uploadedMedia = await uploadMedia(siteSlug, file, key)
+      
+      const newImageUrl = uploadedMedia.url
       if (newImageUrl) {
         setImageUrl(newImageUrl)
         setSuccess('Imagem enviada com sucesso!')
@@ -237,7 +212,7 @@ export default function ImageManager({
         <div className="text-xs text-muted-foreground space-y-1">
           <p>• Formatos aceitos: JPG, PNG, GIF, WebP</p>
           <p>• Tamanho máximo: 10MB</p>
-          <p>• As imagens são armazenadas no Google Drive</p>
+          <p>• As imagens são armazenadas no GitHub e sincronizadas com o site</p>
         </div>
       </CardContent>
     </Card>

@@ -8,6 +8,8 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, Save, Edit3, Trash2, Plus, Eye, EyeOff, GripVertical } from 'lucide-react'
+import * as n8nSites from '@/lib/n8n-sites'
+import type { SiteSection } from '@/lib/n8n-sites'
 
 interface SectionField {
   key: string
@@ -61,17 +63,13 @@ export default function SectionCustomizer({
       setLoading(true)
       setError(null)
       
-      const response = await fetch(`/.netlify/functions/site-content-editor?site=${encodeURIComponent(siteSlug)}`)
-      const data = await response.json()
-      
-      if (!data.ok) {
-        throw new Error(data.error || 'Erro ao carregar seções')
-      }
+      const sectionsData = await n8nSites.getSections(siteSlug)
       
       // Converter para formato customizável
-      const customSections = (data.sections || []).map((section: any) => ({
+      const customSections = sectionsData.map((section: SiteSection) => ({
         ...section,
-        customFields: section.editableFields || []
+        customFields: section.customFields || [],
+        name: section.title // Adicionar name para compatibilidade
       }))
       
       setSections(customSections)
@@ -88,27 +86,31 @@ export default function SectionCustomizer({
       setError(null)
       setSuccess(null)
       
-      const response = await fetch('/.netlify/functions/site-content-editor', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          site: siteSlug,
-          sectionId,
-          sectionData: updates,
-          pin: vipPin
-        })
-      })
+      // Converter para formato da API
+      const apiUpdates: any = {}
       
-      const data = await response.json()
+      if (updates.title !== undefined) apiUpdates.title = updates.title
+      if (updates.subtitle !== undefined) apiUpdates.subtitle = updates.subtitle
+      if (updates.description !== undefined) apiUpdates.description = updates.description
+      if (updates.image !== undefined) apiUpdates.image_url = updates.image
+      if (updates.type !== undefined) apiUpdates.type = updates.type
+      if (updates.order !== undefined) apiUpdates.order = updates.order
+      if (updates.visible !== undefined) apiUpdates.visible = updates.visible
+      if (updates.customFields !== undefined) apiUpdates.custom_fields = updates.customFields
       
-      if (!data.ok) {
-        throw new Error(data.error || 'Erro ao atualizar seção')
-      }
+      const updatedSection = await n8nSites.updateSection(siteSlug, sectionId, apiUpdates)
       
       // Atualizar estado local
       setSections(prev => prev.map(section => 
         section.id === sectionId 
-          ? { ...section, ...updates, lastUpdated: new Date().toISOString() }
+          ? { 
+              ...section, 
+              ...updatedSection,
+              customFields: updatedSection.customFields || section.customFields,
+              name: updatedSection.title,
+              image: updatedSection.image_url,
+              lastUpdated: updatedSection.lastUpdated || new Date().toISOString()
+            }
           : section
       ))
       

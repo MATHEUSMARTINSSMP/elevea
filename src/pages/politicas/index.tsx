@@ -51,7 +51,7 @@ export default function PoliticasPage() {
             <a href="#dados" className="text-sm hover:text-primary">Uso de Dados</a>
             <a href="#exclusao" className="text-sm hover:text-primary">Exclusão de Dados</a>
             <a href="#contato" className="text-sm hover:text-primary">Contato</a>
-          </nav>
+      </nav>
 
           <hr className="my-8 border-border" />
 
@@ -85,8 +85,8 @@ export default function PoliticasPage() {
             </ul>
           </Section>
 
-          <Section id="privacidade" title="Política de Privacidade">
-            <p>
+      <Section id="privacidade" title="Política de Privacidade">
+        <p>
               Esta Política de Privacidade descreve como a Agência Elevea coleta, usa e protege suas informações pessoais quando você utiliza nossos serviços.
             </p>
             
@@ -124,11 +124,11 @@ export default function PoliticasPage() {
             <h3 className="text-xl font-semibold mt-6 mb-3">Segurança</h3>
             <p>
               Implementamos medidas de segurança técnicas e organizacionais apropriadas para proteger seus dados contra acesso não autorizado, alteração, divulgação ou destruição.
-            </p>
-          </Section>
+        </p>
+      </Section>
 
-          <Section id="termos" title="Termos de Serviço">
-            <p>
+      <Section id="termos" title="Termos de Serviço">
+        <p>
               Ao utilizar os serviços da Agência Elevea, você concorda com os seguintes termos e condições:
             </p>
             
@@ -160,8 +160,8 @@ export default function PoliticasPage() {
             <h3 className="text-xl font-semibold mt-6 mb-3">5. Alterações nos Termos</h3>
             <p>
               Podemos atualizar estes termos periodicamente. Alterações significativas serão notificadas por e-mail ou através da plataforma. O uso continuado após as mudanças constitui aceitação dos novos termos.
-            </p>
-          </Section>
+        </p>
+      </Section>
 
           <Section id="dados" title="Uso de Dados do Google Meu Negócio">
             <p>
@@ -219,8 +219,8 @@ export default function PoliticasPage() {
 
             <p className="mt-4 text-sm text-muted-foreground">
               <strong>Nota:</strong> Alguns dados podem ser mantidos por obrigações legais, prevenção de fraude ou resolução de disputas, conforme permitido por lei.
-            </p>
-          </Section>
+        </p>
+      </Section>
 
           <Section id="contato" title="Contato e Suporte">
             <p>
@@ -253,16 +253,16 @@ export default function PoliticasPage() {
                 </div>
               </div>
             </div>
-          </Section>
+      </Section>
 
           <hr className="my-8 border-border" />
 
           <footer className="text-center text-muted-foreground text-sm">
             <p>© {year} Agência Elevea. Todos os direitos reservados.</p>
             <p className="mt-2">Esta página descreve como coletamos, usamos e protegemos seus dados pessoais.</p>
-          </footer>
+      </footer>
         </div>
-      </main>
+    </main>
     </div>
   );
 }

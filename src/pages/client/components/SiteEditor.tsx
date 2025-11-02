@@ -8,10 +8,12 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Save, Eye, EyeOff, Image as ImageIcon, Upload, Plus } from 'lucide-react'
+import { Loader2, Save, Eye, EyeOff, Image as ImageIcon, Upload, Plus, Trash2 } from 'lucide-react'
 import ImageManager from './ImageManager'
 import SectionTemplates from './SectionTemplates'
 import SectionCustomizer from './SectionCustomizer'
+import * as n8nSites from '@/lib/n8n-sites'
+import type { SiteSection } from '@/lib/n8n-sites'
 
 interface SectionField {
   key: string
@@ -22,19 +24,7 @@ interface SectionField {
   options?: { value: string; label: string }[]
 }
 
-interface SiteSection {
-  id: string
-  type: 'hero' | 'about' | 'services' | 'products' | 'gallery' | 'contact' | 'custom'
-  title: string
-  subtitle?: string
-  description?: string
-  image?: string
-  order: number
-  visible: boolean
-  customFields?: Record<string, any>
-  lastUpdated?: string
-  editableFields?: SectionField[]
-}
+// SiteSection já importado de @/lib/n8n-sites
 
 interface SiteEditorProps {
   siteSlug: string
@@ -62,14 +52,15 @@ export default function SiteEditor({ siteSlug, vipPin, onContentUpdated }: SiteE
       setLoading(true)
       setError(null)
       
-      const response = await fetch(`/.netlify/functions/site-content-editor?site=${encodeURIComponent(siteSlug)}`)
-      const data = await response.json()
+      const sectionsData = await n8nSites.getSections(siteSlug)
       
-      if (!data.ok) {
-        throw new Error(data.error || 'Erro ao carregar seções')
-      }
+      // Adicionar editableFields que não vêm do backend
+      const sectionsWithFields = sectionsData.map((section: any) => ({
+        ...section,
+        editableFields: section.editableFields || []
+      }))
       
-      setSections(data.sections || [])
+      setSections(sectionsWithFields)
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar seções do site')
     } finally {
@@ -83,28 +74,34 @@ export default function SiteEditor({ siteSlug, vipPin, onContentUpdated }: SiteE
       setError(null)
       setSuccess(null)
       
-      const response = await fetch('/.netlify/functions/site-content-editor', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          site: siteSlug,
-          sectionId,
-          field,
-          value,
-          pin: vipPin
-        })
-      })
+      // Mapear campos para formato da API
+      const updates: any = {}
       
-      const data = await response.json()
+      if (field === 'image') {
+        updates.image_url = value
+      } else if (field === 'image_url') {
+        updates.image_url = value
+      } else if (field === 'customFields') {
+        updates.custom_fields = value
+      } else if (field === 'custom_fields') {
+        updates.custom_fields = value
+      } else {
+        // Campos diretos: title, subtitle, description, type, order, visible
+        updates[field] = value
+      }
       
-      if (!data.ok) {
-        throw new Error(data.error || 'Erro ao atualizar seção')
+      const updatedSection = await n8nSites.updateSection(siteSlug, sectionId, updates)
+      
+      // Preservar editableFields locais
+      const sectionWithFields = {
+        ...updatedSection,
+        editableFields: section.editableFields || []
       }
       
       // Atualizar estado local
       setSections(prev => prev.map(section => 
         section.id === sectionId 
-          ? { ...section, [field]: value, lastUpdated: new Date().toISOString() }
+          ? sectionWithFields
           : section
       ))
       
@@ -127,27 +124,30 @@ export default function SiteEditor({ siteSlug, vipPin, onContentUpdated }: SiteE
       setError(null)
       setSuccess(null)
       
-      const response = await fetch('/.netlify/functions/site-content-editor', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          site: siteSlug,
-          sectionId,
-          sectionData: data,
-          pin: vipPin
-        })
-      })
+      // Converter dados para formato da API
+      const updates: any = {}
       
-      const result = await response.json()
+      if (data.title !== undefined) updates.title = data.title
+      if (data.subtitle !== undefined) updates.subtitle = data.subtitle
+      if (data.description !== undefined) updates.description = data.description
+      if (data.image !== undefined) updates.image_url = data.image
+      if (data.type !== undefined) updates.type = data.type
+      if (data.order !== undefined) updates.order = data.order
+      if (data.visible !== undefined) updates.visible = data.visible
+      if (data.customFields !== undefined) updates.custom_fields = data.customFields
       
-      if (!result.ok) {
-        throw new Error(result.error || 'Erro ao atualizar seção')
+      const updatedSection = await n8nSites.updateSection(siteSlug, sectionId, updates)
+      
+      // Preservar editableFields locais
+      const sectionWithFields = {
+        ...updatedSection,
+        editableFields: section.editableFields || []
       }
       
       // Atualizar estado local
       setSections(prev => prev.map(section => 
         section.id === sectionId 
-          ? { ...section, ...data, lastUpdated: new Date().toISOString() }
+          ? sectionWithFields
           : section
       ))
       
@@ -159,6 +159,55 @@ export default function SiteEditor({ siteSlug, vipPin, onContentUpdated }: SiteE
       
     } catch (err: any) {
       setError(err.message || 'Erro ao atualizar seção')
+    } finally {
+      setSaving(false)
+    }
+  }
+  
+  const deleteSection = async (sectionId: string) => {
+    if (!confirm('Tem certeza que deseja deletar esta seção?')) {
+      return
+    }
+    
+    try {
+      setSaving(true)
+      setError(null)
+      
+      await n8nSites.deleteSection(siteSlug, sectionId)
+      
+      // Remover do estado local
+      setSections(prev => prev.filter(section => section.id !== sectionId))
+      setSuccess('Seção deletada com sucesso!')
+      
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err: any) {
+      setError(err.message || 'Erro ao deletar seção')
+    } finally {
+      setSaving(false)
+    }
+  }
+  
+  const createNewSection = async () => {
+    try {
+      setSaving(true)
+      setError(null)
+      
+      const newSection = await n8nSites.createSection(siteSlug, {
+        type: 'custom',
+        title: 'Nova Seção',
+        subtitle: '',
+        description: '',
+        visible: true,
+        order: sections.length
+      })
+      
+      // Adicionar ao estado local (já normalizado pelo n8n-sites.ts)
+      setSections(prev => [...prev, { ...newSection, editableFields: [] }])
+      setSuccess('Seção criada com sucesso!')
+      
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err: any) {
+      setError(err.message || 'Erro ao criar seção')
     } finally {
       setSaving(false)
     }
@@ -194,10 +243,33 @@ export default function SiteEditor({ siteSlug, vipPin, onContentUpdated }: SiteE
     })
   }
 
-  const handleTemplateSelected = (template: any) => {
-    // TODO: Implementar adição de nova seção baseada no template
-    console.log('Template selecionado:', template)
-    setShowTemplates(false)
+  const handleTemplateSelected = async (template: any) => {
+    try {
+      setSaving(true)
+      setError(null)
+      
+      const newSection = await n8nSites.createSection(siteSlug, {
+        type: template.type || 'custom',
+        title: template.title || 'Nova Seção',
+        subtitle: template.subtitle,
+        description: template.description,
+        image_url: template.image,
+        visible: true,
+        order: sections.length,
+        custom_fields: template.customFields || {}
+      })
+      
+      // Adicionar ao estado local
+      setSections(prev => [...prev, { ...newSection, editableFields: template.editableFields || [] }])
+      setShowTemplates(false)
+      setSuccess('Seção criada com sucesso!')
+      
+      setTimeout(() => setSuccess(null), 3000)
+    } catch (err: any) {
+      setError(err.message || 'Erro ao criar seção do template')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const renderField = (section: SiteSection, field: SectionField) => {
@@ -334,13 +406,25 @@ export default function SiteEditor({ siteSlug, vipPin, onContentUpdated }: SiteE
                 Gerencie o conteúdo das seções do seu site
               </p>
             </div>
-            <Button
-              onClick={() => setShowTemplates(true)}
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Adicionar Seção
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={createNewSection}
+                className="flex items-center gap-2"
+                disabled={saving}
+              >
+                <Plus className="h-4 w-4" />
+                Adicionar Seção
+              </Button>
+              <Button
+                onClick={() => setShowTemplates(true)}
+                variant="outline"
+                className="flex items-center gap-2"
+                disabled={saving}
+              >
+                <Plus className="h-4 w-4" />
+                Do Template
+              </Button>
+            </div>
           </div>
 
           {sections.length === 0 ? (
@@ -402,13 +486,24 @@ export default function SiteEditor({ siteSlug, vipPin, onContentUpdated }: SiteE
                           </Button>
                         </>
                       ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setEditingSection(section.id)}
-                        >
-                          Editar
-                        </Button>
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditingSection(section.id)}
+                          >
+                            Editar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => deleteSection(section.id)}
+                            disabled={saving}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Deletar
+                          </Button>
+                        </>
                       )}
                     </div>
                   </div>
