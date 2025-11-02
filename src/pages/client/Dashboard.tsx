@@ -19,6 +19,7 @@ import { EcommerceDashboard } from "./components/EcommerceDashboard";
 import TemplateMarketplace from "./components/TemplateMarketplace";
 import AuditLogs from "./components/AuditLogs";
 import ModernSiteEditor from "./components/ModernSiteEditor";
+import ThemeToggle from "@/components/ThemeToggle";
 
 // === Extras / UI ===
 import { AICopywriter } from "@/components/ui/ai-copywriter";
@@ -665,11 +666,11 @@ useEffect(() => {
 
   if (loading) {
     return (
-      <div className="min-h-screen grid place-items-center bg-[#0B1220]">
-        <div className="text-white text-center space-y-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
+      <div className="min-h-screen grid place-items-center dashboard-bg">
+        <div className="dashboard-text text-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
           <p>Carregando dados do usuário...</p>
-          <p className="text-sm text-gray-400">Aguarde...</p>
+          <p className="text-sm dashboard-text-muted">Aguarde...</p>
         </div>
       </div>
     );
@@ -677,13 +678,13 @@ useEffect(() => {
 
   if (!user) {
     return (
-      <div className="min-h-screen grid place-items-center bg-[#0B1220]">
-        <div className="text-white text-center space-y-4">
+      <div className="min-h-screen grid place-items-center dashboard-bg">
+        <div className="dashboard-text text-center space-y-4">
           <p>Usuário não encontrado</p>
-          <p className="text-sm text-gray-400">Faça login para continuar</p>
+          <p className="text-sm dashboard-text-muted">Faça login para continuar</p>
           <button 
             onClick={() => window.location.href = "/login"}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-4 py-2 bg-primary text-white rounded hover:opacity-90"
           >
             Ir para Login
           </button>
@@ -693,17 +694,19 @@ useEffect(() => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B1220] p-3 sm:p-6 text-white">
+    <div className="min-h-screen dashboard-bg p-3 sm:p-6 dashboard-text transition-colors duration-300">
       <div className="max-w-7xl mx-auto space-y-4 sm:space-y-8">
         {/* HEADER */}
-        <header className="rounded-2xl border border-white/10 bg-white text-slate-900 p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+        <header className="rounded-2xl border dashboard-border dashboard-card p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 dashboard-shadow">
           <div className="flex items-center gap-2 sm:gap-4">
             <img src="/logo-elevea.png" alt="ELEVEA" className="h-5 sm:h-6 w-auto" />
-            <div className="text-xs sm:text-sm text-slate-600">
+            <div className="text-xs sm:text-sm dashboard-text-muted">
               {user.email} {user.siteSlug ? `• ${user.siteSlug}` : "• sem site"} {`• ${planLabel}`}
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
+            
             {vipEnabled ? (
               <>
                 <span className="rounded-xl bg-emerald-500/15 text-emerald-700 border border-emerald-300 px-3 py-1 text-xs font-medium">
@@ -713,7 +716,7 @@ useEffect(() => {
                   value={vipPin}
                   onChange={(e) => setVipPin(e.target.value)}
                   placeholder="PIN VIP"
-                  className="rounded-xl bg-white/70 text-black px-3 py-2 text-xs"
+                  className="rounded-xl dashboard-card dashboard-text dashboard-input px-3 py-2 text-xs border dashboard-border"
                 />
               </>
             ) : checkingPlan ? (
@@ -727,7 +730,7 @@ useEffect(() => {
             )}
             <button
               onClick={logout}
-              className="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:opacity-90"
+              className="rounded-xl dashboard-secondary dashboard-text px-4 py-2 text-sm hover:opacity-90 border dashboard-border"
             >
               Sair
             </button>
@@ -774,8 +777,8 @@ useEffect(() => {
         {vipEnabled && (
           <>
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-white mb-2">🚀 Funcionalidades Disponíveis</h2>
-              <p className="text-white/60">Ferramentas prontas para uso</p>
+              <h2 className="text-2xl font-bold dashboard-text mb-2">🚀 Funcionalidades Disponíveis</h2>
+              <p className="dashboard-text-muted">Ferramentas prontas para uso</p>
             </div>
 
             {/* Tráfego do Site - Analytics Dashboard */}
@@ -836,7 +839,7 @@ useEffect(() => {
                     checking={checkingPlan && !DEV_FORCE_VIP}
                     teaser="Configure aparência, tema e PIN VIP"
                   >
-                    <section className="rounded-2xl border border-white/10 bg-white text-slate-900 p-6 space-y-4">
+                    <section className="rounded-2xl border dashboard-border dashboard-card p-6 space-y-4 dashboard-shadow">
                       <h2 className="text-lg font-semibold">Configurações Gerais</h2>
 
                       <div className="grid md:grid-cols-2 gap-4">
@@ -977,8 +980,8 @@ useEffect(() => {
         {vipEnabled && !isDevUser && (
           <>
             <div className="mt-12 mb-8">
-              <h2 className="text-2xl font-bold text-white mb-2">🔧 Em Desenvolvimento</h2>
-              <p className="text-white/60">Funcionalidades que serão liberadas em breve</p>
+              <h2 className="text-2xl font-bold dashboard-text mb-2">🔧 Em Desenvolvimento</h2>
+              <p className="dashboard-text-muted">Funcionalidades que serão liberadas em breve</p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
@@ -1117,7 +1120,7 @@ useEffect(() => {
 
             {/* AI Copywriter - DEV */}
             <section className="space-y-6">
-              <div className="rounded-2xl border border-white/10 bg-white text-slate-900 p-6">
+              <div className="rounded-2xl border dashboard-border dashboard-card p-6 dashboard-shadow">
                 <AICopywriter
                   businessName={user.siteSlug || "seu negócio"}
                   businessType="negócio"
@@ -1206,9 +1209,9 @@ useEffect(() => {
 /* ================= COMPONENTES ================= */
 function Card({ title, value }: { title: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white text-slate-900 p-4">
-      <div className="text-xs text-slate-500 uppercase tracking-wide">{title}</div>
-      <div className="text-lg font-semibold mt-1">{value}</div>
+    <div className="rounded-2xl border dashboard-border dashboard-card p-4 dashboard-shadow">
+      <div className="text-xs dashboard-text-subtle uppercase tracking-wide">{title}</div>
+      <div className="text-lg font-semibold mt-1 dashboard-text">{value}</div>
     </div>
   );
 }
@@ -1229,9 +1232,9 @@ function VipGate({
     return (
       <div className="relative">
         <div className="pointer-events-none select-none opacity-70">{children}</div>
-        <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-transparent via-[#0B1220]/80 to-[#0B1220]" />
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-transparent via-dashboard-bg/80 to-dashboard-bg" />
         <div className="absolute inset-x-0 bottom-0 p-6">
-          <div className="rounded-2xl border border-white/10 bg-white/10 backdrop-blur px-4 py-3 text-sm text-white">
+          <div className="rounded-2xl border dashboard-border dashboard-card/90 backdrop-blur px-4 py-3 text-sm dashboard-text">
             Verificando sua assinatura…
           </div>
         </div>
@@ -1241,10 +1244,10 @@ function VipGate({
   return (
     <div className="relative">
       <div className="pointer-events-none select-none blur-[1.1px] opacity-80">{children}</div>
-      <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-transparent via-[#0B1220]/80 to-[#0B1220]" />
+      <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-transparent via-dashboard-bg/80 to-dashboard-bg" />
       <div className="absolute inset-x-0 bottom-0 p-6">
-        <div className="rounded-2xl border border-white/10 bg-white/10 backdrop-blur px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="text-sm text-white">{teaser}</div>
+        <div className="rounded-2xl border dashboard-border dashboard-card/90 backdrop-blur px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="text-sm dashboard-text">{teaser}</div>
           <a
             href={UPGRADE_URL}
             target="_blank"

@@ -60,6 +60,7 @@ import {
 import ImageManager from './ImageManager'
 import ImageLightbox from './ImageLightbox'
 import FAQEditor from './FAQEditor'
+import ThemeToggle from '@/components/ThemeToggle'
 import * as n8nSites from '@/lib/n8n-sites'
 import type { SiteSection, SiteMedia } from '@/lib/n8n-sites'
 import { toast } from 'sonner'
@@ -340,12 +341,12 @@ export default function ModernSiteEditor({
         </div>
         <div className="text-center space-y-2">
           <p className="text-lg font-medium">Carregando conteúdo do site...</p>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm dashboard-text-muted">
             Conectando ao backend n8n
           </p>
           {siteSlug && (
-            <p className="text-xs text-muted-foreground/70">
-              Site: <code className="bg-muted px-2 py-0.5 rounded">{siteSlug}</code>
+            <p className="text-xs dashboard-text-subtle">
+              Site: <code className="dashboard-container px-2 py-0.5 rounded">{siteSlug}</code>
             </p>
           )}
         </div>
@@ -354,9 +355,9 @@ export default function ModernSiteEditor({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 dashboard-bg min-h-screen p-4 sm:p-6 transition-colors duration-300">
       {/* Header Elegante */}
-      <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-6 backdrop-blur-sm">
+      <div className="rounded-2xl border dashboard-border dashboard-card p-6 dashboard-shadow">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
@@ -367,14 +368,14 @@ export default function ModernSiteEditor({
                 <h2 className="text-3xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
                   Editor de Conteúdo
                 </h2>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Gerencie seções e mídias do site <span className="font-medium text-foreground">{siteSlug}</span>
+                <p className="text-sm dashboard-text-muted mt-0.5">
+                  Gerencie seções e mídias do site <span className="font-medium dashboard-text">{siteSlug}</span>
                 </p>
               </div>
             </div>
             
             {/* Stats rápidas */}
-            <div className="flex items-center gap-4 text-xs text-muted-foreground mt-3">
+            <div className="flex items-center gap-4 text-xs dashboard-text-muted mt-3">
               <div className="flex items-center gap-1.5">
                 <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
                 <span>{sections.length} seções</span>
@@ -391,6 +392,8 @@ export default function ModernSiteEditor({
           </div>
           
           <div className="flex items-center gap-2">
+            <ThemeToggle />
+            
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -423,33 +426,33 @@ export default function ModernSiteEditor({
           </div>
         </div>
         
-        {/* Instruções rápidas - Design Melhorado */}
-        <div className="mt-4 pt-4 border-t border-white/10">
-          <div className="flex items-start gap-3 text-xs">
+        {/* Instruções rápidas - Design Melhorado com Tema */}
+        <div className="mt-4 pt-4 border-t dashboard-divider">
+          <div className="flex items-start gap-3">
             <div className="p-1.5 rounded-lg bg-primary/10">
               <HelpCircle className="h-4 w-4 text-primary" />
             </div>
             <div className="flex-1 space-y-2">
-              <p className="font-semibold text-foreground flex items-center gap-2">
+              <p className="font-semibold dashboard-text flex items-center gap-2 text-sm">
                 <Sparkles className="h-3.5 w-3.5 text-primary" />
                 Dicas rápidas
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-foreground/90">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div className="flex items-start gap-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-                  <span className="text-sm">Clique em <strong className="text-foreground font-semibold">Editar</strong> para modificar uma seção</span>
+                  <span className="text-sm dashboard-text font-medium">Clique em <strong className="dashboard-text font-bold">Editar</strong> para modificar uma seção</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-                  <span className="text-sm">Use a <strong className="text-foreground font-semibold">busca</strong> para encontrar conteúdo específico</span>
+                  <span className="text-sm dashboard-text font-medium">Use a <strong className="dashboard-text font-bold">busca</strong> para encontrar conteúdo específico</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-                  <span className="text-sm">As <strong className="text-foreground font-semibold">mídias</strong> são armazenadas no GitHub automaticamente</span>
+                  <span className="text-sm dashboard-text font-medium">As <strong className="dashboard-text font-bold">mídias</strong> são armazenadas no GitHub automaticamente</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-                  <span className="text-sm">Visualize o resultado na aba <strong className="text-foreground font-semibold">Preview</strong></span>
+                  <span className="text-sm dashboard-text font-medium">Visualize o resultado na aba <strong className="dashboard-text font-bold">Preview</strong></span>
                 </div>
               </div>
             </div>
@@ -515,7 +518,7 @@ export default function ModernSiteEditor({
           {/* Search and Filter */}
           <div className="flex items-center gap-2">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 dashboard-text-muted" />
               <Input
                 placeholder="Buscar..."
                 value={searchQuery}
@@ -541,13 +544,13 @@ export default function ModernSiteEditor({
               <CardContent className="p-16 text-center">
                 <div className="flex flex-col items-center space-y-4">
                   <div className="p-4 rounded-full bg-muted/50">
-                    <Grid3x3 className="h-10 w-10 text-muted-foreground" />
+                    <Grid3x3 className="h-10 w-10 dashboard-text-muted" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-xl font-bold">
+                    <h3 className="text-xl font-bold dashboard-text">
                       {sections.length === 0 ? 'Nenhuma seção criada ainda' : 'Nenhuma seção encontrada'}
                     </h3>
-                    <p className="text-muted-foreground max-w-md mx-auto">
+                    <p className="dashboard-text-muted max-w-md mx-auto">
                       {sections.length === 0 
                         ? 'Comece criando sua primeira seção para estruturar o conteúdo do seu site. Você pode adicionar seções hero, sobre, serviços, contato e muito mais.'
                         : 'Nenhuma seção corresponde aos filtros aplicados. Tente ajustar a busca ou os filtros.'
@@ -785,7 +788,7 @@ export default function ModernSiteEditor({
                       (section.description || section.image) && (
                         <CardContent>
                           {section.description && (
-                            <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+                            <p className="text-sm dashboard-text-muted line-clamp-2 mb-4">
                               {section.description}
                             </p>
                           )}
@@ -844,13 +847,13 @@ export default function ModernSiteEditor({
                                     target.style.display = 'none'
                                   }}
                                 />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                                  <div className="bg-black/70 px-4 py-2 rounded-lg text-white text-sm font-medium backdrop-blur-sm">
+                                <div className="absolute inset-0 bg-black/60 dark:bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                  <div className="dashboard-container px-4 py-2 rounded-lg dashboard-text text-sm font-medium backdrop-blur-sm shadow-lg">
                                     Clique para ver em tamanho completo
                                   </div>
                                 </div>
                               </div>
-                              <div className="mt-2 text-xs text-muted-foreground">
+                              <div className="mt-2 text-xs dashboard-text-muted">
                                 💡 Clique na imagem para ver em tamanho completo
                               </div>
                             </div>
@@ -893,13 +896,13 @@ export default function ModernSiteEditor({
               <CardContent className="p-16 text-center">
                 <div className="flex flex-col items-center space-y-4">
                   <div className="p-4 rounded-full bg-muted/50">
-                    <FileImage className="h-10 w-10 text-muted-foreground" />
+                    <FileImage className="h-10 w-10 dashboard-text-muted" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-xl font-bold">
+                    <h3 className="text-xl font-bold dashboard-text">
                       {media.length === 0 ? 'Nenhuma mídia enviada ainda' : 'Nenhuma mídia encontrada'}
                     </h3>
-                    <p className="text-muted-foreground max-w-md mx-auto">
+                    <p className="dashboard-text-muted max-w-md mx-auto">
                       {media.length === 0 
                         ? 'Comece fazendo upload de imagens usando o formulário acima. As imagens serão armazenadas automaticamente no GitHub.'
                         : 'Nenhuma mídia corresponde à busca. Tente outros termos.'
@@ -978,8 +981,8 @@ export default function ModernSiteEditor({
                           target.style.display = 'none'
                         }}
                       />
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
-                        <div className="text-white text-xs text-center mb-2">
+                      <div className="absolute inset-0 bg-black/60 dark:bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
+                        <div className="dashboard-text text-xs text-center mb-2 font-medium">
                           Clique para ver completa
                         </div>
                         <Button
@@ -1005,18 +1008,18 @@ export default function ModernSiteEditor({
                           {extension.toUpperCase()}
                         </Badge>
                         {imageDimensions[item.id] ? (
-                          <span className="text-xs text-foreground/80 font-medium">
+                          <span className="text-xs dashboard-text font-medium">
                             {imageDimensions[item.id].width} × {imageDimensions[item.id].height}px
                           </span>
                         ) : (
-                          <span className="text-xs text-muted-foreground">Carregando dimensões...</span>
+                          <span className="text-xs dashboard-text-subtle">Carregando dimensões...</span>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground truncate mt-1">
+                      <p className="text-xs dashboard-text-muted truncate mt-1">
                         {item.key}
                       </p>
                       {item.size && (
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-xs dashboard-text-muted mt-1">
                           {(item.size / 1024).toFixed(2)} KB
                         </p>
                       )}
@@ -1063,7 +1066,7 @@ export default function ModernSiteEditor({
                           </div>
                           <h3 className="text-3xl font-bold mb-2">{section.title}</h3>
                           {section.subtitle && (
-                            <p className="text-xl text-muted-foreground mb-4">{section.subtitle}</p>
+                            <p className="text-xl dashboard-text-muted mb-4">{section.subtitle}</p>
                           )}
                         </div>
                       </div>
@@ -1128,8 +1131,8 @@ export default function ModernSiteEditor({
                                 target.style.display = 'none'
                               }}
                             />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                              <div className="bg-black/70 px-4 py-2 rounded-lg text-white text-sm font-medium backdrop-blur-sm">
+                            <div className="absolute inset-0 bg-black/60 dark:bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                              <div className="dashboard-container px-4 py-2 rounded-lg dashboard-text text-sm font-medium backdrop-blur-sm shadow-lg">
                                 Clique para ver em tamanho completo
                               </div>
                             </div>
@@ -1151,10 +1154,10 @@ export default function ModernSiteEditor({
                 {sections.filter(s => s.visible).length === 0 && (
                   <div className="text-center py-20">
                     <div className="p-6 rounded-full bg-muted/50 w-fit mx-auto mb-6">
-                      <EyeOff className="h-16 w-16 text-muted-foreground/50" />
+                      <EyeOff className="h-16 w-16 dashboard-text-subtle" />
                     </div>
-                    <h3 className="text-xl font-bold mb-2">Nenhuma seção visível</h3>
-                    <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                    <h3 className="text-xl font-bold mb-2 dashboard-text">Nenhuma seção visível</h3>
+                    <p className="dashboard-text-muted mb-6 max-w-md mx-auto">
                       Não há seções visíveis para exibir no preview. Ative algumas seções na aba "Seções" para vê-las aqui.
                     </p>
                   </div>

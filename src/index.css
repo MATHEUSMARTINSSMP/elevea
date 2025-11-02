@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Dashboard Themes - Importar após Tailwind */
+@import './themes/dashboard-themes.css';
+
 /* Agência Elevea Design System - All colors MUST be HSL */
 
 /* ===========================

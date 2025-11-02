@@ -1,0 +1,150 @@
+/**
+ * Dashboard Themes - Temas Claro e Escuro
+ * Tema Claro: Cinza bem clarinho, quase branco gelo
+ * Tema Escuro: Azul marinho
+ */
+
+/* ===========================
+   TEMA CLARO (Light Theme)
+   =========================== */
+:root,
+:root.light {
+  /* Background - Cinza bem clarinho, quase branco gelo */
+  --dashboard-bg: 220 14% 97%;        /* #f5f6f7 - quase branco gelo */
+  --dashboard-card: 0 0% 100%;       /* #ffffff - branco */
+  --dashboard-border: 220 13% 91%;   /* #e6e8ea - cinza muito claro */
+  
+  /* Texto - Escuro para alto contraste */
+  --dashboard-text: 220 15% 15%;     /* #212529 - quase preto */
+  --dashboard-text-muted: 220 10% 35%; /* #5a6066 - cinza médio */
+  --dashboard-text-subtle: 220 8% 50%; /* #7a8085 - cinza mais claro */
+  
+  /* Elementos UI */
+  --dashboard-primary: 46 65% 53%;   /* Dourado - mantém identidade */
+  --dashboard-primary-hover: 46 65% 48%;
+  --dashboard-secondary: 220 14% 94%; /* Cinza bem claro */
+  --dashboard-accent: 220 14% 96%;   /* Cinza muito claro */
+  
+  /* Estados */
+  --dashboard-hover: 220 14% 95%;
+  --dashboard-active: 220 14% 92%;
+  --dashboard-disabled: 220 8% 85%;
+  
+  /* Bordas e divisores */
+  --dashboard-divider: 220 13% 88%;
+  --dashboard-input-border: 220 13% 85%;
+  
+  /* Shadows - sutis no tema claro */
+  --dashboard-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --dashboard-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+  --dashboard-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* ===========================
+   TEMA ESCURO (Dark Theme)
+   =========================== */
+:root.dark {
+  /* Background - Azul marinho */
+  --dashboard-bg: 220 40% 12%;       /* #0f1729 - azul marinho escuro */
+  --dashboard-card: 220 35% 16%;     /* #1a2132 - azul marinho médio */
+  --dashboard-border: 220 30% 22%;   /* #2a3347 - azul marinho claro */
+  
+  /* Texto - Claro para alto contraste */
+  --dashboard-text: 220 20% 95%;     /* #e8ebf0 - quase branco */
+  --dashboard-text-muted: 220 15% 75%; /* #b8c0cc - cinza claro */
+  --dashboard-text-subtle: 220 12% 60%; /* #8b95a6 - cinza médio claro */
+  
+  /* Elementos UI */
+  --dashboard-primary: 46 65% 53%;   /* Dourado - mantém identidade */
+  --dashboard-primary-hover: 46 65% 58%;
+  --dashboard-secondary: 220 35% 20%; /* Azul marinho mais claro */
+  --dashboard-accent: 220 35% 18%;   /* Azul marinho acentuado */
+  
+  /* Estados */
+  --dashboard-hover: 220 35% 22%;
+  --dashboard-active: 220 35% 25%;
+  --dashboard-disabled: 220 25% 30%;
+  
+  /* Bordas e divisores */
+  --dashboard-divider: 220 30% 28%;
+  --dashboard-input-border: 220 30% 26%;
+  
+  /* Shadows - mais pronunciados no tema escuro */
+  --dashboard-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --dashboard-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --dashboard-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+/* ===========================
+   CLASSES UTILITÁRIAS
+   =========================== */
+.dashboard-bg {
+  background-color: hsl(var(--dashboard-bg));
+}
+
+.dashboard-card {
+  background-color: hsl(var(--dashboard-card));
+  border-color: hsl(var(--dashboard-border));
+}
+
+.dashboard-text {
+  color: hsl(var(--dashboard-text));
+}
+
+.dashboard-text-muted {
+  color: hsl(var(--dashboard-text-muted));
+}
+
+.dashboard-text-subtle {
+  color: hsl(var(--dashboard-text-subtle));
+}
+
+.dashboard-border {
+  border-color: hsl(var(--dashboard-border));
+}
+
+.dashboard-divider {
+  border-color: hsl(var(--dashboard-divider));
+}
+
+/* Garantir contraste mínimo para acessibilidade */
+.dashboard-text * {
+  color: hsl(var(--dashboard-text));
+}
+
+.dashboard-text-muted * {
+  color: hsl(var(--dashboard-text-muted));
+}
+
+/* Inputs e formulários */
+.dashboard-input {
+  background-color: hsl(var(--dashboard-card));
+  border-color: hsl(var(--dashboard-input-border));
+  color: hsl(var(--dashboard-text));
+}
+
+.dashboard-input::placeholder {
+  color: hsl(var(--dashboard-text-subtle));
+}
+
+/* Cards e containers */
+.dashboard-container {
+  background-color: hsl(var(--dashboard-card));
+  border: 1px solid hsl(var(--dashboard-border));
+  color: hsl(var(--dashboard-text));
+}
+
+/* Hover states */
+.dashboard-hover:hover {
+  background-color: hsl(var(--dashboard-hover));
+}
+
+/* Shadows */
+.dashboard-shadow {
+  box-shadow: var(--dashboard-shadow);
+}
+
+.dashboard-shadow-lg {
+  box-shadow: var(--dashboard-shadow-lg);
+}
+

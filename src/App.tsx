@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 
 import SentryProvider from "@/components/SentryProvider";
 import AnalyticsProvider from "@/components/AnalyticsProvider";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import Routes from "@/routes";
 import { WaitSession } from "@/routes/guards";
 
@@ -32,22 +33,24 @@ export default function App() {
   return (
     <StrictMode>
       <SentryProvider>
-        {/* PWA (se existir) não depende do Router */}
-        <PWAHandler>
-          {/* O Router precisa vir ANTES do AnalyticsProvider,
-              pois o Analytics usa useLocation() */}
-          <BrowserRouter>
-            {/* Agora o Analytics tem contexto de Router */}
-            <AnalyticsProvider>
-              {/* Guards/sessão globais podem ficar aqui dentro */}
-              <WaitSession>
-                <Suspense fallback={<Fallback />}>
-                  <Routes />
-                </Suspense>
-              </WaitSession>
-            </AnalyticsProvider>
-          </BrowserRouter>
-        </PWAHandler>
+        <ThemeProvider>
+          {/* PWA (se existir) não depende do Router */}
+          <PWAHandler>
+            {/* O Router precisa vir ANTES do AnalyticsProvider,
+                pois o Analytics usa useLocation() */}
+            <BrowserRouter>
+              {/* Agora o Analytics tem contexto de Router */}
+              <AnalyticsProvider>
+                {/* Guards/sessão globais podem ficar aqui dentro */}
+                <WaitSession>
+                  <Suspense fallback={<Fallback />}>
+                    <Routes />
+                  </Suspense>
+                </WaitSession>
+              </AnalyticsProvider>
+            </BrowserRouter>
+          </PWAHandler>
+        </ThemeProvider>
       </SentryProvider>
     </StrictMode>
   );
