@@ -87,7 +87,7 @@ type ClientSettings = {
   vipPin?: string;
 };
 
-type ImageSlot = { key: string; label: string; url?: string };
+// ImageSlot type removido - não é mais usado
 
 /* ===== fetch com timeout real (AbortController) ===== */
 async function getJSON<T = any>(url: string, ms: number): Promise<T> {
@@ -238,10 +238,7 @@ export default function ClientDashboard() {
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [loadingFeedbacks, setLoadingFeedbacks] = useState(true);
 
-  const [slots, setSlots] = useState<ImageSlot[]>(
-    Array.from({ length: 6 }).map((_, i) => ({ key: `media_${i + 1}`, label: `Mídia ${i + 1}` }))
-  );
-  const [loadingAssets, setLoadingAssets] = useState(true);
+  // slots e loadingAssets removidos - gerenciamento de mídias agora via ModernSiteEditor
 
   const [vipPin, setVipPin] = useState<string>(() => {
     // Prioridade: ?pin=... > sessionStorage > vazio (será preenchido pelos settings depois)
@@ -422,7 +419,6 @@ export default function ClientDashboard() {
   /* 2) Cards em paralelo (não bloqueiam a decisão VIP) */
   useEffect(() => {
     if (!canQuery) {
-      setLoadingAssets(false);
       setLoadingSettings(false);
       // setLoadingStructure removido
       setLoadingFeedbacks(false);
@@ -483,25 +479,7 @@ export default function ClientDashboard() {
       await loadUserFeatures();
     })();
 
-    // ASSETS
-    (async () => {
-      try {
-        const assets = await getJSON<{ ok: boolean; items: Array<{ key: string; url: string }> }>(
-          `/.netlify/functions/assets?site=${encodeURIComponent(user!.siteSlug!)}`,
-          CARDS_TIMEOUT_MS
-        ).catch(() => ({ ok: true, items: [] as any[] }));
-
-        if (!alive) return;
-
-        const mapped = new Map<string, string>();
-        assets.items.forEach((a) => mapped.set(a.key, a.url));
-        setSlots((prev) => prev.map((s) => ({ ...s, url: mapped.get(s.key) || undefined })));
-      } catch {
-        // silencioso
-      } finally {
-        if (alive) setLoadingAssets(false);
-      }
-    })();
+    // Assets removido - gerenciamento de mídias agora via ModernSiteEditor
 
     // cleanup
     return () => {
@@ -646,20 +624,7 @@ useEffect(() => {
     }
   }
 
-  async function handleUpload(slot: ImageSlot, file: File) {
-    if (!canQuery) return;
-    const fd = new FormData();
-    fd.append("site", user!.siteSlug!);
-    fd.append("section", "generic");
-    fd.append("key", slot.key);
-    fd.append("file", file);
-    fd.append("email", user!.email);
-    const r = await fetch("/.netlify/functions/assets", { method: "PUT", body: fd, credentials: "include" });
-    const data = await r.json().catch(() => ({} as any));
-    if (!r.ok || data.ok === false) throw new Error(data?.error || `Falha no upload (${r.status})`);
-    const newUrl: string = data.url;
-    setSlots((prev) => prev.map((s) => (s.key === slot.key ? { ...s, url: newUrl } : s)));
-  }
+  // handleUpload removido - upload de mídias agora via ModernSiteEditor
 
   async function setFeedbackApproval(id: string, approved: boolean) {
   if (!canQuery) return;
@@ -1002,21 +967,7 @@ useEffect(() => {
                   </VipGate>
                 )}
 
-                {/* GERENCIADOR DE MÍDIAS */}
-                <VipGate
-                  enabled={vipEnabled}
-                  checking={loadingAssets && !DEV_FORCE_VIP}
-                  teaser="Personalize imagens, vídeos e recursos visuais"
-                >
-                  <section className="rounded-2xl border border-white/10 bg-white text-slate-900 p-6 space-y-4">
-                    <h2 className="text-lg font-semibold">Gerenciar Mídias</h2>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      {slots.map((slot) => (
-                        <MediaSlot key={slot.key} slot={slot} onUpload={handleUpload} />
-                      ))}
-                    </div>
-                  </section>
-                </VipGate>
+                {/* Gerenciador de Mídias removido - agora gerenciado via ModernSiteEditor */}
               </div>
             </div>
           </>
@@ -1308,53 +1259,4 @@ function VipGate({
   );
 }
 
-function MediaSlot({
-  slot,
-  onUpload,
-}: {
-  slot: ImageSlot;
-  onUpload: (slot: ImageSlot, file: File) => Promise<void>;
-}) {
-  const [uploading, setUploading] = useState(false);
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    try {
-      await onUpload(slot, file);
-    } catch (err: any) {
-      alert(err?.message || "Erro no upload");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  return (
-    <div className="border rounded-lg p-3">
-      <div className="text-sm font-medium mb-2">{slot.label}</div>
-      {slot.url ? (
-        <div className="space-y-2">
-          <img src={slot.url} alt={slot.label} className="w-full h-24 object-cover rounded" />
-          <input
-            type="file"
-            accept="image/*,video/*"
-            onChange={handleFileChange}
-            disabled={uploading}
-            className="w-full text-xs"
-          />
-        </div>
-      ) : (
-        <input
-          type="file"
-          accept="image/*,video/*"
-          onChange={handleFileChange}
-          disabled={uploading}
-          className="w-full text-xs"
-        />
-      )}
-      {uploading && <div className="text-xs text-blue-600">Enviando...</div>}
-    </div>
-  );
-}
+// MediaSlot removido - gerenciamento de mídias agora via ModernSiteEditor
