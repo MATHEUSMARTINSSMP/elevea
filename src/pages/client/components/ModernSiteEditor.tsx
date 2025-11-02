@@ -753,59 +753,79 @@ export default function ModernSiteEditor({
                         </div>
                       </CardContent>
                     ) : (
-                      section.description && (
+                      (section.description || section.image) && (
                         <CardContent>
-                          <p className="text-sm text-muted-foreground line-clamp-2">
-                            {section.description}
-                          </p>
-                          {section.image && (() => {
-                            const img = new Image()
-                            img.src = section.image
-                            return (
-                              <div className="mt-4">
-                                <div 
-                                  className="relative cursor-pointer group overflow-hidden rounded-lg"
-                                  onClick={async () => {
-                                    // Carregar dimensões da imagem
-                                    return new Promise<void>((resolve) => {
-                                      const tempImg = new Image()
-                                      tempImg.onload = () => {
-                                        const extension = section.image?.split('.').pop()?.toLowerCase() || 'unknown'
-                                        setLightboxImage({
-                                          url: section.image,
-                                          title: section.title,
-                                          info: {
-                                            format: extension,
-                                            width: tempImg.naturalWidth,
-                                            height: tempImg.naturalHeight,
-                                            fileName: section.image.split('/').pop()
-                                          }
-                                        })
-                                        resolve()
+                          {section.description && (
+                            <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+                              {section.description}
+                            </p>
+                          )}
+                          {section.image && (
+                            <div className={section.description ? "mt-4" : ""}>
+                              <div 
+                                className="relative cursor-pointer group overflow-hidden rounded-lg"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  // Carregar dimensões da imagem
+                                  const tempImg = new Image()
+                                  tempImg.onload = () => {
+                                    const extension = section.image?.split('.').pop()?.toLowerCase() || 'unknown'
+                                    setLightboxImage({
+                                      url: section.image || '',
+                                      title: section.title,
+                                      info: {
+                                        format: extension,
+                                        width: tempImg.naturalWidth,
+                                        height: tempImg.naturalHeight,
+                                        fileName: section.image.split('/').pop()
                                       }
-                                      tempImg.onerror = () => resolve()
-                                      tempImg.src = section.image || ''
                                     })
+                                  }
+                                  tempImg.onerror = () => {
+                                    // Ainda abre o lightbox mesmo se não conseguir carregar dimensões
+                                    const extension = section.image?.split('.').pop()?.toLowerCase() || 'unknown'
+                                    setLightboxImage({
+                                      url: section.image || '',
+                                      title: section.title,
+                                      info: {
+                                        format: extension,
+                                        fileName: section.image.split('/').pop()
+                                      }
+                                    })
+                                  }
+                                  tempImg.src = section.image || ''
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.cursor = 'pointer'}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault()
+                                    e.currentTarget.click()
+                                  }
+                                }}
+                              >
+                                <img 
+                                  src={section.image} 
+                                  alt={section.title}
+                                  className="w-full max-h-64 object-contain rounded-lg bg-muted/20 transition-transform group-hover:scale-105 pointer-events-none"
+                                  style={{ aspectRatio: 'auto' }}
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement
+                                    target.style.display = 'none'
                                   }}
-                                >
-                                  <img 
-                                    src={section.image} 
-                                    alt={section.title}
-                                    className="w-full max-h-64 object-contain rounded-lg bg-muted/20 transition-transform group-hover:scale-105"
-                                    style={{ aspectRatio: 'auto' }}
-                                  />
-                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <div className="bg-black/70 px-4 py-2 rounded-lg text-white text-sm font-medium backdrop-blur-sm">
-                                      Clique para ver em tamanho completo
-                                    </div>
+                                />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                  <div className="bg-black/70 px-4 py-2 rounded-lg text-white text-sm font-medium backdrop-blur-sm">
+                                    Clique para ver em tamanho completo
                                   </div>
                                 </div>
-                                <div className="mt-2 text-xs text-muted-foreground">
-                                  💡 Clique na imagem para ver em tamanho completo
-                                </div>
                               </div>
-                            )
-                          })()}
+                              <div className="mt-2 text-xs text-muted-foreground">
+                                💡 Clique na imagem para ver em tamanho completo
+                              </div>
+                            </div>
+                          )}
                         </CardContent>
                       )
                     )}
@@ -879,35 +899,54 @@ export default function ModernSiteEditor({
                     <div 
                       className="relative bg-muted cursor-pointer"
                       style={{ minHeight: '200px', aspectRatio: 'auto' }}
-                      onClick={async () => {
-                        return new Promise<void>((resolve) => {
-                          const tempImg = new Image()
-                          tempImg.onload = () => {
-                            setLightboxImage({
-                              url: item.url,
-                              title: item.fileName,
-                              info: {
-                                format: extension,
-                                width: tempImg.naturalWidth,
-                                height: tempImg.naturalHeight,
-                                size: item.size,
-                                fileName: item.fileName
-                              }
-                            })
-                            resolve()
-                          }
-                          tempImg.onerror = () => resolve()
-                          tempImg.src = item.url
-                        })
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const tempImg = new Image()
+                        tempImg.onload = () => {
+                          setLightboxImage({
+                            url: item.url,
+                            title: item.fileName,
+                            info: {
+                              format: extension,
+                              width: tempImg.naturalWidth,
+                              height: tempImg.naturalHeight,
+                              size: item.size,
+                              fileName: item.fileName
+                            }
+                          })
+                        }
+                        tempImg.onerror = () => {
+                          // Ainda abre o lightbox mesmo se não conseguir carregar dimensões
+                          setLightboxImage({
+                            url: item.url,
+                            title: item.fileName,
+                            info: {
+                              format: extension,
+                              size: item.size,
+                              fileName: item.fileName
+                            }
+                          })
+                        }
+                        tempImg.src = item.url
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.cursor = 'pointer'}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          e.currentTarget.click()
+                        }
                       }}
                     >
                       <img
                         src={item.url}
                         alt={item.fileName}
-                        className="w-full h-full object-contain"
+                        className="w-full h-full object-contain pointer-events-none"
                         style={{ aspectRatio: 'auto', maxHeight: '200px' }}
                         onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none'
+                          const target = e.target as HTMLImageElement
+                          target.style.display = 'none'
                         }}
                       />
                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
@@ -1010,38 +1049,57 @@ export default function ModernSiteEditor({
                         <div className="mb-6">
                           <div 
                             className="relative cursor-pointer group rounded-lg overflow-hidden shadow-md bg-muted/20"
-                            onClick={async () => {
-                              return new Promise<void>((resolve) => {
-                                const tempImg = new Image()
-                                tempImg.onload = () => {
-                                  const extension = section.image?.split('.').pop()?.toLowerCase() || 'unknown'
-                                  setLightboxImage({
-                                    url: section.image,
-                                    title: section.title,
-                                    info: {
-                                      format: extension,
-                                      width: tempImg.naturalWidth,
-                                      height: tempImg.naturalHeight,
-                                      fileName: section.image.split('/').pop()
-                                    }
-                                  })
-                                  resolve()
-                                }
-                                tempImg.onerror = () => resolve()
-                                tempImg.src = section.image || ''
-                              })
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const tempImg = new Image()
+                              tempImg.onload = () => {
+                                const extension = section.image?.split('.').pop()?.toLowerCase() || 'unknown'
+                                setLightboxImage({
+                                  url: section.image || '',
+                                  title: section.title,
+                                  info: {
+                                    format: extension,
+                                    width: tempImg.naturalWidth,
+                                    height: tempImg.naturalHeight,
+                                    fileName: section.image.split('/').pop()
+                                  }
+                                })
+                              }
+                              tempImg.onerror = () => {
+                                // Ainda abre o lightbox mesmo se não conseguir carregar dimensões
+                                const extension = section.image?.split('.').pop()?.toLowerCase() || 'unknown'
+                                setLightboxImage({
+                                  url: section.image || '',
+                                  title: section.title,
+                                  info: {
+                                    format: extension,
+                                    fileName: section.image.split('/').pop()
+                                  }
+                                })
+                              }
+                              tempImg.src = section.image || ''
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.cursor = 'pointer'}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                e.currentTarget.click()
+                              }
                             }}
                           >
                             <img 
                               src={section.image} 
                               alt={section.title}
-                              className="w-full max-h-96 object-contain"
+                              className="w-full max-h-96 object-contain pointer-events-none"
                               style={{ aspectRatio: 'auto' }}
                               onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none'
+                                const target = e.target as HTMLImageElement
+                                target.style.display = 'none'
                               }}
                             />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                               <div className="bg-black/70 px-4 py-2 rounded-lg text-white text-sm font-medium backdrop-blur-sm">
                                 Clique para ver em tamanho completo
                               </div>
