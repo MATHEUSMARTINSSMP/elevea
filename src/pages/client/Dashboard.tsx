@@ -20,6 +20,7 @@ import TemplateMarketplace from "./components/TemplateMarketplace";
 import AuditLogs from "./components/AuditLogs";
 import ModernSiteEditor from "./components/ModernSiteEditor";
 import ThemeToggle from "@/components/ThemeToggle";
+import * as n8nSites from "@/lib/n8n-sites";
 
 // === Extras / UI ===
 import { AICopywriter } from "@/components/ui/ai-copywriter";
@@ -461,13 +462,24 @@ export default function ClientDashboard() {
     // SETTINGS
     (async () => {
       try {
-        const st = await getJSON<{ ok: boolean; settings?: ClientSettings }>(
-          `/.netlify/functions/client-api?action=get_settings&site=${encodeURIComponent(user!.siteSlug!)}`,
-          CARDS_TIMEOUT_MS
-        ).catch(() => ({ ok: true, settings: {} as ClientSettings }));
-        if (!alive) return;
-        setSettings(st.settings || {});
-        setVipPin(st.settings?.vipPin || "");
+        if (user?.siteSlug) {
+          const siteSettings = await n8nSites.getSiteSettings(user.siteSlug);
+          if (alive) {
+            // Mapear SiteSettings para ClientSettings
+            setSettings({
+              showBrand: siteSettings.showBrand ?? true,
+              showPhone: siteSettings.showPhone ?? false,
+              showWhatsApp: siteSettings.showWhatsApp ?? false,
+              whatsAppNumber: siteSettings.whatsAppNumber,
+              footerText: siteSettings.footerText,
+              colorScheme: siteSettings.colorScheme,
+              theme: siteSettings.theme,
+              customCSS: siteSettings.customCSS,
+              vipPin: vipPin // Manter o PIN atual
+            });
+            // Não alterar vipPin aqui, manter o que veio do sessionStorage/QS
+          }
+        }
       } catch {
         // silencioso
       } finally {
@@ -607,19 +619,40 @@ useEffect(() => {
 
   /* Ações */
   async function saveSettings(partial: Partial<ClientSettings>) {
-    if (!canQuery) return;
+    if (!canQuery || !user?.siteSlug) return;
     setSaving(true);
     try {
       const payload = { ...settings, ...partial };
-      const res = await postJSON<{ ok: boolean }>(
-        "/.netlify/functions/client-api",
-        { action: "save_settings", site: user!.siteSlug!, settings: payload, pin: vipPin || undefined },
-        CARDS_TIMEOUT_MS
-      );
-      if (!res.ok) throw new Error("Falha ao salvar");
-      setSettings(payload);
+      
+      // Mapear ClientSettings para SiteSettings (formato n8n)
+      const updates: Partial<n8nSites.SiteSettings> = {
+        showBrand: payload.showBrand,
+        showPhone: payload.showPhone,
+        showWhatsApp: payload.showWhatsApp,
+        whatsAppNumber: payload.whatsAppNumber,
+        footerText: payload.footerText,
+        colorScheme: payload.colorScheme,
+        theme: payload.theme,
+        customCSS: payload.customCSS
+      };
+      
+      // Atualizar via n8n
+      const updated = await n8nSites.updateSiteSettings(user.siteSlug, updates);
+      
+      // Atualizar state local
+      setSettings({
+        ...payload,
+        // Manter vipPin local (não é salvo no banco via settings)
+        vipPin: vipPin
+      });
+      
+      // Toast de sucesso
+      if (window.toast) {
+        window.toast.success('Configurações salvas com sucesso!');
+      }
     } catch (e: any) {
-      alert(e?.message || "Erro ao salvar configurações");
+      console.error('[Dashboard] Erro ao salvar settings:', e);
+      alert(e?.message || "Erro ao salvar configurações. Verifique se os workflows n8n estão ativos.");
     } finally {
       setSaving(false);
     }

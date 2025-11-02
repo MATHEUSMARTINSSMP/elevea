@@ -1,0 +1,84 @@
+{
+  "name": "UPDATE Site Settings",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-update-settings",
+      "name": "Webhook - PUT Settings",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "update-site-settings",
+      "webhookPath": "/api/sites/:siteSlug/settings",
+      "httpMethod": "PUT"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validar e preparar dados\nconst siteSlug = $input.first().json.params?.siteSlug || $input.first().json.body?.siteSlug;\nconst body = $input.first().json.body || {};\n\nif (!siteSlug) {\n  return {\n    json: {\n      success: false,\n      error: 'siteSlug é obrigatório'\n    },\n    statusCode: 400\n  };\n}\n\n// Preparar dados para atualização (mapear do formato frontend para banco)\nconst updates = {\n  site_slug: siteSlug,\n  show_brand: body.showBrand ?? undefined,\n  show_phone: body.showPhone ?? undefined,\n  show_whatsapp: body.showWhatsApp ?? undefined,\n  whatsapp_number: body.whatsAppNumber ?? undefined,\n  footer_text: body.footerText ?? undefined,\n  color_scheme: body.colorScheme ?? undefined,\n  theme: body.theme ? JSON.stringify(body.theme) : undefined,\n  custom_css: body.customCSS ?? undefined,\n  primary_color: body.primaryColor ?? undefined,\n  background_color: body.backgroundColor ?? undefined,\n  accent_color: body.accentColor ?? undefined,\n  text_color: body.textColor ?? undefined,\n  shadow_color: body.shadowColor ?? undefined,\n  border_color: body.borderColor ?? undefined\n};\n\n// Remover campos undefined\nObject.keys(updates).forEach(key => {\n  if (updates[key] === undefined) {\n    delete updates[key];\n  }\n});\n\nreturn {\n  json: {\n    siteSlug: siteSlug,\n    updates: updates\n  }\n};"
+      },
+      "id": "validate-prepare",
+      "name": "✅ Validar e Preparar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO elevea.site_settings (site_slug, show_brand, show_phone, show_whatsapp, whatsapp_number, footer_text, color_scheme, theme, custom_css, primary_color, background_color, accent_color, text_color, shadow_color, border_color)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12, $13, $14, $15)\nON CONFLICT (site_slug)\nDO UPDATE SET\n  show_brand = COALESCE(EXCLUDED.show_brand, site_settings.show_brand),\n  show_phone = COALESCE(EXCLUDED.show_phone, site_settings.show_phone),\n  show_whatsapp = COALESCE(EXCLUDED.show_whatsapp, site_settings.show_whatsapp),\n  whatsapp_number = COALESCE(EXCLUDED.whatsapp_number, site_settings.whatsapp_number),\n  footer_text = COALESCE(EXCLUDED.footer_text, site_settings.footer_text),\n  color_scheme = COALESCE(EXCLUDED.color_scheme, site_settings.color_scheme),\n  theme = COALESCE(EXCLUDED.theme, site_settings.theme),\n  custom_css = COALESCE(EXCLUDED.custom_css, site_settings.custom_css),\n  primary_color = COALESCE(EXCLUDED.primary_color, site_settings.primary_color),\n  background_color = COALESCE(EXCLUDED.background_color, site_settings.background_color),\n  accent_color = COALESCE(EXCLUDED.accent_color, site_settings.accent_color),\n  text_color = COALESCE(EXCLUDED.text_color, site_settings.text_color),\n  shadow_color = COALESCE(EXCLUDED.shadow_color, site_settings.shadow_color),\n  border_color = COALESCE(EXCLUDED.border_color, site_settings.border_color),\n  updated_at = NOW()\nRETURNING *",
+        "options": {
+          "queryReplacement": "$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15"
+        }
+      },
+      "id": "upsert-settings",
+      "name": "💾 PostgreSQL - Upsert Settings",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [680, 300],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Supabase PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar resposta\nconst dbRow = $input.first().json;\n\nconst settings = {\n  siteSlug: dbRow.site_slug,\n  showBrand: dbRow.show_brand ?? true,\n  showPhone: dbRow.show_phone ?? false,\n  showWhatsApp: dbRow.show_whatsapp ?? false,\n  whatsAppNumber: dbRow.whatsapp_number || null,\n  footerText: dbRow.footer_text || null,\n  colorScheme: dbRow.color_scheme || null,\n  theme: dbRow.theme || {},\n  customCSS: dbRow.custom_css || null,\n  primaryColor: dbRow.primary_color || null,\n  backgroundColor: dbRow.background_color || null,\n  accentColor: dbRow.accent_color || null,\n  textColor: dbRow.text_color || null,\n  shadowColor: dbRow.shadow_color || null,\n  borderColor: dbRow.border_color || null,\n  lastUpdated: dbRow.updated_at || dbRow.created_at\n};\n\nreturn {\n  json: {\n    success: true,\n    settings: settings,\n    message: 'Configurações atualizadas com sucesso'\n  }\n};"
+      },
+      "id": "format-response",
+      "name": "📋 Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "responseCode": 200,
+        "options": {}
+      },
+      "id": "respond-webhook",
+      "name": "📤 Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - PUT Settings": {
+      "main": [[{ "node": "✅ Validar e Preparar", "type": "main", "index": 0 }]]
+    },
+    "✅ Validar e Preparar": {
+      "main": [[{ "node": "💾 PostgreSQL - Upsert Settings", "type": "main", "index": 0 }]]
+    },
+    "💾 PostgreSQL - Upsert Settings": {
+      "main": [[{ "node": "📋 Format Response", "type": "main", "index": 0 }]]
+    },
+    "📋 Format Response": {
+      "main": [[{ "node": "📤 Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  }
+}
+

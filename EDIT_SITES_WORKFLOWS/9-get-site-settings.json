@@ -1,0 +1,84 @@
+{
+  "name": "GET Site Settings",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-get-settings",
+      "name": "Webhook - GET Settings",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "get-site-settings",
+      "webhookPath": "/api/sites/:siteSlug/settings",
+      "httpMethod": "GET"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validar siteSlug\nconst siteSlug = $input.first().json.params?.siteSlug || $input.first().json.body?.siteSlug;\n\nif (!siteSlug) {\n  return {\n    json: {\n      success: false,\n      error: 'siteSlug é obrigatório'\n    },\n    statusCode: 400\n  };\n}\n\nreturn {\n  json: {\n    siteSlug: siteSlug\n  }\n};"
+      },
+      "id": "validate-data",
+      "name": "✅ Validar Dados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM elevea.site_settings WHERE site_slug = $1 LIMIT 1",
+        "options": {
+          "queryReplacement": "$1"
+        }
+      },
+      "id": "get-settings",
+      "name": "📄 PostgreSQL - Get Settings",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [680, 300],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Supabase PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Processar settings do banco\nconst dbRow = $input.first().json;\n\n// Se não existir, retornar defaults\nif (!dbRow || Object.keys(dbRow).length === 0) {\n  return {\n    json: {\n      success: true,\n      settings: {\n        siteSlug: $('✅ Validar Dados').first().json.siteSlug,\n        showBrand: true,\n        showPhone: false,\n        showWhatsApp: false,\n        colorScheme: null,\n        theme: {},\n        footerText: null\n      }\n    }\n  };\n}\n\n// Mapear campos do banco para formato do frontend\nconst settings = {\n  siteSlug: dbRow.site_slug,\n  showBrand: dbRow.show_brand ?? true,\n  showPhone: dbRow.show_phone ?? false,\n  showWhatsApp: dbRow.show_whatsapp ?? false,\n  whatsAppNumber: dbRow.whatsapp_number || null,\n  footerText: dbRow.footer_text || null,\n  colorScheme: dbRow.color_scheme || null,\n  theme: dbRow.theme || {},\n  customCSS: dbRow.custom_css || null,\n  primaryColor: dbRow.primary_color || null,\n  backgroundColor: dbRow.background_color || null,\n  accentColor: dbRow.accent_color || null,\n  textColor: dbRow.text_color || null,\n  shadowColor: dbRow.shadow_color || null,\n  borderColor: dbRow.border_color || null,\n  lastUpdated: dbRow.updated_at || dbRow.created_at\n};\n\nreturn {\n  json: {\n    success: true,\n    settings: settings\n  }\n};"
+      },
+      "id": "format-response",
+      "name": "📋 Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "responseCode": 200,
+        "options": {}
+      },
+      "id": "respond-webhook",
+      "name": "📤 Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - GET Settings": {
+      "main": [[{ "node": "✅ Validar Dados", "type": "main", "index": 0 }]]
+    },
+    "✅ Validar Dados": {
+      "main": [[{ "node": "📄 PostgreSQL - Get Settings", "type": "main", "index": 0 }]]
+    },
+    "📄 PostgreSQL - Get Settings": {
+      "main": [[{ "node": "📋 Format Response", "type": "main", "index": 0 }]]
+    },
+    "📋 Format Response": {
+      "main": [[{ "node": "📤 Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  }
+}
+

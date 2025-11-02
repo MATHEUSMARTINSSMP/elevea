@@ -370,3 +370,61 @@ export async function getGitHubRepoInfo(siteSlug: string): Promise<GitHubRepoInf
   return n8nRequest<GitHubRepoInfo>(`/api/sites/${encodeURIComponent(siteSlug)}/github-repo`)
 }
 
+// ============================================
+// SITE SETTINGS (Configurações de Tema/Visual)
+// ============================================
+
+export interface SiteSettings {
+  siteSlug: string
+  showBrand?: boolean
+  showPhone?: boolean
+  showWhatsApp?: boolean
+  whatsAppNumber?: string
+  footerText?: string
+  colorScheme?: string
+  theme?: {
+    primary?: string
+    background?: string
+    accent?: string
+  }
+  customCSS?: string
+  primaryColor?: string
+  backgroundColor?: string
+  accentColor?: string
+  textColor?: string
+  shadowColor?: string
+  borderColor?: string
+  lastUpdated?: string
+  updated_at?: string
+}
+
+interface SettingsResponse {
+  success: boolean
+  settings: SiteSettings
+  message?: string
+}
+
+// Obter configurações do site
+export async function getSiteSettings(siteSlug: string): Promise<SiteSettings> {
+  const data = await n8nRequest<SettingsResponse>(`/get-site-settings/api/sites/${encodeURIComponent(siteSlug)}/settings`)
+  return {
+    ...data.settings,
+    lastUpdated: data.settings.updated_at || data.settings.lastUpdated
+  }
+}
+
+// Atualizar configurações do site
+export async function updateSiteSettings(
+  siteSlug: string,
+  updates: Partial<SiteSettings>
+): Promise<SiteSettings> {
+  const data = await n8nRequest<SettingsResponse>(`/update-site-settings/api/sites/${encodeURIComponent(siteSlug)}/settings`, {
+    method: 'PUT',
+    body: JSON.stringify(updates)
+  })
+  return {
+    ...data.settings,
+    lastUpdated: data.settings.updated_at || data.settings.lastUpdated
+  }
+}
+
