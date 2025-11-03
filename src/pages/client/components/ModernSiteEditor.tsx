@@ -949,12 +949,13 @@ export default function ModernSiteEditor({
                           </div>
                         </CollapsibleContent>
                       </Card>
-                    )
-                  })
-                )}
+                    </Collapsible>
+                  )
+                })
+              }
             </div>
           )}
-            </>
+          </>
           )}
         </TabsContent>
 
