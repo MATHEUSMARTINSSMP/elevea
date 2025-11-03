@@ -80,11 +80,61 @@ export default function AISiteEditor({
   const [showHistory, setShowHistory] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Scroll para última mensagem
+  // Scroll para última mensagem (sem "pulos")
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    // Limpar timeout anterior se existir
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current)
+    }
+
+    // Aguardar um pouco para o DOM atualizar antes de fazer scroll
+    scrollTimeoutRef.current = setTimeout(() => {
+      if (messagesEndRef.current && messagesContainerRef.current) {
+        const container = messagesContainerRef.current
+        const target = messagesEndRef.current
+        
+        // Calcular scroll de forma mais suave
+        const containerRect = container.getBoundingClientRect()
+        const targetRect = target.getBoundingClientRect()
+        const scrollPosition = container.scrollTop + (targetRect.top - containerRect.top)
+        
+        // Scroll suave usando requestAnimationFrame para evitar "pulos"
+        const scrollTo = (position: number) => {
+          const start = container.scrollTop
+          const distance = position - start
+          const duration = 200 // 200ms para scroll suave
+          let startTime: number | null = null
+
+          const animate = (currentTime: number) => {
+            if (startTime === null) startTime = currentTime
+            const timeElapsed = currentTime - startTime
+            const progress = Math.min(timeElapsed / duration, 1)
+            
+            // Easing function (ease-out)
+            const easeOut = 1 - Math.pow(1 - progress, 3)
+            container.scrollTop = start + distance * easeOut
+
+            if (progress < 1) {
+              requestAnimationFrame(animate)
+            }
+          }
+
+          requestAnimationFrame(animate)
+        }
+
+        scrollTo(scrollPosition)
+      }
+    }, 100) // Delay um pouco maior para garantir que o DOM foi totalmente atualizado
+
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current)
+      }
+    }
+  }, [messages, preview])
 
   // Carregar histórico
   useEffect(() => {
@@ -317,10 +367,13 @@ export default function AISiteEditor({
       )}
 
       {/* Chat Messages */}
-      <Card className="dashboard-card dashboard-border dashboard-shadow min-h-[300px] flex flex-col">
+      <Card className="dashboard-card dashboard-border dashboard-shadow min-h-[600px] flex flex-col">
         <CardContent className="flex-1 flex flex-col p-4">
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto space-y-4 mb-4 min-h-[200px]">
+          <div 
+            ref={messagesContainerRef}
+            className="flex-1 overflow-y-auto space-y-4 mb-4 min-h-[450px] max-h-[600px] pr-2 scroll-smooth"
+          >
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-8">
                 <Sparkles className="h-12 w-12 text-primary/50 mb-4" />
@@ -371,9 +424,9 @@ export default function AISiteEditor({
           </div>
 
           {/* Input Area */}
-          <div className="space-y-2">
+          <div className="space-y-2 flex-shrink-0">
             {preview && (
-              <Alert className="dashboard-border">
+              <Alert className="dashboard-border transition-all duration-300">
                 <Eye className="h-4 w-4" />
                 <AlertDescription>
                   <div className="space-y-3">
@@ -463,14 +516,14 @@ export default function AISiteEditor({
               </Alert>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-shrink-0">
               <Textarea
                 ref={textareaRef}
                 value={command}
                 onChange={(e) => setCommand(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Digite o que você quer fazer no site... (ex: 'Mude o título da seção sobre produtos')"
-                className="min-h-[80px] resize-none dashboard-input dashboard-text border dashboard-border"
+                className="min-h-[100px] resize-none dashboard-input dashboard-text border dashboard-border"
                 disabled={loading || executing || !!preview}
               />
               <Button

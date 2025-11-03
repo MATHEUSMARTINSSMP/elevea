@@ -19,6 +19,7 @@ import { EcommerceDashboard } from "./components/EcommerceDashboard";
 import TemplateMarketplace from "./components/TemplateMarketplace";
 import AuditLogs from "./components/AuditLogs";
 import ModernSiteEditor from "./components/ModernSiteEditor";
+import FinanceiroHub from "./components/financeiro/FinanceiroHub";
 import ThemeToggle from "@/components/ThemeToggle";
 import * as n8nSites from "@/lib/n8n-sites";
 
@@ -861,6 +862,12 @@ useEffect(() => {
                 />
               </section>
             )}
+
+            {/* Controle Financeiro - Colaboradores, Compras, Adiantamentos e DRE */}
+            {/* Sistema independente: Controle de colaboradores (compras/adiantamentos) vs DRE (financeiro geral) */}
+            <section className="space-y-6">
+              <FinanceiroHub />
+            </section>
 
             {/* Layout em Grid para Funcionalidades Básicas */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
