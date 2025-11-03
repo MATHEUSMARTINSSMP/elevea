@@ -35,6 +35,11 @@ async function n8nRequest<T = any>(endpoint: string, options: RequestInit = {}):
     throw new Error(errorMsg)
   }
   
+  // Debug em desenvolvimento: log da URL completa
+  if (typeof window !== 'undefined' && (import.meta.env.DEV || import.meta.env.MODE === 'development')) {
+    console.log('[n8n-ai-editor] Chamando:', finalUrl)
+  }
+  
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 segundos para IA
   
@@ -153,7 +158,7 @@ export async function previewAIEdit(
     estimatedTime?: string
     confidence?: number
     reasoning?: string
-  }>(`/ai-site-editor-preview/api/sites/${encodeURIComponent(siteSlug)}/ai-edit/preview`, {
+  }>(`/ai-site-editor-preview/ai-site-editor-preview/api/sites/${encodeURIComponent(siteSlug)}/ai-edit/preview`, {
     method: 'POST',
     body: JSON.stringify({
       siteSlug,
@@ -195,7 +200,7 @@ export async function executeAIEdit(
   vipPin?: string
 ): Promise<AISiteEditResponse> {
   const data = await n8nRequest<AISiteEditResponse>(
-    `/ai-site-editor-execute/api/sites/${encodeURIComponent(siteSlug)}/ai-edit/execute`,
+    `/ai-site-editor-execute/ai-site-editor-execute/api/sites/${encodeURIComponent(siteSlug)}/ai-edit/execute`,
     {
       method: 'POST',
       body: JSON.stringify({
@@ -238,7 +243,7 @@ export interface AIEditHistoryResponse {
 
 export async function getAIEditHistory(siteSlug: string): Promise<AIEditHistory[]> {
   const data = await n8nRequest<AIEditHistoryResponse>(
-    `/ai-site-editor-history/api/sites/${encodeURIComponent(siteSlug)}/ai-edit/history`,
+    `/ai-site-editor-history/ai-site-editor-history/api/sites/${encodeURIComponent(siteSlug)}/ai-edit/history`,
     {
       method: 'GET' // ✅ Explícito: History é GET
     }
