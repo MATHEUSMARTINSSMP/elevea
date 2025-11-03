@@ -431,7 +431,7 @@ export default function AISiteEditor({
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 mt-4">
                       <Button
                         onClick={executeEdit}
                         disabled={executing}
@@ -458,8 +458,8 @@ export default function AISiteEditor({
                         Cancelar
                       </Button>
                     </div>
-                  </AlertDescription>
-                </Alert>
+                  </div>
+                </AlertDescription>
               </Alert>
             )}
 
