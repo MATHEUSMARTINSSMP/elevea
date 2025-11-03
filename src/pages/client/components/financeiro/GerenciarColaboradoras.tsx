@@ -147,12 +147,27 @@ export default function GerenciarColaboradoras() {
       return
     }
 
+    const limiteTotal = parseFloat(formData.limite_total)
+    const limiteMensal = parseFloat(formData.limite_mensal)
+
+    if (isNaN(limiteTotal) || limiteTotal < 0) {
+      toast.error('Limite total deve ser um número válido')
+      return
+    }
+
+    if (isNaN(limiteMensal) || limiteMensal < 0) {
+      toast.error('Limite mensal deve ser um número válido')
+      return
+    }
+
     try {
+      console.log('Criando colaboradora:', { name: formData.name, email: formData.email })
+      
       await financeiro.createColaboradora({
         name: formData.name,
         email: formData.email,
-        limite_total: parseFloat(formData.limite_total),
-        limite_mensal: parseFloat(formData.limite_mensal)
+        limite_total: limiteTotal,
+        limite_mensal: limiteMensal
       })
 
       toast.success('Colaboradora adicionada com sucesso!')
@@ -160,7 +175,17 @@ export default function GerenciarColaboradoras() {
       setFormData({ name: '', email: '', limite_total: '', limite_mensal: '' })
       loadColaboradoras()
     } catch (err: any) {
-      toast.error('Erro ao adicionar colaboradora: ' + err.message)
+      console.error('Erro ao criar colaboradora:', err)
+      const errorMessage = err.message || err.error || 'Erro desconhecido ao criar colaboradora'
+      toast.error(`Erro ao adicionar colaboradora: ${errorMessage}`)
+      
+      // Log detalhado para debug
+      if (err.response) {
+        console.error('Response error:', err.response)
+      }
+      if (err.stack) {
+        console.error('Stack trace:', err.stack)
+      }
     }
   }
 

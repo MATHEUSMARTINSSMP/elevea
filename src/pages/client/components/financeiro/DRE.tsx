@@ -295,13 +295,82 @@ export default function DRE() {
         </Card>
       </div>
 
-      {/* Card Principal */}
+      {/* Visualização Gráfica do DRE */}
+      <Card className="dashboard-card dashboard-border dashboard-shadow">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Visualização do DRE
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {/* Gráfico de Barras Simples */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm dashboard-text-muted">
+                <span>Receitas</span>
+                <span className="font-semibold text-green-500">R$ {totalReceitas.toFixed(2)}</span>
+              </div>
+              {totalReceitas > 0 && (
+                <div className="w-full bg-muted rounded-full h-4 overflow-hidden">
+                  <div 
+                    className="bg-green-500 h-full transition-all duration-500"
+                    style={{ width: `${Math.min((totalReceitas / Math.max(totalReceitas + totalDespesas + totalInvestimentos, 1)) * 100, 100)}%` }}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm dashboard-text-muted">
+                <span>Despesas</span>
+                <span className="font-semibold text-red-500">R$ {totalDespesas.toFixed(2)}</span>
+              </div>
+              {totalDespesas > 0 && (
+                <div className="w-full bg-muted rounded-full h-4 overflow-hidden">
+                  <div 
+                    className="bg-red-500 h-full transition-all duration-500"
+                    style={{ width: `${Math.min((totalDespesas / Math.max(totalReceitas + totalDespesas + totalInvestimentos, 1)) * 100, 100)}%` }}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm dashboard-text-muted">
+                <span>Investimentos</span>
+                <span className="font-semibold text-blue-500">R$ {totalInvestimentos.toFixed(2)}</span>
+              </div>
+              {totalInvestimentos > 0 && (
+                <div className="w-full bg-muted rounded-full h-4 overflow-hidden">
+                  <div 
+                    className="bg-blue-500 h-full transition-all duration-500"
+                    style={{ width: `${Math.min((totalInvestimentos / Math.max(totalReceitas + totalDespesas + totalInvestimentos, 1)) * 100, 100)}%` }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Resultado Final */}
+            <div className="pt-4 mt-4 border-t dashboard-border">
+              <div className="flex items-center justify-between">
+                <span className="text-lg font-semibold dashboard-text">Resultado Líquido</span>
+                <span className={`text-2xl font-bold ${resultadoLiquido >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {resultadoLiquido >= 0 ? '+' : ''}R$ {resultadoLiquido.toFixed(2)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Card Principal - Lançamentos */}
       <Card className="dashboard-card dashboard-border dashboard-shadow">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
-              Demonstração do Resultado do Exercício (DRE)
+              Lançamentos DRE
             </CardTitle>
             <Dialog open={novoLancamentoDialog} onOpenChange={setNovoLancamentoDialog}>
               <DialogTrigger asChild>

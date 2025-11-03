@@ -23,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { FileText, Download, Trash2, ChevronDown, ChevronRight, Undo2, Filter } from 'lucide-react'
+import { FileText, Download, Trash2, ChevronDown, ChevronRight, Undo2, Filter, ShoppingCart, DollarSign, Clock } from 'lucide-react'
 import * as financeiro from '@/lib/supabase-financeiro'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -395,12 +395,72 @@ export default function Relatorios() {
 
   return (
     <div className="space-y-4">
+      {/* Resumo de Limites */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="dashboard-card dashboard-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium dashboard-text-muted">Total de Compras</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5 text-primary" />
+              <span className="text-2xl font-bold dashboard-text">
+                {filteredCompras.length}
+              </span>
+            </div>
+            <p className="text-xs dashboard-text-muted mt-1">
+              Total: R$ {filteredCompras.reduce((sum, c) => sum + c.preco_final, 0).toFixed(2)}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="dashboard-card dashboard-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium dashboard-text-muted">Total de Adiantamentos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-blue-500" />
+              <span className="text-2xl font-bold dashboard-text">
+                {filteredAdiantamentos.length}
+              </span>
+            </div>
+            <p className="text-xs dashboard-text-muted mt-1">
+              Total: R$ {filteredAdiantamentos.reduce((sum, a) => sum + a.valor, 0).toFixed(2)}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="dashboard-card dashboard-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium dashboard-text-muted">Parcelas Pendentes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-orange-500" />
+              <span className="text-2xl font-bold dashboard-text">
+                {filteredCompras.reduce((sum, c) => 
+                  sum + c.parcelas.filter(p => p.status_parcela === 'PENDENTE' || p.status_parcela === 'AGENDADO').length, 0
+                )}
+              </span>
+            </div>
+            <p className="text-xs dashboard-text-muted mt-1">
+              Valor: R$ {filteredCompras.reduce((sum, c) => 
+                sum + c.parcelas
+                  .filter(p => p.status_parcela === 'PENDENTE' || p.status_parcela === 'AGENDADO')
+                  .reduce((s, p) => s + p.valor_parcela, 0), 0
+              ).toFixed(2)}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card className="dashboard-card dashboard-border dashboard-shadow">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              Relatórios
+              Relatórios de Compras e Adiantamentos
             </CardTitle>
             <Button onClick={exportToCSV} variant="outline" size="sm">
               <Download className="h-4 w-4 mr-2" />
