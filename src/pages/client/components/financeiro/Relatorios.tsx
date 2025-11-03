@@ -80,22 +80,32 @@ export default function Relatorios() {
     setLoading(true)
     try {
       const [cols, comprasData, adiantamentosData] = await Promise.all([
-        financeiro.getColaboradoras(),
-        financeiro.getCompras(),
-        financeiro.getAdiantamentos()
+        financeiro.getColaboradoras().catch(() => []),
+        financeiro.getCompras().catch(() => []),
+        financeiro.getAdiantamentos().catch(() => [])
       ])
 
-      setColaboradoras(cols.filter(c => c.role === 'COLABORADORA'))
+      setColaboradoras((cols || []).filter(c => c.role === 'COLABORADORA'))
 
       // Buscar parcelas para cada compra
       const comprasCompletas = await Promise.all(
-        comprasData.map(async (compra) => {
-          const parcelas = await financeiro.getParcelas({ compra_id: compra.id })
-          const colaboradora = cols.find(c => c.id === compra.colaboradora_id)
-          return {
-            ...compra,
-            colaboradora_nome: colaboradora?.name || 'Desconhecido',
-            parcelas
+        (comprasData || []).map(async (compra) => {
+          try {
+            const parcelas = await financeiro.getParcelas({ compra_id: compra.id })
+            const colaboradora = (cols || []).find(c => c.id === compra.colaboradora_id)
+            return {
+              ...compra,
+              colaboradora_nome: colaboradora?.name || 'Desconhecido',
+              parcelas: parcelas || []
+            }
+          } catch (err) {
+            console.error('Erro ao buscar parcelas:', err)
+            const colaboradora = (cols || []).find(c => c.id === compra.colaboradora_id)
+            return {
+              ...compra,
+              colaboradora_nome: colaboradora?.name || 'Desconhecido',
+              parcelas: []
+            }
           }
         })
       )
@@ -103,8 +113,8 @@ export default function Relatorios() {
       setCompras(comprasCompletas)
 
       // Buscar nomes das colaboradoras para adiantamentos
-      const adiantamentosComNomes = adiantamentosData.map(adiantamento => {
-        const colaboradora = cols.find(c => c.id === adiantamento.colaboradora_id)
+      const adiantamentosComNomes = (adiantamentosData || []).map(adiantamento => {
+        const colaboradora = (cols || []).find(c => c.id === adiantamento.colaboradora_id)
         return {
           ...adiantamento,
           colaboradora_nome: colaboradora?.name || 'Desconhecido'
@@ -113,7 +123,12 @@ export default function Relatorios() {
 
       setAdiantamentos(adiantamentosComNomes)
     } catch (err: any) {
-      toast.error('Erro ao carregar dados: ' + err.message)
+      console.error('Erro ao carregar dados:', err)
+      toast.error('Erro ao carregar dados: ' + (err.message || 'Erro desconhecido'))
+      // Garantir que os estados estão vazios em caso de erro
+      setCompras([])
+      setAdiantamentos([])
+      setColaboradoras([])
     } finally {
       setLoading(false)
     }

@@ -67,15 +67,15 @@ export default function DRE() {
     setLoading(true)
     try {
       const [cats, lancs] = await Promise.all([
-        financeiro.getDRECategorias(),
-        financeiro.getDRELancamentos()
+        financeiro.getDRECategorias().catch(() => []),
+        financeiro.getDRELancamentos().catch(() => [])
       ])
 
-      setCategorias(cats)
+      setCategorias(cats || [])
 
       // Enriquecer lançamentos com dados da categoria
-      const lancamentosCompletos: DRELancamentoCompleto[] = lancs.map(l => {
-        const categoria = cats.find(c => c.id === l.categoria_id)
+      const lancamentosCompletos: DRELancamentoCompleto[] = (lancs || []).map(l => {
+        const categoria = (cats || []).find(c => c.id === l.categoria_id)
         return {
           ...l,
           categoria_nome: categoria?.nome || 'Desconhecido',
@@ -85,7 +85,11 @@ export default function DRE() {
 
       setLancamentos(lancamentosCompletos)
     } catch (err: any) {
-      toast.error('Erro ao carregar dados DRE: ' + err.message)
+      console.error('Erro ao carregar dados DRE:', err)
+      toast.error('Erro ao carregar dados DRE: ' + (err.message || 'Erro desconhecido'))
+      // Garantir que os estados estão vazios em caso de erro
+      setCategorias([])
+      setLancamentos([])
     } finally {
       setLoading(false)
     }

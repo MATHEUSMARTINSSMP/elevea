@@ -137,6 +137,44 @@ export async function getColaboradora(id: string): Promise<Colaboradora | null> 
   return data
 }
 
+export async function createColaboradora(data: {
+  id?: string
+  name: string
+  email: string
+  limite_total: number
+  limite_mensal: number
+  store_default?: string
+  active?: boolean
+  site_slug?: string
+}): Promise<Colaboradora> {
+  const site_slug = await getUserSiteSlug(data.site_slug)
+  
+  // Se não foi fornecido ID, criar UUID
+  const colaboradoraData: any = {
+    id: data.id || crypto.randomUUID(),
+    name: data.name,
+    email: data.email,
+    limite_total: data.limite_total,
+    limite_mensal: data.limite_mensal,
+    role: 'COLABORADORA',
+    active: data.active !== undefined ? data.active : true,
+    site_slug
+  }
+
+  if (data.store_default) {
+    colaboradoraData.store_default = data.store_default
+  }
+
+  const { data: result, error } = await supabase
+    .from('financeiro_colaboradoras')
+    .insert(colaboradoraData)
+    .select()
+    .single()
+
+  if (error) throw error
+  return result
+}
+
 export async function updateColaboradora(
   id: string,
   updates: Partial<Pick<Colaboradora, 'name' | 'email' | 'limite_total' | 'limite_mensal' | 'store_default' | 'active'>>
@@ -150,6 +188,16 @@ export async function updateColaboradora(
 
   if (error) throw error
   return data
+}
+
+export async function deleteColaboradora(id: string): Promise<void> {
+  // Desativar ao invés de deletar (mais seguro)
+  const { error } = await supabase
+    .from('financeiro_colaboradoras')
+    .update({ active: false })
+    .eq('id', id)
+
+  if (error) throw error
 }
 
 // ============================================================

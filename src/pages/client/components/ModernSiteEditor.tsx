@@ -34,6 +34,11 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { 
   Loader2, 
   Save, 
@@ -55,7 +60,9 @@ import {
   Filter,
   Info,
   HelpCircle,
-  ArrowUpDown
+  ArrowUpDown,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react'
 import ImageManager from './ImageManager'
 import ImageLightbox from './ImageLightbox'
@@ -95,6 +102,7 @@ export default function ModernSiteEditor({
   const [lightboxImage, setLightboxImage] = useState<{url: string, title?: string, info?: any} | null>(null)
   const [imageDimensions, setImageDimensions] = useState<Record<string, {width: number, height: number}>>({})
   const [editMode, setEditMode] = useState<'manual' | 'ai'>('manual') // Toggle entre manual e IA
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set()) // Seções expandidas (começa vazio = todas colapsadas)
 
   // Carregar dados do site
   useEffect(() => {
@@ -629,281 +637,321 @@ export default function ModernSiteEditor({
             <div className="grid gap-4">
               {filteredSections
                 .sort((a, b) => a.order - b.order)
-                .map((section) => (
-                  <Card 
-                    key={section.id} 
-                    className="overflow-hidden hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/50 bg-gradient-to-br from-card to-card/50"
-                  >
-                    <CardHeader className="pb-3 bg-gradient-to-r from-muted/50 to-transparent">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 space-y-2">
-                          {/* Order Badge */}
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs font-mono">
-                              <ArrowUpDown className="h-3 w-3 mr-1" />
-                              #{section.order}
-                            </Badge>
-                            <Badge variant={section.visible ? "default" : "secondary"} className="text-xs">
-                              {section.visible ? (
-                                <>
-                                  <Eye className="h-3 w-3 mr-1" />
-                                  Visível
-                                </>
-                              ) : (
-                                <>
-                                  <EyeOff className="h-3 w-3 mr-1" />
-                                  Oculto
-                                </>
-                              )}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs capitalize">
-                              {section.type}
-                            </Badge>
-                          </div>
-                          
-                          {editingSection === section.id ? (
-                            <>
-                              <Input
-                                value={sectionEditData[section.id]?.title || ''}
-                                onChange={(e) => handleSectionFieldChange(section.id, 'title', e.target.value)}
-                                className="text-lg font-semibold"
-                                placeholder="Título da seção"
-                              />
-                              <Input
-                                value={sectionEditData[section.id]?.subtitle || ''}
-                                onChange={(e) => handleSectionFieldChange(section.id, 'subtitle', e.target.value)}
-                                placeholder="Subtítulo (opcional)"
-                                className="text-sm"
-                              />
-                            </>
-                          ) : (
-                            <>
-                              <CardTitle className="text-xl font-bold">
-                                {section.title}
-                              </CardTitle>
-                              {section.subtitle && (
-                                <CardDescription className="text-base">{section.subtitle}</CardDescription>
-                              )}
-                            </>
-                          )}
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          {editingSection === section.id ? (
-                            <>
-                              <Button
-                                size="sm"
-                                onClick={() => updateSection(section.id)}
-                                disabled={saving}
-                                className="gap-2"
-                              >
-                                <Save className="h-4 w-4" />
-                                Salvar
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => cancelEditSection(section.id)}
-                                disabled={saving}
-                              >
-                                Cancelar
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
+                .map((section) => {
+                  const isExpanded = expandedSections.has(section.id)
+                  const isEditing = editingSection === section.id
+                  
+                  return (
+                    <Collapsible
+                      key={section.id}
+                      open={isExpanded || isEditing}
+                      onOpenChange={(open) => {
+                        if (open) {
+                          setExpandedSections(prev => new Set([...prev, section.id]))
+                        } else if (!isEditing) {
+                          setExpandedSections(prev => {
+                            const next = new Set(prev)
+                            next.delete(section.id)
+                            return next
+                          })
+                        }
+                      }}
+                    >
+                      <Card 
+                        className="overflow-hidden hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/50 bg-gradient-to-br from-card to-card/50"
+                      >
+                        <CardHeader className="pb-3 bg-gradient-to-r from-muted/50 to-transparent">
+                          <CollapsibleTrigger asChild>
+                            <div className="flex items-start justify-between gap-4 cursor-pointer">
+                              <div className="flex items-center gap-2 flex-1">
+                                {!isEditing && (
+                                  <>
+                                    {isExpanded ? (
+                                      <ChevronDown className="h-5 w-5 dashboard-text-muted flex-shrink-0" />
+                                    ) : (
+                                      <ChevronRight className="h-5 w-5 dashboard-text-muted flex-shrink-0" />
+                                    )}
+                                  </>
+                                )}
+                                <div className="flex-1 space-y-2">
+                                  {/* Order Badge */}
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-xs font-mono">
+                                      <ArrowUpDown className="h-3 w-3 mr-1" />
+                                      #{section.order}
+                                    </Badge>
+                                    <Badge variant={section.visible ? "default" : "secondary"} className="text-xs">
+                                      {section.visible ? (
+                                        <>
+                                          <Eye className="h-3 w-3 mr-1" />
+                                          Visível
+                                        </>
+                                      ) : (
+                                        <>
+                                          <EyeOff className="h-3 w-3 mr-1" />
+                                          Oculto
+                                        </>
+                                      )}
+                                    </Badge>
+                                    <Badge variant="outline" className="text-xs capitalize">
+                                      {section.type}
+                                    </Badge>
+                                  </div>
+                                  
+                                  {isEditing ? (
+                                    <>
+                                      <Input
+                                        value={sectionEditData[section.id]?.title || ''}
+                                        onChange={(e) => handleSectionFieldChange(section.id, 'title', e.target.value)}
+                                        className="text-lg font-semibold"
+                                        placeholder="Título da seção"
+                                      />
+                                      <Input
+                                        value={sectionEditData[section.id]?.subtitle || ''}
+                                        onChange={(e) => handleSectionFieldChange(section.id, 'subtitle', e.target.value)}
+                                        placeholder="Subtítulo (opcional)"
+                                        className="text-sm"
+                                      />
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CardTitle className="text-xl font-bold">
+                                        {section.title}
+                                      </CardTitle>
+                                      {section.subtitle && (
+                                        <CardDescription className="text-base">{section.subtitle}</CardDescription>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                {isEditing ? (
+                                  <>
                                     <Button
                                       size="sm"
-                                      variant="outline"
-                                      onClick={() => startEditSection(section)}
+                                      onClick={() => updateSection(section.id)}
                                       disabled={saving}
                                       className="gap-2"
                                     >
-                                      <Edit2 className="h-4 w-4" />
-                                      Editar
+                                      <Save className="h-4 w-4" />
+                                      Salvar
                                     </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Editar esta seção</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                              
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
                                     <Button
                                       size="sm"
-                                      variant="destructive"
-                                      onClick={() => deleteSection(section.id)}
+                                      variant="outline"
+                                      onClick={() => cancelEditSection(section.id)}
                                       disabled={saving}
                                     >
-                                      <Trash2 className="h-4 w-4" />
+                                      Cancelar
                                     </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Deletar esta seção</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    
-                    {editingSection === section.id ? (
-                      <CardContent className="space-y-4 pt-4 border-t">
-                        <div>
-                          <Label>Descrição</Label>
-                          <Textarea
-                            value={sectionEditData[section.id]?.description || ''}
-                            onChange={(e) => handleSectionFieldChange(section.id, 'description', e.target.value)}
-                            placeholder="Descrição da seção"
-                            rows={4}
-                            className="mt-1"
-                          />
-                        </div>
-                        
-                        {/* Editor de FAQ - aparece se for seção FAQ */}
-                        {(section.type === 'custom' && 
-                          (section.title?.toLowerCase().includes('faq') || 
-                           section.title?.toLowerCase().includes('perguntas') ||
-                           section.title?.toLowerCase().includes('frequentes'))) && (
-                          <div className="border-t pt-4">
-                            <FAQEditor
-                              faqs={(sectionEditData[section.id]?.customFields?.faqs || 
-                                     section.customFields?.faqs || 
-                                     section.custom_fields?.faqs || []).map((faq: any, idx: number) => ({
-                                id: faq.id || `faq-${idx}`,
-                                question: faq.question || '',
-                                answer: faq.answer || ''
-                              }))}
-                              onChange={(faqs) => {
-                                const currentCustomFields = sectionEditData[section.id]?.customFields || 
-                                                           section.customFields || 
-                                                           section.custom_fields || {}
-                                handleSectionFieldChange(section.id, 'customFields', {
-                                  ...currentCustomFields,
-                                  faqs: faqs,
-                                  faq_count: faqs.length
-                                })
-                              }}
-                            />
-                          </div>
-                        )}
-                        
-                        <div>
-                          <Label>Imagem</Label>
-                          <ImageManager
-                            siteSlug={siteSlug}
-                            vipPin={vipPin}
-                            currentImageUrl={sectionEditData[section.id]?.image || ''}
-                            onImageSelected={(url) => handleSectionFieldChange(section.id, 'image', url)}
-                          />
-                        </div>
-                        
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2">
-                            <Switch
-                              checked={sectionEditData[section.id]?.visible !== false}
-                              onCheckedChange={(checked) => handleSectionFieldChange(section.id, 'visible', checked)}
-                            />
-                            <Label>Seção visível</Label>
-                          </div>
-                          
-                          <div>
-                            <Label>Ordem</Label>
-                            <Input
-                              type="number"
-                              value={sectionEditData[section.id]?.order || 0}
-                              onChange={(e) => handleSectionFieldChange(section.id, 'order', parseInt(e.target.value))}
-                              className="w-20 mt-1"
-                            />
-                          </div>
-                        </div>
-                      </CardContent>
-                    ) : (
-                      (section.description || section.image) && (
-                        <CardContent>
-                          {section.description && (
-                            <p className="text-sm dashboard-text-muted line-clamp-2 mb-4">
-                              {section.description}
-                            </p>
-                          )}
-                          {section.image && (
-                            <div className={section.description ? "mt-4" : ""}>
-                              <div 
-                                className="relative cursor-pointer group overflow-hidden rounded-lg"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  // Carregar dimensões da imagem
-                                  const tempImg = new Image()
-                                  tempImg.onload = () => {
-                                    const extension = section.image?.split('.').pop()?.toLowerCase() || 'unknown'
-                                    setLightboxImage({
-                                      url: section.image || '',
-                                      title: section.title,
-                                      info: {
-                                        format: extension,
-                                        width: tempImg.naturalWidth,
-                                        height: tempImg.naturalHeight,
-                                        fileName: section.image.split('/').pop()
-                                      }
-                                    })
-                                  }
-                                  tempImg.onerror = () => {
-                                    // Ainda abre o lightbox mesmo se não conseguir carregar dimensões
-                                    const extension = section.image?.split('.').pop()?.toLowerCase() || 'unknown'
-                                    setLightboxImage({
-                                      url: section.image || '',
-                                      title: section.title,
-                                      info: {
-                                        format: extension,
-                                        fileName: section.image.split('/').pop()
-                                      }
-                                    })
-                                  }
-                                  tempImg.src = section.image || ''
-                                }}
-                                onMouseEnter={(e) => e.currentTarget.style.cursor = 'pointer'}
-                                role="button"
-                                tabIndex={0}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault()
-                                    e.currentTarget.click()
-                                  }
-                                }}
-                              >
-                                <img 
-                                  src={section.image} 
-                                  alt={section.title}
-                                  className="w-full max-h-64 object-contain rounded-lg bg-muted/20 transition-transform group-hover:scale-105 pointer-events-none"
-                                  style={{ aspectRatio: 'auto' }}
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement
-                                    target.style.display = 'none'
-                                  }}
-                                />
-                                <div className="absolute inset-0 bg-black/60 dark:bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                                  <div className="dashboard-container px-4 py-2 rounded-lg dashboard-text text-sm font-medium backdrop-blur-sm shadow-lg">
-                                    Clique para ver em tamanho completo
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="mt-2 text-xs dashboard-text-muted">
-                                💡 Clique na imagem para ver em tamanho completo
+                                  </>
+                                ) : (
+                                  <>
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                              setExpandedSections(prev => new Set([...prev, section.id]))
+                                              startEditSection(section)
+                                            }}
+                                            disabled={saving}
+                                            className="gap-2"
+                                          >
+                                            <Edit2 className="h-4 w-4" />
+                                            Editar
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Editar esta seção</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                    
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            size="sm"
+                                            variant="destructive"
+                                            onClick={() => deleteSection(section.id)}
+                                            disabled={saving}
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Deletar esta seção</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </>
+                                )}
                               </div>
                             </div>
-                          )}
-                        </CardContent>
-                      )
-                    )}
-                  </Card>
-                ))}
+                          </CollapsibleTrigger>
+                        </CardHeader>
+                        
+                        <CollapsibleContent>
+                          <div className="border-t dashboard-border">
+                            {isEditing ? (
+                              <CardContent className="space-y-4 pt-4">
+                                <div>
+                                  <Label>Descrição</Label>
+                                  <Textarea
+                                    value={sectionEditData[section.id]?.description || ''}
+                                    onChange={(e) => handleSectionFieldChange(section.id, 'description', e.target.value)}
+                                    placeholder="Descrição da seção"
+                                    rows={4}
+                                    className="mt-1"
+                                  />
+                                </div>
+                                
+                                {/* Editor de FAQ - aparece se for seção FAQ */}
+                                {(section.type === 'custom' && 
+                                  (section.title?.toLowerCase().includes('faq') || 
+                                   section.title?.toLowerCase().includes('perguntas') ||
+                                   section.title?.toLowerCase().includes('frequentes'))) && (
+                                  <div className="border-t pt-4">
+                                    <FAQEditor
+                                      faqs={(sectionEditData[section.id]?.customFields?.faqs || 
+                                             section.customFields?.faqs || 
+                                             section.custom_fields?.faqs || []).map((faq: any, idx: number) => ({
+                                        id: faq.id || `faq-${idx}`,
+                                        question: faq.question || '',
+                                        answer: faq.answer || ''
+                                      }))}
+                                      onChange={(faqs) => {
+                                        const currentCustomFields = sectionEditData[section.id]?.customFields || 
+                                                                   section.customFields || 
+                                                                   section.custom_fields || {}
+                                        handleSectionFieldChange(section.id, 'customFields', {
+                                          ...currentCustomFields,
+                                          faqs: faqs,
+                                          faq_count: faqs.length
+                                        })
+                                      }}
+                                    />
+                                  </div>
+                                )}
+                                
+                                <div>
+                                  <Label>Imagem</Label>
+                                  <ImageManager
+                                    siteSlug={siteSlug}
+                                    vipPin={vipPin}
+                                    currentImageUrl={sectionEditData[section.id]?.image || ''}
+                                    onImageSelected={(url) => handleSectionFieldChange(section.id, 'image', url)}
+                                  />
+                                </div>
+                                
+                                <div className="flex items-center gap-4">
+                                  <div className="flex items-center gap-2">
+                                    <Switch
+                                      checked={sectionEditData[section.id]?.visible !== false}
+                                      onCheckedChange={(checked) => handleSectionFieldChange(section.id, 'visible', checked)}
+                                    />
+                                    <Label>Seção visível</Label>
+                                  </div>
+                                  
+                                  <div>
+                                    <Label>Ordem</Label>
+                                    <Input
+                                      type="number"
+                                      value={sectionEditData[section.id]?.order || 0}
+                                      onChange={(e) => handleSectionFieldChange(section.id, 'order', parseInt(e.target.value))}
+                                      className="w-20 mt-1"
+                                    />
+                                  </div>
+                                </div>
+                              </CardContent>
+                            ) : (
+                              (section.description || section.image) && (
+                                <CardContent>
+                                  {section.description && (
+                                    <p className="text-sm dashboard-text-muted line-clamp-2 mb-4">
+                                      {section.description}
+                                    </p>
+                                  )}
+                                  {section.image && (
+                                    <div className={section.description ? "mt-4" : ""}>
+                                      <div 
+                                        className="relative cursor-pointer group overflow-hidden rounded-lg"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          // Carregar dimensões da imagem
+                                          const tempImg = new Image()
+                                          tempImg.onload = () => {
+                                            const extension = section.image?.split('.').pop()?.toLowerCase() || 'unknown'
+                                            setLightboxImage({
+                                              url: section.image || '',
+                                              title: section.title,
+                                              info: {
+                                                format: extension,
+                                                width: tempImg.naturalWidth,
+                                                height: tempImg.naturalHeight,
+                                                fileName: section.image.split('/').pop()
+                                              }
+                                            })
+                                          }
+                                          tempImg.onerror = () => {
+                                            // Ainda abre o lightbox mesmo se não conseguir carregar dimensões
+                                            const extension = section.image?.split('.').pop()?.toLowerCase() || 'unknown'
+                                            setLightboxImage({
+                                              url: section.image || '',
+                                              title: section.title,
+                                              info: {
+                                                format: extension,
+                                                fileName: section.image.split('/').pop()
+                                              }
+                                            })
+                                          }
+                                          tempImg.src = section.image || ''
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.cursor = 'pointer'}
+                                        role="button"
+                                        tabIndex={0}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault()
+                                            e.currentTarget.click()
+                                          }
+                                        }}
+                                      >
+                                        <img 
+                                          src={section.image} 
+                                          alt={section.title}
+                                          className="w-full max-h-64 object-contain rounded-lg bg-muted/20 transition-transform group-hover:scale-105 pointer-events-none"
+                                          style={{ aspectRatio: 'auto' }}
+                                          onError={(e) => {
+                                            const target = e.target as HTMLImageElement
+                                            target.style.display = 'none'
+                                          }}
+                                        />
+                                        <div className="absolute inset-0 bg-black/60 dark:bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                          <div className="dashboard-container px-4 py-2 rounded-lg dashboard-text text-sm font-medium backdrop-blur-sm shadow-lg">
+                                            Clique para ver em tamanho completo
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="mt-2 text-xs dashboard-text-muted">
+                                        💡 Clique na imagem para ver em tamanho completo
+                                      </div>
+                                    </div>
+                                  )}
+                                </CardContent>
+                              )
+                            )}
+                          </div>
+                        </CollapsibleContent>
+                      </Card>
+                    )
+                  })
+                )}
             </div>
           )}
             </>
