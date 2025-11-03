@@ -293,7 +293,7 @@ export default function GerenciarColaboradoras() {
                   required
                 />
                 <p className="text-xs dashboard-text-muted mt-1">
-                  O usuário deve existir no Supabase Auth primeiro
+                  O usuário será criado automaticamente no Supabase Auth
                 </p>
               </div>
               <div>

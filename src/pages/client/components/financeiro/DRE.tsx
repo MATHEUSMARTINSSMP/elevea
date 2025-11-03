@@ -43,7 +43,8 @@ interface DRELancamentoCompleto extends financeiro.DRELancamento {
 export default function DRE() {
   const [categorias, setCategorias] = useState<financeiro.DRECategoria[]>([])
   const [lancamentos, setLancamentos] = useState<DRELancamentoCompleto[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true) // Começar como true para mostrar loading inicial
+  const [error, setError] = useState<string | null>(null)
   const [novoLancamentoDialog, setNovoLancamentoDialog] = useState(false)
   const [deleteDialog, setDeleteDialog] = useState<string | null>(null)
   const [filtros, setFiltros] = useState({
@@ -86,7 +87,9 @@ export default function DRE() {
       setLancamentos(lancamentosCompletos)
     } catch (err: any) {
       console.error('Erro ao carregar dados DRE:', err)
-      toast.error('Erro ao carregar dados DRE: ' + (err.message || 'Erro desconhecido'))
+      const errorMessage = err.message || 'Erro desconhecido'
+      setError(errorMessage)
+      toast.error('Erro ao carregar dados DRE: ' + errorMessage)
       // Garantir que os estados estão vazios em caso de erro
       setCategorias([])
       setLancamentos([])
@@ -104,11 +107,21 @@ export default function DRE() {
 
     setLoading(true)
     try {
+      // Normalizar competência
+      const competenciaNormalizada = formData.competencia 
+        ? formData.competencia.replace('-', '').replace('/', '').substring(0, 6)
+        : ''
+      
+      if (competenciaNormalizada.length !== 6) {
+        toast.error('Competência inválida. Use o formato AAAAMM')
+        return
+      }
+
       await financeiro.createDRELancamento({
         categoria_id: formData.categoria_id,
         descricao: formData.descricao,
-        valor: parseFloat(formData.valor),
-        competencia: formData.competencia.replace('-', '').substring(0, 6),
+        valor: parseFloat(formData.valor) || 0,
+        competencia: competenciaNormalizada,
         observacoes: formData.observacoes
       })
       toast.success('Lançamento DRE criado com sucesso!')
@@ -145,10 +158,18 @@ export default function DRE() {
   }
 
   const filteredLancamentos = lancamentos.filter(l => {
-    if (filtros.competencia && l.competencia !== filtros.competencia.replace('-', '').substring(0, 6)) return false
-    if (filtros.tipo && l.categoria_tipo !== filtros.tipo) return false
-    if (filtros.categoria_id && l.categoria_id !== filtros.categoria_id) return false
-    return true
+    try {
+      if (filtros.competencia && l.competencia) {
+        const filtroCompetencia = filtros.competencia.replace('-', '').substring(0, 6)
+        if (l.competencia !== filtroCompetencia) return false
+      }
+      if (filtros.tipo && l.categoria_tipo !== filtros.tipo) return false
+      if (filtros.categoria_id && l.categoria_id !== filtros.categoria_id) return false
+      return true
+    } catch (err) {
+      console.error('Erro ao filtrar lançamento:', err)
+      return false
+    }
   })
 
   // Calcular totais por tipo
@@ -167,18 +188,51 @@ export default function DRE() {
   const resultado = totalReceitas - totalDespesas
   const resultadoLiquido = resultado - totalInvestimentos
 
-  const mesesDisponiveis = financeiro.getCompetenciasFuturas()
+  // Obter competências futuras com proteção contra erro
+  let mesesDisponiveis: Array<{ value: string; label: string }> = []
+  try {
+    mesesDisponiveis = financeiro.getCompetenciasFuturas()
+  } catch (err) {
+    console.error('Erro ao obter competências futuras:', err)
+    mesesDisponiveis = []
+  }
 
-  // Agrupar por competência para exibição
+  // Agrupar por competência para exibição com proteção
   const lancamentosPorCompetencia = filteredLancamentos.reduce((acc, l) => {
-    if (!acc[l.competencia]) {
-      acc[l.competencia] = []
+    try {
+      if (l && l.competencia) {
+        if (!acc[l.competencia]) {
+          acc[l.competencia] = []
+        }
+        acc[l.competencia].push(l)
+      }
+    } catch (err) {
+      console.error('Erro ao agrupar lançamento:', err)
     }
-    acc[l.competencia].push(l)
     return acc
   }, {} as Record<string, DRELancamentoCompleto[]>)
 
   const competenciasOrdenadas = Object.keys(lancamentosPorCompetencia).sort().reverse()
+
+  // Se houver erro crítico, mostrar mensagem amigável
+  if (error) {
+    return (
+      <Card className="dashboard-card dashboard-border">
+        <CardContent className="p-6">
+          <div className="text-center space-y-4">
+            <p className="text-red-500 font-medium">Erro ao carregar DRE</p>
+            <p className="text-sm dashboard-text-muted">{error}</p>
+            <Button onClick={() => {
+              setError(null)
+              loadData()
+            }}>
+              Tentar Novamente
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -395,19 +449,30 @@ export default function DRE() {
           ) : (
             <div className="space-y-6">
               {competenciasOrdenadas.map(competencia => {
-                const lancs = lancamentosPorCompetencia[competencia]
-                const receitasMes = lancs.filter(l => l.categoria_tipo === 'RECEITA').reduce((s, l) => s + l.valor, 0)
-                const despesasMes = lancs.filter(l => l.categoria_tipo === 'DESPESA').reduce((s, l) => s + l.valor, 0)
-                const investimentosMes = lancs.filter(l => l.categoria_tipo === 'INVESTIMENTO').reduce((s, l) => s + l.valor, 0)
-                const resultadoMes = receitasMes - despesasMes - investimentosMes
+                try {
+                  const lancs = lancamentosPorCompetencia[competencia] || []
+                  if (!Array.isArray(lancs) || lancs.length === 0) return null
 
-                return (
-                  <div key={competencia} className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border dashboard-border">
-                      <div>
-                        <h3 className="text-lg font-semibold dashboard-text">
-                          Competência: {financeiro.formatCompetencia(competencia)}
-                        </h3>
+                  const receitasMes = lancs.filter(l => l && l.categoria_tipo === 'RECEITA').reduce((s, l) => s + (l.valor || 0), 0)
+                  const despesasMes = lancs.filter(l => l && l.categoria_tipo === 'DESPESA').reduce((s, l) => s + (l.valor || 0), 0)
+                  const investimentosMes = lancs.filter(l => l && l.categoria_tipo === 'INVESTIMENTO').reduce((s, l) => s + (l.valor || 0), 0)
+                  const resultadoMes = receitasMes - despesasMes - investimentosMes
+
+                  // Formatar competência com proteção
+                  let competenciaFormatada = competencia
+                  try {
+                    competenciaFormatada = financeiro.formatCompetencia(competencia)
+                  } catch (err) {
+                    console.error('Erro ao formatar competência:', err)
+                  }
+
+                  return (
+                    <div key={competencia} className="space-y-4">
+                      <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border dashboard-border">
+                        <div>
+                          <h3 className="text-lg font-semibold dashboard-text">
+                            Competência: {competenciaFormatada}
+                          </h3>
                         <div className="flex gap-4 mt-2 text-sm dashboard-text-muted">
                           <span>Receitas: <strong className="text-green-500">R$ {receitasMes.toFixed(2)}</strong></span>
                           <span>Despesas: <strong className="text-red-500">R$ {despesasMes.toFixed(2)}</strong></span>
@@ -429,11 +494,23 @@ export default function DRE() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {lancs.map((lancamento) => (
-                          <TableRow key={lancamento.id}>
-                            <TableCell>
-                              {format(new Date(lancamento.data_lancamento), 'dd/MM/yyyy')}
-                            </TableCell>
+                        {lancs.map((lancamento) => {
+                          // Proteção para formatação de data
+                          let dataFormatada = '-'
+                          try {
+                            if (lancamento.data_lancamento) {
+                              dataFormatada = format(new Date(lancamento.data_lancamento), 'dd/MM/yyyy')
+                            }
+                          } catch (err) {
+                            console.error('Erro ao formatar data:', err)
+                            dataFormatada = lancamento.data_lancamento || '-'
+                          }
+
+                          return (
+                            <TableRow key={lancamento.id}>
+                              <TableCell>
+                                {dataFormatada}
+                              </TableCell>
                             <TableCell>
                               <Badge variant={
                                 lancamento.categoria_tipo === 'RECEITA' ? 'default' :
@@ -443,14 +520,14 @@ export default function DRE() {
                                 {lancamento.categoria_nome}
                               </Badge>
                             </TableCell>
-                            <TableCell className="font-medium dashboard-text">{lancamento.descricao}</TableCell>
+                            <TableCell className="font-medium dashboard-text">{lancamento.descricao || '-'}</TableCell>
                             <TableCell className={`text-right font-semibold ${
                               lancamento.categoria_tipo === 'RECEITA' ? 'text-green-500' :
                               lancamento.categoria_tipo === 'DESPESA' ? 'text-red-500' :
                               'text-blue-500'
                             }`}>
                               {lancamento.categoria_tipo === 'DESPESA' || lancamento.categoria_tipo === 'INVESTIMENTO' ? '-' : '+'}
-                              R$ {Math.abs(lancamento.valor).toFixed(2)}
+                              R$ {Math.abs(lancamento.valor || 0).toFixed(2)}
                             </TableCell>
                             <TableCell className="dashboard-text-muted text-sm">
                               {lancamento.observacoes || '-'}
@@ -466,11 +543,16 @@ export default function DRE() {
                               </Button>
                             </TableCell>
                           </TableRow>
-                        ))}
+                          )
+                        })}
                       </TableBody>
                     </Table>
                   </div>
-                )
+                  )
+                } catch (err) {
+                  console.error('Erro ao renderizar competência:', err, competencia)
+                  return null
+                }
               })}
             </div>
           )}

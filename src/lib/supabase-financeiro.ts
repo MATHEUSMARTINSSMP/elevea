@@ -149,9 +149,42 @@ export async function createColaboradora(data: {
 }): Promise<Colaboradora> {
   const site_slug = await getUserSiteSlug(data.site_slug)
   
-  // Se não foi fornecido ID, criar UUID
+  // Se não foi fornecido ID, criar usuário no Supabase Auth primeiro
+  let userId = data.id
+  if (!userId) {
+    try {
+      // Chamar Netlify Function para criar usuário no Auth
+      const response = await fetch('/.netlify/functions/create-collaborator-auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: data.email,
+          name: data.name
+        })
+      })
+
+      const authResult = await response.json()
+
+      if (!response.ok || !authResult.success) {
+        throw new Error(authResult.error || authResult.message || 'Erro ao criar usuário no Supabase Auth')
+      }
+
+      userId = authResult.userId
+    } catch (error: any) {
+      // Se falhar ao criar usuário, tentar buscar se já existe
+      console.warn('Erro ao criar usuário no Auth, tentando buscar existente:', error.message)
+      
+      // Tentar buscar usuário existente pelo email (se tiver acesso)
+      // Se não conseguir, lançar erro
+      throw new Error(`Não foi possível criar ou localizar usuário no Supabase Auth: ${error.message}`)
+    }
+  }
+
+  // Criar registro da colaboradora na tabela financeiro_colaboradoras
   const colaboradoraData: any = {
-    id: data.id || crypto.randomUUID(),
+    id: userId, // Usar ID do usuário criado no Auth
     name: data.name,
     email: data.email,
     limite_total: data.limite_total,

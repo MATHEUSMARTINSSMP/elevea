@@ -3,22 +3,73 @@
  * Gerencia adiantamentos, compras e DRE
  */
 
-import React, { useState } from 'react'
+import React, { useState, Suspense, Component } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
 import { 
   DollarSign, 
   ShoppingCart, 
   Users, 
   TrendingUp, 
   FileText,
-  BarChart3
+  BarChart3,
+  AlertCircle
 } from 'lucide-react'
 import GerenciarColaboradoras from './GerenciarColaboradoras'
 import LancamentoCompras from './LancamentoCompras'
 import LancamentoAdiantamentos from './LancamentoAdiantamentos'
 import Relatorios from './Relatorios'
 import DRE from './DRE'
+
+// Error Boundary simples para componentes financeiros
+class FinanceiroErrorBoundary extends Component<
+  { children: React.ReactNode; fallback?: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: any) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Erro no componente financeiro:', error, errorInfo)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        this.props.fallback || (
+          <Card className="dashboard-card dashboard-border">
+            <CardContent className="p-6">
+              <div className="text-center space-y-4">
+                <AlertCircle className="h-12 w-12 text-red-500 mx-auto" />
+                <h3 className="text-lg font-semibold dashboard-text">Erro ao carregar componente</h3>
+                <p className="text-sm dashboard-text-muted">
+                  {this.state.error?.message || 'Ocorreu um erro inesperado'}
+                </p>
+                <Button
+                  onClick={() => {
+                    this.setState({ hasError: false, error: null })
+                    window.location.reload()
+                  }}
+                >
+                  Recarregar Página
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      )
+    }
+
+    return this.props.children
+  }
+}
 
 export default function FinanceiroHub() {
   const [activeTab, setActiveTab] = useState('colaboradoras')
@@ -71,23 +122,42 @@ export default function FinanceiroHub() {
         </div>
 
         <TabsContent value="colaboradoras" className="mt-6">
-          <GerenciarColaboradoras />
+          <FinanceiroErrorBoundary>
+            <GerenciarColaboradoras />
+          </FinanceiroErrorBoundary>
         </TabsContent>
 
         <TabsContent value="compras" className="mt-6">
-          <LancamentoCompras />
+          <FinanceiroErrorBoundary>
+            <LancamentoCompras />
+          </FinanceiroErrorBoundary>
         </TabsContent>
 
         <TabsContent value="adiantamentos" className="mt-6">
-          <LancamentoAdiantamentos />
+          <FinanceiroErrorBoundary>
+            <LancamentoAdiantamentos />
+          </FinanceiroErrorBoundary>
         </TabsContent>
 
         <TabsContent value="relatorios" className="mt-6">
-          <Relatorios />
+          <FinanceiroErrorBoundary>
+            <Relatorios />
+          </FinanceiroErrorBoundary>
         </TabsContent>
 
         <TabsContent value="dre" className="mt-6">
-          <DRE />
+          <FinanceiroErrorBoundary>
+            <Suspense fallback={
+              <Card className="dashboard-card dashboard-border">
+                <CardContent className="p-6 text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                  <p className="mt-4 dashboard-text-muted">Carregando DRE...</p>
+                </CardContent>
+              </Card>
+            }>
+              <DRE />
+            </Suspense>
+          </FinanceiroErrorBoundary>
         </TabsContent>
       </Tabs>
     </div>
