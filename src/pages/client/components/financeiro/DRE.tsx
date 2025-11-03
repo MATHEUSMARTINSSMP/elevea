@@ -48,9 +48,9 @@ export default function DRE() {
   const [novoLancamentoDialog, setNovoLancamentoDialog] = useState(false)
   const [deleteDialog, setDeleteDialog] = useState<string | null>(null)
   const [filtros, setFiltros] = useState({
-    competencia: '',
-    tipo: '' as '' | financeiro.TipoLancamentoDRE,
-    categoria_id: ''
+    competencia: 'all',
+    tipo: 'all' as 'all' | '' | financeiro.TipoLancamentoDRE,
+    categoria_id: 'all'
   })
   const [formData, setFormData] = useState({
     categoria_id: '',
@@ -159,12 +159,12 @@ export default function DRE() {
 
   const filteredLancamentos = lancamentos.filter(l => {
     try {
-      if (filtros.competencia && l.competencia) {
+      if (filtros.competencia && filtros.competencia !== 'all' && l.competencia) {
         const filtroCompetencia = filtros.competencia.replace('-', '').substring(0, 6)
         if (l.competencia !== filtroCompetencia) return false
       }
-      if (filtros.tipo && l.categoria_tipo !== filtros.tipo) return false
-      if (filtros.categoria_id && l.categoria_id !== filtros.categoria_id) return false
+      if (filtros.tipo && filtros.tipo !== 'all' && l.categoria_tipo !== filtros.tipo) return false
+      if (filtros.categoria_id && filtros.categoria_id !== 'all' && l.categoria_id !== filtros.categoria_id) return false
       return true
     } catch (err) {
       console.error('Erro ao filtrar lançamento:', err)
@@ -395,43 +395,43 @@ export default function DRE() {
         <CardContent>
           {/* Filtros */}
           <div className="grid gap-4 md:grid-cols-4 mb-6">
-            <Select value={filtros.competencia} onValueChange={(v) => setFiltros({ ...filtros, competencia: v })}>
+            <Select value={filtros.competencia || 'all'} onValueChange={(v) => setFiltros({ ...filtros, competencia: v === 'all' ? '' : v })}>
               <SelectTrigger className="dashboard-input">
                 <SelectValue placeholder="Todas as competências" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas as competências</SelectItem>
+                <SelectItem value="all">Todas as competências</SelectItem>
                 {mesesDisponiveis.map(m => (
                   <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            <Select value={filtros.tipo} onValueChange={(v) => setFiltros({ ...filtros, tipo: v as any })}>
+            <Select value={filtros.tipo || 'all'} onValueChange={(v) => setFiltros({ ...filtros, tipo: v === 'all' ? '' : v as any })}>
               <SelectTrigger className="dashboard-input">
                 <SelectValue placeholder="Todos os tipos" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os tipos</SelectItem>
+                <SelectItem value="all">Todos os tipos</SelectItem>
                 <SelectItem value="RECEITA">Receitas</SelectItem>
                 <SelectItem value="DESPESA">Despesas</SelectItem>
                 <SelectItem value="INVESTIMENTO">Investimentos</SelectItem>
               </SelectContent>
             </Select>
 
-            <Select value={filtros.categoria_id} onValueChange={(v) => setFiltros({ ...filtros, categoria_id: v })}>
+            <Select value={filtros.categoria_id || 'all'} onValueChange={(v) => setFiltros({ ...filtros, categoria_id: v === 'all' ? '' : v })}>
               <SelectTrigger className="dashboard-input">
                 <SelectValue placeholder="Todas as categorias" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas as categorias</SelectItem>
+                <SelectItem value="all">Todas as categorias</SelectItem>
                 {categorias.map(c => (
                   <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            <Button variant="outline" onClick={() => setFiltros({ competencia: '', tipo: '', categoria_id: '' })}>
+            <Button variant="outline" onClick={() => setFiltros({ competencia: 'all', tipo: 'all' as any, categoria_id: 'all' })}>
               <Filter className="h-4 w-4 mr-2" />
               Limpar Filtros
             </Button>

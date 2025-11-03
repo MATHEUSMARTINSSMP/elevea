@@ -411,12 +411,12 @@ export default function Relatorios() {
         <CardContent>
           {/* Filtros */}
           <div className="grid gap-4 md:grid-cols-5 mb-6">
-            <Select value={filtros.mes} onValueChange={(v) => setFiltros({ ...filtros, mes: v })}>
+            <Select value={filtros.mes || 'all'} onValueChange={(v) => setFiltros({ ...filtros, mes: v === 'all' ? '' : v })}>
               <SelectTrigger className="dashboard-input">
                 <SelectValue placeholder="Todos os meses" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os meses</SelectItem>
+                <SelectItem value="all">Todos os meses</SelectItem>
                 {getMesesDisponiveis().map((mes) => (
                   <SelectItem key={mes} value={mes}>
                     {financeiro.formatCompetencia(mes)}
@@ -425,12 +425,12 @@ export default function Relatorios() {
               </SelectContent>
             </Select>
 
-            <Select value={filtros.status} onValueChange={(v) => setFiltros({ ...filtros, status: v })}>
+            <Select value={filtros.status || 'all'} onValueChange={(v) => setFiltros({ ...filtros, status: v === 'all' ? '' : v })}>
               <SelectTrigger className="dashboard-input">
                 <SelectValue placeholder="Todos os status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os status</SelectItem>
+                <SelectItem value="all">Todos os status</SelectItem>
                 <SelectItem value="PENDENTE">Pendente</SelectItem>
                 <SelectItem value="AGENDADO">Agendado</SelectItem>
                 <SelectItem value="APROVADO">Aprovado</SelectItem>
