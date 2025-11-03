@@ -60,6 +60,7 @@ import {
 import ImageManager from './ImageManager'
 import ImageLightbox from './ImageLightbox'
 import FAQEditor from './FAQEditor'
+import AISiteEditor from './AISiteEditor'
 import ThemeToggle from '@/components/ThemeToggle'
 import * as n8nSites from '@/lib/n8n-sites'
 import type { SiteSection, SiteMedia } from '@/lib/n8n-sites'
@@ -93,6 +94,7 @@ export default function ModernSiteEditor({
   const [filterVisible, setFilterVisible] = useState<boolean | null>(null)
   const [lightboxImage, setLightboxImage] = useState<{url: string, title?: string, info?: any} | null>(null)
   const [imageDimensions, setImageDimensions] = useState<Record<string, {width: number, height: number}>>({})
+  const [editMode, setEditMode] = useState<'manual' | 'ai'>('manual') // Toggle entre manual e IA
 
   // Carregar dados do site
   useEffect(() => {
@@ -515,6 +517,31 @@ export default function ModernSiteEditor({
             </TabsTrigger>
           </TabsList>
 
+          {/* Toggle Manual/IA - Apenas na tab de Seções */}
+          <div className="flex items-center gap-3">
+            <Label className="text-sm dashboard-text-muted">Modo de edição:</Label>
+            <div className="flex items-center gap-2">
+              <Button
+                variant={editMode === 'manual' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setEditMode('manual')}
+                className="gap-2"
+              >
+                <Edit2 className="h-4 w-4" />
+                Manual
+              </Button>
+              <Button
+                variant={editMode === 'ai' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setEditMode('ai')}
+                className="gap-2"
+              >
+                <Sparkles className="h-4 w-4" />
+                IA
+              </Button>
+            </div>
+          </div>
+
           {/* Search and Filter */}
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -539,6 +566,20 @@ export default function ModernSiteEditor({
 
         {/* Tab: Seções */}
         <TabsContent value="sections" className="space-y-4">
+          {/* Toggle entre Modo Manual e IA */}
+          {editMode === 'ai' ? (
+            <AISiteEditor
+              siteSlug={siteSlug}
+              vipPin={vipPin}
+              onEditComplete={() => {
+                // Recarregar seções após edição com IA
+                loadAllData()
+                toast.success('Recarregando seções atualizadas...')
+              }}
+            />
+          ) : (
+            // Conteúdo original do modo manual
+            <>
           {filteredSections.length === 0 ? (
             <Card className="border-dashed border-2 hover:border-primary/50 transition-colors">
               <CardContent className="p-16 text-center">
@@ -864,6 +905,8 @@ export default function ModernSiteEditor({
                   </Card>
                 ))}
             </div>
+          )}
+            </>
           )}
         </TabsContent>
 

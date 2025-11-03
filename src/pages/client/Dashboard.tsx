@@ -9,7 +9,7 @@ import BusinessInsights from "./components/BusinessInsights";
 import GoogleReviews from "./components/GoogleReviews";
 import FeedbackManager from "./components/FeedbackManager";
 import SEOOptimizer from "./components/SEOOptimizer";
-import WhatsAppManager from "./components/WhatsAppManager";
+import WhatsAppHub from "./components/WhatsAppHub";
 import LeadScoring from "./components/LeadScoring";
 import { LeadCapture } from "@/components/dashboard/LeadCapture";
 import MultiLanguageManager from "./components/MultiLanguageManager";
@@ -821,10 +821,10 @@ useEffect(() => {
               </section>
             )}
 
-            {/* Agente WhatsApp */}
+            {/* WhatsApp Hub - Modo Agente e Campanha */}
             {isFeatureEnabled("whatsapp-chatbot") && (
               <section className="space-y-6">
-                <WhatsAppManager siteSlug={user.siteSlug || ""} vipPin={vipPin || "FORCED"} />
+                <WhatsAppHub siteSlug={user.siteSlug || ""} vipPin={vipPin || "FORCED"} />
               </section>
             )}
 

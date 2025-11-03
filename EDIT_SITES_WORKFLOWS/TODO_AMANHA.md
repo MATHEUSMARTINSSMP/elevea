@@ -1,5 +1,20 @@
 # 📋 TODO para Amanhã - WhatsApp Agent Multitenant
 
+## ❓ **QUESTÃO IMPORTANTE: QR Code de Autenticação**
+
+**Problema:** Como exibir o QR Code de autenticação do WhatsApp no dashboard?
+
+**Solução:** Documentada em `QRCODE_WHATSAPP_SOLUCAO.md`
+
+**Resumo rápido:**
+1. n8n busca QR Code da UazAPI
+2. Salva no Supabase (base64 ou URL)
+3. Frontend faz polling do status
+4. Exibe QR Code em componente dedicado
+5. Quando conecta, oculta QR Code e mostra status
+
+---
+
 ## ✅ O que foi feito hoje:
 
 1. **Sistema de Temas Completo**
