@@ -822,24 +822,26 @@ useEffect(() => {
               </section>
             )}
 
-            {/* WhatsApp Hub - Modo Agente e Campanha */}
-            {isFeatureEnabled("whatsapp-chatbot") && (
+            {/* Editor de Conteúdo - Com Header Section */}
+            {isFeatureEnabled("site-editor") && (
               <section className="space-y-6">
-                <WhatsAppHub siteSlug={user.siteSlug || ""} vipPin={vipPin || "FORCED"} />
+                <EditorConteudoSection
+                  siteSlug={user.siteSlug || ""}
+                  vipPin={vipPin || "FORCED"}
+                  onContentUpdated={(sectionId, field, value) => {
+                    console.log('Conteúdo atualizado:', { sectionId, field, value })
+                  }}
+                />
               </section>
             )}
 
-            {/* Google Meu Negócio */}
-            {isFeatureEnabled("google-reviews") && (
-              <section className="space-y-6">
-                <GoogleReviews siteSlug={user.siteSlug || ""} vipPin={vipPin || "FORCED"} userEmail={user.email} />
-              </section>
-            )}
-
-            {/* Feedback dos Clientes */}
+            {/* Feedback dos Clientes - Com Header Section */}
             {isFeatureEnabled("feedback-system") && (
               <section className="space-y-6">
-                <FeedbackManager siteSlug={user.siteSlug || ""} vipPin={vipPin || "FORCED"} />
+                <FeedbackSection
+                  siteSlug={user.siteSlug || ""}
+                  vipPin={vipPin || "FORCED"}
+                />
               </section>
             )}
 
@@ -847,19 +849,6 @@ useEffect(() => {
             {isFeatureEnabled("lead-capture") && (
               <section className="space-y-6">
                 <LeadCapture siteSlug={user.siteSlug || ""} vipPin={vipPin || "FORCED"} />
-              </section>
-            )}
-
-            {/* Editor de Site - Moderno e Funcional */}
-            {isFeatureEnabled("site-editor") && (
-              <section className="space-y-6">
-                <ModernSiteEditor 
-                  siteSlug={user.siteSlug || ""} 
-                  vipPin={vipPin || "FORCED"}
-                  onContentUpdated={(sectionId, field, value) => {
-                    console.log('Conteúdo atualizado:', { sectionId, field, value })
-                  }}
-                />
               </section>
             )}
 
@@ -1018,6 +1007,20 @@ useEffect(() => {
         {/* ================== FUNCIONALIDADES EM DESENVOLVIMENTO ================== */}
         {vipEnabled && !isDevUser && (
           <>
+            {/* Google Meu Negócio - Logo acima de Em Desenvolvimento */}
+            {isFeatureEnabled("google-reviews") && (
+              <section className="space-y-6">
+                <GoogleReviews siteSlug={user.siteSlug || ""} vipPin={vipPin || "FORCED"} userEmail={user.email} />
+              </section>
+            )}
+
+            {/* WhatsApp Hub - Logo acima de Em Desenvolvimento */}
+            {isFeatureEnabled("whatsapp-chatbot") && (
+              <section className="space-y-6">
+                <WhatsAppHub siteSlug={user.siteSlug || ""} vipPin={vipPin || "FORCED"} />
+              </section>
+            )}
+
             <div className="mt-12 mb-8">
               <h2 className="text-2xl font-bold dashboard-text mb-2">🔧 Em Desenvolvimento</h2>
               <p className="dashboard-text-muted">Funcionalidades que serão liberadas em breve</p>

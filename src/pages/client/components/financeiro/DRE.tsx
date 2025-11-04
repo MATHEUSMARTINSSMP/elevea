@@ -32,7 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { BarChart3, Plus, Trash2, TrendingUp, TrendingDown, DollarSign, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
+import { BarChart3, Plus, Trash2, TrendingUp, TrendingDown, DollarSign, Filter, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 import * as dre from '@/lib/n8n-dre'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -67,6 +67,21 @@ export default function DRE() {
   // Estados de paginação
   const [itemsPerPage, setItemsPerPage] = useState(20)
   const [currentPage, setCurrentPage] = useState(1)
+  
+  // Estados para menus colapsáveis (categorias expandidas)
+  const [categoriasExpandidas, setCategoriasExpandidas] = useState<Set<string>>(new Set())
+  
+  const toggleCategoria = (categoriaId: string) => {
+    setCategoriasExpandidas(prev => {
+      const novo = new Set(prev)
+      if (novo.has(categoriaId)) {
+        novo.delete(categoriaId)
+      } else {
+        novo.add(categoriaId)
+      }
+      return novo
+    })
+  }
 
   useEffect(() => {
     loadData()
@@ -371,37 +386,95 @@ export default function DRE() {
                     </TableCell>
                   </TableRow>
                   
-                  {/* Receitas por Categoria */}
+                  {/* Receitas por Categoria - Com Menu Colapsável */}
                   {categorias
                     .filter(c => c.tipo === 'RECEITA' && c.ativo)
                     .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
                     .map(categoria => {
                       const receitasCategoria = filteredLancamentos
                         .filter(l => l.categoria_id === categoria.id && l.categoria_tipo === 'RECEITA')
+                      
+                      // Omitir categorias sem lançamentos ou com valor total zero
                       if (receitasCategoria.length === 0) return null
+                      const totalCategoria = receitasCategoria.reduce((sum, l) => sum + l.valor, 0)
+                      if (totalCategoria === 0) return null
+                      
+                      const estaExpandida = categoriasExpandidas.has(categoria.id)
                       
                       return (
-                        <TableRow key={`cat-receita-${categoria.id}`} className="hover:bg-muted/20">
-                          <TableCell className="pl-6 text-muted-foreground">
-                            {categoria.nome}
-                          </TableCell>
-                          {analytics.grafico_mensal.map((mes) => {
-                            const valorMes = receitasCategoria
-                              .filter(l => l.competencia === mes.periodo)
-                              .reduce((sum, l) => sum + l.valor, 0)
-                            return (
-                              <TableCell key={`${categoria.id}-${mes.periodo}`} className="text-right text-muted-foreground">
-                                {valorMes > 0 ? `R$ ${valorMes.toFixed(2)}` : '-'}
-                              </TableCell>
-                            )
-                          })}
-                          <TableCell className="text-right text-muted-foreground bg-muted/30">
-                            {(() => {
-                              const total = receitasCategoria.reduce((sum, l) => sum + l.valor, 0)
-                              return total > 0 ? `R$ ${total.toFixed(2)}` : '-'
-                            })()}
-                          </TableCell>
-                        </TableRow>
+                        <React.Fragment key={`cat-receita-${categoria.id}`}>
+                          <TableRow className="hover:bg-muted/20 cursor-pointer" onClick={() => toggleCategoria(categoria.id)}>
+                            <TableCell className="pl-6">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    toggleCategoria(categoria.id)
+                                  }}
+                                  className="flex items-center justify-center w-5 h-5 hover:bg-muted rounded transition-colors"
+                                >
+                                  {estaExpandida ? (
+                                    <ChevronDown className="h-4 w-4 text-primary" />
+                                  ) : (
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </button>
+                                <span className={`font-medium ${estaExpandida ? 'text-primary' : 'text-muted-foreground'}`}>
+                                  {categoria.nome}
+                                </span>
+                              </div>
+                            </TableCell>
+                            {analytics.grafico_mensal.map((mes) => {
+                              const valorMes = receitasCategoria
+                                .filter(l => l.competencia === mes.periodo)
+                                .reduce((sum, l) => sum + l.valor, 0)
+                              return (
+                                <TableCell key={`${categoria.id}-${mes.periodo}`} className="text-right text-muted-foreground">
+                                  {valorMes > 0 ? `R$ ${valorMes.toFixed(2)}` : '-'}
+                                </TableCell>
+                              )
+                            })}
+                            <TableCell className="text-right font-medium bg-muted/30">
+                              {totalCategoria > 0 ? `R$ ${totalCategoria.toFixed(2)}` : '-'}
+                            </TableCell>
+                          </TableRow>
+                          
+                          {/* Detalhes dos Lançamentos quando expandido - Apenas lançamentos com valor */}
+                          {estaExpandida && receitasCategoria
+                            .filter(l => l.valor > 0) // Omitir lançamentos com valor zero
+                            .map((lancamento) => {
+                              let dataFormatada = '-'
+                              try {
+                                if (lancamento.data_lancamento) {
+                                  dataFormatada = format(new Date(lancamento.data_lancamento), 'dd/MM/yyyy')
+                                }
+                              } catch (err) {
+                                dataFormatada = lancamento.data_lancamento || '-'
+                              }
+                              
+                              return (
+                                <TableRow key={`lanc-receita-${lancamento.id}`} className="bg-muted/10 hover:bg-muted/20">
+                                  <TableCell className="pl-12 text-sm">
+                                    <div className="flex flex-col">
+                                      <span className="text-muted-foreground">{lancamento.descricao || '-'}</span>
+                                      <span className="text-xs text-muted-foreground/70">{dataFormatada}</span>
+                                    </div>
+                                  </TableCell>
+                                  {analytics.grafico_mensal.map((mes) => {
+                                    const valorLancamento = lancamento.competencia === mes.periodo ? lancamento.valor : 0
+                                    return (
+                                      <TableCell key={`${lancamento.id}-${mes.periodo}`} className="text-right text-sm text-muted-foreground">
+                                        {valorLancamento > 0 ? `R$ ${valorLancamento.toFixed(2)}` : '-'}
+                                      </TableCell>
+                                    )
+                                  })}
+                                  <TableCell className="text-right text-sm bg-muted/20">
+                                    {lancamento.valor > 0 ? `R$ ${lancamento.valor.toFixed(2)}` : '-'}
+                                  </TableCell>
+                                </TableRow>
+                              )
+                            })}
+                        </React.Fragment>
                       )
                     })}
 
@@ -440,7 +513,7 @@ export default function DRE() {
                     <TableCell className="text-right bg-muted/50 text-muted-foreground">R$ 0,00</TableCell>
                   </TableRow>
                   
-                  {/* Categorias de Custo (ex: Compras de Mercadorias) */}
+                  {/* Categorias de Custo (ex: Compras de Mercadorias) - Com Menu Colapsável */}
                   {categorias
                     .filter(c => {
                       // Identificar categorias que são custos (CMV/CPV/CSV)
@@ -459,30 +532,88 @@ export default function DRE() {
                     .map(categoria => {
                       const custosCategoria = filteredLancamentos
                         .filter(l => l.categoria_id === categoria.id && l.categoria_tipo === 'DESPESA')
+                      
+                      // Omitir categorias sem lançamentos ou com valor total zero
                       if (custosCategoria.length === 0) return null
+                      const totalCategoria = custosCategoria.reduce((sum, l) => sum + Math.abs(l.valor), 0)
+                      if (totalCategoria === 0) return null
+                      
+                      const estaExpandida = categoriasExpandidas.has(`custo-${categoria.id}`)
                       
                       return (
-                        <TableRow key={`cat-custo-${categoria.id}`} className="hover:bg-muted/20">
-                          <TableCell className="pl-6 text-muted-foreground">
-                            {categoria.nome}
-                          </TableCell>
-                          {analytics.grafico_mensal.map((mes) => {
-                            const valorMes = custosCategoria
-                              .filter(l => l.competencia === mes.periodo)
-                              .reduce((sum, l) => sum + Math.abs(l.valor), 0)
-                            return (
-                              <TableCell key={`${categoria.id}-${mes.periodo}`} className="text-right text-muted-foreground">
-                                {valorMes > 0 ? `R$ ${valorMes.toFixed(2)}` : '-'}
-                              </TableCell>
-                            )
-                          })}
-                          <TableCell className="text-right text-muted-foreground bg-muted/30">
-                            {(() => {
-                              const total = custosCategoria.reduce((sum, l) => sum + Math.abs(l.valor), 0)
-                              return total > 0 ? `R$ ${total.toFixed(2)}` : '-'
-                            })()}
-                          </TableCell>
-                        </TableRow>
+                        <React.Fragment key={`cat-custo-${categoria.id}`}>
+                          <TableRow className="hover:bg-muted/20 cursor-pointer" onClick={() => toggleCategoria(`custo-${categoria.id}`)}>
+                            <TableCell className="pl-6">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    toggleCategoria(`custo-${categoria.id}`)
+                                  }}
+                                  className="flex items-center justify-center w-5 h-5 hover:bg-muted rounded transition-colors"
+                                >
+                                  {estaExpandida ? (
+                                    <ChevronDown className="h-4 w-4 text-primary" />
+                                  ) : (
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </button>
+                                <span className={`font-medium ${estaExpandida ? 'text-primary' : 'text-muted-foreground'}`}>
+                                  {categoria.nome}
+                                </span>
+                              </div>
+                            </TableCell>
+                            {analytics.grafico_mensal.map((mes) => {
+                              const valorMes = custosCategoria
+                                .filter(l => l.competencia === mes.periodo)
+                                .reduce((sum, l) => sum + Math.abs(l.valor), 0)
+                              return (
+                                <TableCell key={`${categoria.id}-${mes.periodo}`} className="text-right text-muted-foreground">
+                                  {valorMes > 0 ? `R$ ${valorMes.toFixed(2)}` : '-'}
+                                </TableCell>
+                              )
+                            })}
+                            <TableCell className="text-right font-medium bg-muted/30">
+                              {totalCategoria > 0 ? `R$ ${totalCategoria.toFixed(2)}` : '-'}
+                            </TableCell>
+                          </TableRow>
+                          
+                          {/* Detalhes dos Lançamentos quando expandido - Apenas lançamentos com valor */}
+                          {estaExpandida && custosCategoria
+                            .filter(l => Math.abs(l.valor) > 0) // Omitir lançamentos com valor zero
+                            .map((lancamento) => {
+                              let dataFormatada = '-'
+                              try {
+                                if (lancamento.data_lancamento) {
+                                  dataFormatada = format(new Date(lancamento.data_lancamento), 'dd/MM/yyyy')
+                                }
+                              } catch (err) {
+                                dataFormatada = lancamento.data_lancamento || '-'
+                              }
+                              
+                              return (
+                                <TableRow key={`lanc-custo-${lancamento.id}`} className="bg-muted/10 hover:bg-muted/20">
+                                  <TableCell className="pl-12 text-sm">
+                                    <div className="flex flex-col">
+                                      <span className="text-muted-foreground">{lancamento.descricao || '-'}</span>
+                                      <span className="text-xs text-muted-foreground/70">{dataFormatada}</span>
+                                    </div>
+                                  </TableCell>
+                                  {analytics.grafico_mensal.map((mes) => {
+                                    const valorLancamento = lancamento.competencia === mes.periodo ? Math.abs(lancamento.valor) : 0
+                                    return (
+                                      <TableCell key={`${lancamento.id}-${mes.periodo}`} className="text-right text-sm text-muted-foreground">
+                                        {valorLancamento > 0 ? `R$ ${valorLancamento.toFixed(2)}` : '-'}
+                                      </TableCell>
+                                    )
+                                  })}
+                                  <TableCell className="text-right text-sm bg-muted/20">
+                                    {Math.abs(lancamento.valor) > 0 ? `R$ ${Math.abs(lancamento.valor).toFixed(2)}` : '-'}
+                                  </TableCell>
+                                </TableRow>
+                              )
+                            })}
+                        </React.Fragment>
                       )
                     })}
 
@@ -516,7 +647,7 @@ export default function DRE() {
                     </TableCell>
                   </TableRow>
 
-                  {/* Despesas Operacionais por Categoria (excluindo custos) */}
+                  {/* Despesas Operacionais por Categoria (excluindo custos) - Com Menu Colapsável */}
                   {categorias
                     .filter(c => {
                       const nomeLower = c.nome.toLowerCase()
@@ -534,30 +665,88 @@ export default function DRE() {
                     .map(categoria => {
                       const despesasCategoria = filteredLancamentos
                         .filter(l => l.categoria_id === categoria.id && l.categoria_tipo === 'DESPESA')
+                      
+                      // Omitir categorias sem lançamentos ou com valor total zero
                       if (despesasCategoria.length === 0) return null
+                      const totalCategoria = despesasCategoria.reduce((sum, l) => sum + Math.abs(l.valor), 0)
+                      if (totalCategoria === 0) return null
+                      
+                      const estaExpandida = categoriasExpandidas.has(`despesa-${categoria.id}`)
                       
                       return (
-                        <TableRow key={`cat-despesa-${categoria.id}`} className="hover:bg-muted/20">
-                          <TableCell className="pl-6 text-muted-foreground">
-                            {categoria.nome}
-                          </TableCell>
-                          {analytics.grafico_mensal.map((mes) => {
-                            const valorMes = despesasCategoria
-                              .filter(l => l.competencia === mes.periodo)
-                              .reduce((sum, l) => sum + Math.abs(l.valor), 0)
-                            return (
-                              <TableCell key={`${categoria.id}-${mes.periodo}`} className="text-right text-muted-foreground">
-                                {valorMes > 0 ? `R$ ${valorMes.toFixed(2)}` : '-'}
-                              </TableCell>
-                            )
-                          })}
-                          <TableCell className="text-right text-muted-foreground bg-muted/30">
-                            {(() => {
-                              const total = despesasCategoria.reduce((sum, l) => sum + Math.abs(l.valor), 0)
-                              return total > 0 ? `R$ ${total.toFixed(2)}` : '-'
-                            })()}
-                          </TableCell>
-                        </TableRow>
+                        <React.Fragment key={`cat-despesa-${categoria.id}`}>
+                          <TableRow className="hover:bg-muted/20 cursor-pointer" onClick={() => toggleCategoria(`despesa-${categoria.id}`)}>
+                            <TableCell className="pl-6">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    toggleCategoria(`despesa-${categoria.id}`)
+                                  }}
+                                  className="flex items-center justify-center w-5 h-5 hover:bg-muted rounded transition-colors"
+                                >
+                                  {estaExpandida ? (
+                                    <ChevronDown className="h-4 w-4 text-primary" />
+                                  ) : (
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </button>
+                                <span className={`font-medium ${estaExpandida ? 'text-primary' : 'text-muted-foreground'}`}>
+                                  {categoria.nome}
+                                </span>
+                              </div>
+                            </TableCell>
+                            {analytics.grafico_mensal.map((mes) => {
+                              const valorMes = despesasCategoria
+                                .filter(l => l.competencia === mes.periodo)
+                                .reduce((sum, l) => sum + Math.abs(l.valor), 0)
+                              return (
+                                <TableCell key={`${categoria.id}-${mes.periodo}`} className="text-right text-muted-foreground">
+                                  {valorMes > 0 ? `R$ ${valorMes.toFixed(2)}` : '-'}
+                                </TableCell>
+                              )
+                            })}
+                            <TableCell className="text-right font-medium bg-muted/30">
+                              {totalCategoria > 0 ? `R$ ${totalCategoria.toFixed(2)}` : '-'}
+                            </TableCell>
+                          </TableRow>
+                          
+                          {/* Detalhes dos Lançamentos quando expandido - Apenas lançamentos com valor */}
+                          {estaExpandida && despesasCategoria
+                            .filter(l => Math.abs(l.valor) > 0) // Omitir lançamentos com valor zero
+                            .map((lancamento) => {
+                              let dataFormatada = '-'
+                              try {
+                                if (lancamento.data_lancamento) {
+                                  dataFormatada = format(new Date(lancamento.data_lancamento), 'dd/MM/yyyy')
+                                }
+                              } catch (err) {
+                                dataFormatada = lancamento.data_lancamento || '-'
+                              }
+                              
+                              return (
+                                <TableRow key={`lanc-despesa-${lancamento.id}`} className="bg-muted/10 hover:bg-muted/20">
+                                  <TableCell className="pl-12 text-sm">
+                                    <div className="flex flex-col">
+                                      <span className="text-muted-foreground">{lancamento.descricao || '-'}</span>
+                                      <span className="text-xs text-muted-foreground/70">{dataFormatada}</span>
+                                    </div>
+                                  </TableCell>
+                                  {analytics.grafico_mensal.map((mes) => {
+                                    const valorLancamento = lancamento.competencia === mes.periodo ? Math.abs(lancamento.valor) : 0
+                                    return (
+                                      <TableCell key={`${lancamento.id}-${mes.periodo}`} className="text-right text-sm text-muted-foreground">
+                                        {valorLancamento > 0 ? `R$ ${valorLancamento.toFixed(2)}` : '-'}
+                                      </TableCell>
+                                    )
+                                  })}
+                                  <TableCell className="text-right text-sm bg-muted/20">
+                                    {Math.abs(lancamento.valor) > 0 ? `R$ ${Math.abs(lancamento.valor).toFixed(2)}` : '-'}
+                                  </TableCell>
+                                </TableRow>
+                              )
+                            })}
+                        </React.Fragment>
                       )
                     })}
 

@@ -362,7 +362,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
     );
   }
 
-  // Processar dados reais do n8n - CORRIGIR ESTRUTURA
+  // Processar dados reais do n8n - Estrutura conforme resposta do webhook
   const processedOverview = {
     users: data.overview?.uniqueVisitors || 0,
     sessions: data.overview?.totalEvents || 0,
@@ -370,7 +370,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
     bounceRate: 0, // Não disponível no n8n
     avgSessionDuration: 0, // Não disponível no n8n
     avgScrollDepth: 0, // Não disponível no n8n
-    whatsappClicks: 0, // Não disponível no n8n
+    whatsappClicks: data.overview?.clicks || 0, // Clicks do n8n podem incluir WhatsApp
     formSubmissions: data.overview?.formSubmissions || 0,
     phoneClicks: 0, // Não disponível no n8n
     emailClicks: 0, // Não disponível no n8n
@@ -378,12 +378,20 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
     conversions: data.overview?.conversions || 0
   };
 
-  const processedChartData = data.chartData?.datasets?.[0]?.data?.map((value: number, index: number) => ({
-    date: data.chartData?.labels?.[index] || `Dia ${index + 1}`,
-    users: value,
-    sessions: value,
-    pageViews: value
-  })) || [];
+  // Processar chartData conforme estrutura do n8n
+  const processedChartData = data.chartData?.datasets?.[0]?.data?.map((value: number, index: number) => {
+    const label = data.chartData?.labels?.[index] || `Dia ${index + 1}`;
+    // Se for "Últimos 30 dias", usar a data atual
+    const date = label === 'Últimos 30 dias' 
+      ? new Date().toLocaleDateString('pt-BR') 
+      : label;
+    return {
+      date: date,
+      users: data.overview?.uniqueVisitors || 0,
+      sessions: data.overview?.totalEvents || 0,
+      pageViews: value
+    };
+  }) || [];
 
   const processedDeviceBreakdown = data.deviceBreakdown?.map((device: any) => ({
     device: device.device,
