@@ -45,7 +45,9 @@ interface DRELancamentoCompleto extends dre.DRELancamento {
 export default function DRE() {
   const [categorias, setCategorias] = useState<dre.DRECategoria[]>([])
   const [lancamentos, setLancamentos] = useState<DRELancamentoCompleto[]>([])
+  const [analytics, setAnalytics] = useState<dre.DREAnalytics | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [novoLancamentoDialog, setNovoLancamentoDialog] = useState(false)
   const [deleteDialog, setDeleteDialog] = useState<string | null>(null)
@@ -103,6 +105,25 @@ export default function DRE() {
     }
   }
 
+  const loadAnalytics = async () => {
+    setLoadingAnalytics(true)
+    try {
+      // Buscar últimos 12 meses por padrão
+      const analyticsData = await dre.getDREAnalytics()
+      setAnalytics(analyticsData)
+    } catch (err: any) {
+      console.error('Erro ao carregar analytics DRE:', err)
+      // Não mostrar erro para o usuário, apenas log
+    } finally {
+      setLoadingAnalytics(false)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+    loadAnalytics()
+  }, [])
+
   const handleNovoLancamento = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.categoria_id || !formData.descricao || !formData.valor || !formData.competencia) {
@@ -137,7 +158,7 @@ export default function DRE() {
         competencia: '',
         observacoes: ''
       })
-      loadData()
+      await Promise.all([loadData(), loadAnalytics()])
       setCurrentPage(1) // Voltar para primeira página
     } catch (err: any) {
       toast.error('Erro ao criar lançamento: ' + err.message)
@@ -154,7 +175,7 @@ export default function DRE() {
       await dre.deleteDRELancamento(deleteDialog)
       toast.success('Lançamento excluído com sucesso!')
       setDeleteDialog(null)
-      loadData()
+      await Promise.all([loadData(), loadAnalytics()])
     } catch (err: any) {
       toast.error('Erro ao excluir: ' + err.message)
     } finally {
@@ -298,6 +319,329 @@ export default function DRE() {
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Tabela Completa DRE - Estrutura Hierárquica Mês a Mês */}
+      <Card className="dashboard-card dashboard-border dashboard-shadow">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              <span>DRE Detalhado - Por Categoria e Mês</span>
+            </CardTitle>
+            {loadingAnalytics && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                Carregando...
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loadingAnalytics ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : analytics && analytics.grafico_mensal.length > 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[250px] font-bold">Descrição</TableHead>
+                    {analytics.grafico_mensal.map((mes) => (
+                      <TableHead key={mes.periodo} className="text-right min-w-[120px] font-semibold">
+                        {mes.periodo_formatado}
+                      </TableHead>
+                    ))}
+                    <TableHead className="text-right min-w-[120px] font-bold bg-muted/50">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {/* RECEITA BRUTA */}
+                  <TableRow className="bg-muted/30">
+                    <TableCell className="font-bold">RECEITA BRUTA</TableCell>
+                    {analytics.grafico_mensal.map((mes) => (
+                      <TableCell key={`receita-${mes.periodo}`} className="text-right font-semibold">
+                        R$ {mes.receitas.toFixed(2)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right font-bold bg-muted/50">
+                      R$ {analytics.totais.receitas.toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+                  
+                  {/* Receitas por Categoria */}
+                  {categorias
+                    .filter(c => c.tipo === 'RECEITA' && c.ativo)
+                    .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
+                    .map(categoria => {
+                      const receitasCategoria = filteredLancamentos
+                        .filter(l => l.categoria_id === categoria.id && l.categoria_tipo === 'RECEITA')
+                      if (receitasCategoria.length === 0) return null
+                      
+                      return (
+                        <TableRow key={`cat-receita-${categoria.id}`} className="hover:bg-muted/20">
+                          <TableCell className="pl-6 text-muted-foreground">
+                            {categoria.nome}
+                          </TableCell>
+                          {analytics.grafico_mensal.map((mes) => {
+                            const valorMes = receitasCategoria
+                              .filter(l => l.competencia === mes.periodo)
+                              .reduce((sum, l) => sum + l.valor, 0)
+                            return (
+                              <TableCell key={`${categoria.id}-${mes.periodo}`} className="text-right text-muted-foreground">
+                                {valorMes > 0 ? `R$ ${valorMes.toFixed(2)}` : '-'}
+                              </TableCell>
+                            )
+                          })}
+                          <TableCell className="text-right text-muted-foreground bg-muted/30">
+                            {(() => {
+                              const total = receitasCategoria.reduce((sum, l) => sum + l.valor, 0)
+                              return total > 0 ? `R$ ${total.toFixed(2)}` : '-'
+                            })()}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+
+                  {/* (-) DEDUÇÕES */}
+                  <TableRow className="bg-muted/30">
+                    <TableCell className="font-semibold">(-) DEDUÇÕES</TableCell>
+                    {analytics.grafico_mensal.map(() => (
+                      <TableCell key={`deducoes-${Math.random()}`} className="text-right text-muted-foreground">
+                        R$ 0,00
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right bg-muted/50 text-muted-foreground">R$ 0,00</TableCell>
+                  </TableRow>
+
+                  {/* (=) RECEITA LÍQUIDA */}
+                  <TableRow className="bg-primary/10 font-bold">
+                    <TableCell className="font-bold">(=) RECEITA LÍQUIDA</TableCell>
+                    {analytics.grafico_mensal.map((mes) => (
+                      <TableCell key={`receita-liquida-${mes.periodo}`} className="text-right font-bold">
+                        R$ {mes.receitas.toFixed(2)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right font-bold bg-primary/20">
+                      R$ {analytics.totais.receitas.toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* (-) CUSTOS */}
+                  <TableRow className="bg-muted/30">
+                    <TableCell className="font-semibold">(-) CUSTOS</TableCell>
+                    {analytics.grafico_mensal.map(() => (
+                      <TableCell key={`custos-${Math.random()}`} className="text-right text-muted-foreground">
+                        R$ 0,00
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right bg-muted/50 text-muted-foreground">R$ 0,00</TableCell>
+                  </TableRow>
+
+                  {/* (=) LUCRO BRUTO */}
+                  <TableRow className="bg-primary/10 font-bold">
+                    <TableCell className="font-bold">(=) LUCRO BRUTO</TableCell>
+                    {analytics.grafico_mensal.map((mes) => {
+                      const lucroBruto = mes.receitas - mes.despesas
+                      return (
+                        <TableCell key={`lucro-bruto-${mes.periodo}`} className="text-right font-bold">
+                          R$ {lucroBruto.toFixed(2)}
+                        </TableCell>
+                      )
+                    })}
+                    <TableCell className="text-right font-bold bg-primary/20">
+                      R$ {(analytics.totais.receitas - analytics.totais.despesas).toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* (-) DESPESAS OPERACIONAIS */}
+                  <TableRow className="bg-muted/30">
+                    <TableCell className="font-semibold">(-) DESPESAS OPERACIONAIS</TableCell>
+                    {analytics.grafico_mensal.map((mes) => (
+                      <TableCell key={`despesas-op-${mes.periodo}`} className="text-right font-semibold text-red-600 dark:text-red-400">
+                        R$ {mes.despesas.toFixed(2)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right font-semibold bg-muted/50 text-red-600 dark:text-red-400">
+                      R$ {analytics.totais.despesas.toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Despesas por Categoria */}
+                  {categorias
+                    .filter(c => c.tipo === 'DESPESA' && c.ativo)
+                    .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
+                    .map(categoria => {
+                      const despesasCategoria = filteredLancamentos
+                        .filter(l => l.categoria_id === categoria.id && l.categoria_tipo === 'DESPESA')
+                      if (despesasCategoria.length === 0) return null
+                      
+                      return (
+                        <TableRow key={`cat-despesa-${categoria.id}`} className="hover:bg-muted/20">
+                          <TableCell className="pl-6 text-muted-foreground">
+                            {categoria.nome}
+                          </TableCell>
+                          {analytics.grafico_mensal.map((mes) => {
+                            const valorMes = despesasCategoria
+                              .filter(l => l.competencia === mes.periodo)
+                              .reduce((sum, l) => sum + Math.abs(l.valor), 0)
+                            return (
+                              <TableCell key={`${categoria.id}-${mes.periodo}`} className="text-right text-muted-foreground">
+                                {valorMes > 0 ? `R$ ${valorMes.toFixed(2)}` : '-'}
+                              </TableCell>
+                            )
+                          })}
+                          <TableCell className="text-right text-muted-foreground bg-muted/30">
+                            {(() => {
+                              const total = despesasCategoria.reduce((sum, l) => sum + Math.abs(l.valor), 0)
+                              return total > 0 ? `R$ ${total.toFixed(2)}` : '-'
+                            })()}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+
+                  {/* (=) RESULTADO OPERACIONAL */}
+                  <TableRow className="bg-primary/10 font-bold">
+                    <TableCell className="font-bold">(=) RESULTADO OPERACIONAL</TableCell>
+                    {analytics.grafico_mensal.map((mes) => (
+                      <TableCell key={`resultado-op-${mes.periodo}`} className={`text-right font-bold ${
+                        mes.lucro >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                      }`}>
+                        {mes.lucro >= 0 ? '+' : ''}R$ {mes.lucro.toFixed(2)}
+                      </TableCell>
+                    ))}
+                    <TableCell className={`text-right font-bold bg-primary/20 ${
+                      analytics.totais.lucro >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                    }`}>
+                      {analytics.totais.lucro >= 0 ? '+' : ''}R$ {analytics.totais.lucro.toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* (+) OUTRAS RECEITAS */}
+                  <TableRow className="bg-muted/30">
+                    <TableCell className="font-semibold">(+) OUTRAS RECEITAS</TableCell>
+                    {analytics.grafico_mensal.map(() => (
+                      <TableCell key={`outras-receitas-${Math.random()}`} className="text-right text-muted-foreground">
+                        R$ 0,00
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right bg-muted/50 text-muted-foreground">R$ 0,00</TableCell>
+                  </TableRow>
+
+                  {/* (-) OUTRAS DESPESAS */}
+                  <TableRow className="bg-muted/30">
+                    <TableCell className="font-semibold">(-) OUTRAS DESPESAS</TableCell>
+                    {analytics.grafico_mensal.map(() => (
+                      <TableCell key={`outras-despesas-${Math.random()}`} className="text-right text-muted-foreground">
+                        R$ 0,00
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right bg-muted/50 text-muted-foreground">R$ 0,00</TableCell>
+                  </TableRow>
+
+                  {/* (-) INVESTIMENTOS */}
+                  <TableRow className="bg-muted/30">
+                    <TableCell className="font-semibold">(-) INVESTIMENTOS</TableCell>
+                    {analytics.grafico_mensal.map((mes) => (
+                      <TableCell key={`investimentos-${mes.periodo}`} className="text-right font-semibold text-blue-600 dark:text-blue-400">
+                        R$ {mes.investimentos.toFixed(2)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right font-semibold bg-muted/50 text-blue-600 dark:text-blue-400">
+                      R$ {analytics.totais.investimentos.toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Investimentos por Categoria */}
+                  {categorias
+                    .filter(c => c.tipo === 'INVESTIMENTO' && c.ativo)
+                    .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
+                    .map(categoria => {
+                      const investimentosCategoria = filteredLancamentos
+                        .filter(l => l.categoria_id === categoria.id && l.categoria_tipo === 'INVESTIMENTO')
+                      if (investimentosCategoria.length === 0) return null
+                      
+                      return (
+                        <TableRow key={`cat-investimento-${categoria.id}`} className="hover:bg-muted/20">
+                          <TableCell className="pl-6 text-muted-foreground">
+                            {categoria.nome}
+                          </TableCell>
+                          {analytics.grafico_mensal.map((mes) => {
+                            const valorMes = investimentosCategoria
+                              .filter(l => l.competencia === mes.periodo)
+                              .reduce((sum, l) => sum + Math.abs(l.valor), 0)
+                            return (
+                              <TableCell key={`${categoria.id}-${mes.periodo}`} className="text-right text-muted-foreground">
+                                {valorMes > 0 ? `R$ ${valorMes.toFixed(2)}` : '-'}
+                              </TableCell>
+                            )
+                          })}
+                          <TableCell className="text-right text-muted-foreground bg-muted/30">
+                            {(() => {
+                              const total = investimentosCategoria.reduce((sum, l) => sum + Math.abs(l.valor), 0)
+                              return total > 0 ? `R$ ${total.toFixed(2)}` : '-'
+                            })()}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+
+                  {/* (=) RESULTADO LÍQUIDO */}
+                  <TableRow className="bg-primary/20 font-bold border-t-2 border-primary">
+                    <TableCell className="font-bold text-lg">(=) RESULTADO LÍQUIDO</TableCell>
+                    {analytics.grafico_mensal.map((mes) => {
+                      const resultadoLiquido = mes.lucro - mes.investimentos
+                      return (
+                        <TableCell key={`resultado-liquido-${mes.periodo}`} className={`text-right font-bold text-lg ${
+                          resultadoLiquido >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {resultadoLiquido >= 0 ? '+' : ''}R$ {resultadoLiquido.toFixed(2)}
+                        </TableCell>
+                      )
+                    })}
+                    <TableCell className={`text-right font-bold text-lg bg-primary/30 ${
+                      (analytics.totais.lucro - analytics.totais.investimentos) >= 0 
+                        ? 'text-green-600 dark:text-green-400' 
+                        : 'text-red-600 dark:text-red-400'
+                    }`}>
+                      {(analytics.totais.lucro - analytics.totais.investimentos) >= 0 ? '+' : ''}
+                      R$ {(analytics.totais.lucro - analytics.totais.investimentos).toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* (=) RESULTADO / RECEITA LÍQUIDA (%) */}
+                  <TableRow className="bg-muted/50">
+                    <TableCell className="font-semibold text-muted-foreground">(=) RESULTADO / RECEITA LÍQUIDA (%)</TableCell>
+                    {analytics.grafico_mensal.map((mes) => {
+                      const percentual = mes.receitas > 0 
+                        ? ((mes.lucro - mes.investimentos) / mes.receitas * 100) 
+                        : 0
+                      return (
+                        <TableCell key={`percentual-${mes.periodo}`} className="text-right text-muted-foreground">
+                          {percentual.toFixed(2)}%
+                        </TableCell>
+                      )
+                    })}
+                    <TableCell className="text-right bg-muted/70 text-muted-foreground">
+                      {analytics.totais.receitas > 0 
+                        ? (((analytics.totais.lucro - analytics.totais.investimentos) / analytics.totais.receitas) * 100).toFixed(2)
+                        : '0.00'
+                      }%
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nenhum dado disponível para exibir o DRE detalhado</p>
+              <p className="text-sm mt-2">Crie lançamentos para visualizar a estrutura completa do DRE</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
