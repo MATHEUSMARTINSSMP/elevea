@@ -868,6 +868,39 @@ useEffect(() => {
                     />
                   </VipGate>
                 )}
+
+                {/* Dados para Exibição - Logo após Editor de Layout */}
+                {isFeatureEnabled("color-palette") && (
+                  <VipGate
+                    enabled={vipEnabled}
+                    checking={checkingPlan && !DEV_FORCE_VIP}
+                    teaser="Edite informações básicas exibidas no site"
+                  >
+                    <DisplayDataEditor
+                      siteSlug={user.siteSlug || ""}
+                      vipPin={vipPin || "FORCED"}
+                      onDataUpdated={async () => {
+                        // Recarregar configurações após atualização
+                        try {
+                          const updatedSettings = await n8nSites.getSiteSettings(user.siteSlug || "")
+                          setSettings({
+                            showBrand: updatedSettings.showBrand,
+                            showPhone: updatedSettings.showPhone,
+                            showWhatsApp: updatedSettings.showWhatsApp,
+                            whatsAppNumber: updatedSettings.whatsAppNumber,
+                            footerText: updatedSettings.footerText,
+                            colorScheme: updatedSettings.colorScheme,
+                            theme: updatedSettings.theme,
+                            customCSS: updatedSettings.customCSS,
+                            vipPin: vipPin
+                          })
+                        } catch (err) {
+                          console.error('Erro ao recarregar configurações:', err)
+                        }
+                      }}
+                    />
+                  </VipGate>
+                )}
               </section>
             )}
 

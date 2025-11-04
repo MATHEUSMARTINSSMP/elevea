@@ -478,6 +478,14 @@ export interface SiteSettings {
   subtitleColor?: string // Cor específica do subtítulo
   shadowColor?: string
   borderColor?: string
+  // Dados para Exibição (contato e informações gerais)
+  phone?: string // Telefone para contato
+  address?: string // Endereço completo
+  instagram?: string // Instagram (@usuario ou URL)
+  facebook?: string // Facebook (URL ou página)
+  businessHours?: string // Horários de funcionamento
+  email?: string // Email de contato
+  website?: string // Website próprio (se houver)
   lastUpdated?: string
   updated_at?: string
 }
