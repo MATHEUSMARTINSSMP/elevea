@@ -463,7 +463,7 @@ export interface SiteSettings {
   showWhatsApp?: boolean
   whatsAppNumber?: string
   footerText?: string
-  colorScheme?: string
+  colorScheme?: string | null
   theme?: {
     primary?: string
     background?: string
@@ -474,6 +474,8 @@ export interface SiteSettings {
   backgroundColor?: string
   accentColor?: string
   textColor?: string
+  titleColor?: string // Cor específica do título
+  subtitleColor?: string // Cor específica do subtítulo
   shadowColor?: string
   borderColor?: string
   lastUpdated?: string
@@ -488,9 +490,14 @@ interface SettingsResponse {
 
 // Obter configurações do site
 export async function getSiteSettings(siteSlug: string): Promise<SiteSettings> {
+  if (!siteSlug || siteSlug.trim() === '') {
+    throw new Error('site_slug é obrigatório para obter configurações do site')
+  }
+
   const data = await n8nRequest<SettingsResponse>(`/get-site-settings/api/sites/${encodeURIComponent(siteSlug)}/settings`)
   return {
     ...data.settings,
+    siteSlug: siteSlug, // Garantir que siteSlug está sempre presente
     lastUpdated: data.settings.updated_at || data.settings.lastUpdated
   }
 }
@@ -500,10 +507,21 @@ export async function updateSiteSettings(
   siteSlug: string,
   updates: Partial<SiteSettings>
 ): Promise<SiteSettings> {
+  if (!siteSlug || siteSlug.trim() === '') {
+    throw new Error('site_slug é obrigatório para atualizar configurações do site')
+  }
+
+  // Garantir que site_slug está sempre incluído no payload (multi-tenancy)
+  const payload = {
+    ...updates,
+    siteSlug: siteSlug // Sempre incluir site_slug para garantir multi-tenancy
+  }
+
   const data = await n8nRequest<SettingsResponse>(`/update-site-settings/api/sites/${encodeURIComponent(siteSlug)}/settings`, {
     method: 'PUT',
-    body: JSON.stringify(updates)
+    body: JSON.stringify(payload)
   })
+  
   return {
     ...data.settings,
     lastUpdated: data.settings.updated_at || data.settings.lastUpdated

@@ -22,6 +22,7 @@ import ModernSiteEditor from "./components/ModernSiteEditor";
 import FinanceiroSection from "./components/FinanceiroSection";
 import EditorConteudoSection from "./components/EditorConteudoSection";
 import FeedbackSection from "./components/FeedbackSection";
+import LayoutEditor from "./components/LayoutEditor";
 import ThemeToggle from "@/components/ThemeToggle";
 import * as n8nSites from "@/lib/n8n-sites";
 
@@ -834,6 +835,39 @@ useEffect(() => {
                     console.log('Conteúdo atualizado:', { sectionId, field, value })
                   }}
                 />
+                
+                {/* Editor de Layout - Logo após Editor de Conteúdo */}
+                {isFeatureEnabled("color-palette") && (
+                  <VipGate
+                    enabled={vipEnabled}
+                    checking={checkingPlan && !DEV_FORCE_VIP}
+                    teaser="Personalize cores e layout do seu site"
+                  >
+                    <LayoutEditor
+                      siteSlug={user.siteSlug || ""}
+                      vipPin={vipPin || "FORCED"}
+                      onSettingsUpdated={async () => {
+                        // Recarregar configurações após atualização
+                        try {
+                          const updatedSettings = await n8nSites.getSiteSettings(user.siteSlug || "")
+                          setSettings({
+                            showBrand: updatedSettings.showBrand,
+                            showPhone: updatedSettings.showPhone,
+                            showWhatsApp: updatedSettings.showWhatsApp,
+                            whatsAppNumber: updatedSettings.whatsAppNumber,
+                            footerText: updatedSettings.footerText,
+                            colorScheme: updatedSettings.colorScheme,
+                            theme: updatedSettings.theme,
+                            customCSS: updatedSettings.customCSS,
+                            vipPin: vipPin
+                          })
+                        } catch (err) {
+                          console.error('Erro ao recarregar configurações:', err)
+                        }
+                      }}
+                    />
+                  </VipGate>
+                )}
               </section>
             )}
 
@@ -925,70 +959,7 @@ useEffect(() => {
                         </div>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Paleta de cores</label>
-                        <div className="grid grid-cols-2 gap-3">
-                          <button
-                            onClick={() => saveSettings({ colorScheme: "azul" })}
-                            className={`flex items-center gap-2 p-2 rounded text-xs ${
-                              settings.colorScheme === "azul" ? "bg-blue-100 text-blue-800" : "bg-slate-100"
-                            }`}
-                            data-testid="button-color-azul"
-                          >
-                            <div className="flex gap-1">
-                              <div className="w-4 h-4 rounded bg-blue-500"></div>
-                              <div className="w-4 h-4 rounded bg-blue-600"></div>
-                              <div className="w-4 h-4 rounded bg-blue-700"></div>
-                            </div>
-                            Azul Futurista
-                          </button>
-
-                          <button
-                            onClick={() => saveSettings({ colorScheme: "roxo" })}
-                            className={`flex items-center gap-2 p-2 rounded text-xs ${
-                              settings.colorScheme === "roxo" ? "bg-purple-100 text-purple-800" : "bg-slate-100"
-                            }`}
-                            data-testid="button-color-roxo"
-                          >
-                            <div className="flex gap-1">
-                              <div className="w-4 h-4 rounded bg-purple-500"></div>
-                              <div className="w-4 h-4 rounded bg-purple-600"></div>
-                              <div className="w-4 h-4 rounded bg-purple-700"></div>
-                            </div>
-                            Roxo Premium
-                          </button>
-
-                          <button
-                            onClick={() => saveSettings({ colorScheme: "verde" })}
-                            className={`flex items-center gap-2 p-2 rounded text-xs ${
-                              settings.colorScheme === "verde" ? "bg-teal-100 text-teal-800" : "bg-slate-100"
-                            }`}
-                            data-testid="button-color-verde"
-                          >
-                            <div className="flex gap-1">
-                              <div className="w-4 h-4 rounded bg-teal-500"></div>
-                              <div className="w-4 h-4 rounded bg-teal-600"></div>
-                              <div className="w-4 h-4 rounded bg-teal-700"></div>
-                            </div>
-                            Verde Tech
-                          </button>
-
-                          <button
-                            onClick={() => saveSettings({ colorScheme: "laranja" })}
-                            className={`flex items-center gap-2 p-2 rounded text-xs ${
-                              settings.colorScheme === "laranja" ? "bg-orange-100 text-orange-800" : "bg-slate-100"
-                            }`}
-                            data-testid="button-color-laranja"
-                          >
-                            <div className="flex gap-1">
-                              <div className="w-4 h-4 rounded bg-orange-500"></div>
-                              <div className="w-4 h-4 rounded bg-orange-600"></div>
-                              <div className="w-4 h-4 rounded bg-orange-700"></div>
-                            </div>
-                            Laranja Energia
-                          </button>
-                        </div>
-                      </div>
+                      {/* Paleta de cores removida - agora gerenciada via LayoutEditor */}
 
                       {saving && (
                         <div className="flex items-center gap-2 text-blue-600 text-sm">
