@@ -20,6 +20,8 @@ import TemplateMarketplace from "./components/TemplateMarketplace";
 import AuditLogs from "./components/AuditLogs";
 import ModernSiteEditor from "./components/ModernSiteEditor";
 import FinanceiroSection from "./components/FinanceiroSection";
+import EditorConteudoSection from "./components/EditorConteudoSection";
+import FeedbackSection from "./components/FeedbackSection";
 import ThemeToggle from "@/components/ThemeToggle";
 import * as n8nSites from "@/lib/n8n-sites";
 
