@@ -358,7 +358,7 @@ export default function DRE() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {/* RECEITA BRUTA */}
+                  {/* 1. RECEITA BRUTA */}
                   <TableRow className="bg-muted/30">
                     <TableCell className="font-bold">RECEITA BRUTA</TableCell>
                     {analytics.grafico_mensal.map((mes) => (
@@ -405,9 +405,9 @@ export default function DRE() {
                       )
                     })}
 
-                  {/* (-) DEDUÇÕES */}
+                  {/* 2. (-) DEDUÇÕES DA RECEITA BRUTA */}
                   <TableRow className="bg-muted/30">
-                    <TableCell className="font-semibold">(-) DEDUÇÕES</TableCell>
+                    <TableCell className="font-semibold">(-) DEDUÇÕES DA RECEITA BRUTA</TableCell>
                     {analytics.grafico_mensal.map(() => (
                       <TableCell key={`deducoes-${Math.random()}`} className="text-right text-muted-foreground">
                         R$ 0,00
@@ -416,7 +416,7 @@ export default function DRE() {
                     <TableCell className="text-right bg-muted/50 text-muted-foreground">R$ 0,00</TableCell>
                   </TableRow>
 
-                  {/* (=) RECEITA LÍQUIDA */}
+                  {/* 3. (=) RECEITA LÍQUIDA */}
                   <TableRow className="bg-primary/10 font-bold">
                     <TableCell className="font-bold">(=) RECEITA LÍQUIDA</TableCell>
                     {analytics.grafico_mensal.map((mes) => (
@@ -429,9 +429,9 @@ export default function DRE() {
                     </TableCell>
                   </TableRow>
 
-                  {/* (-) CUSTOS */}
+                  {/* 4. (-) CUSTO DAS MERCADORIAS / PRODUTOS / SERVIÇOS (CMV/CPV/CSV) */}
                   <TableRow className="bg-muted/30">
-                    <TableCell className="font-semibold">(-) CUSTOS</TableCell>
+                    <TableCell className="font-semibold">(-) CUSTO DAS MERCADORIAS / PRODUTOS / SERVIÇOS</TableCell>
                     {analytics.grafico_mensal.map(() => (
                       <TableCell key={`custos-${Math.random()}`} className="text-right text-muted-foreground">
                         R$ 0,00
@@ -439,12 +439,59 @@ export default function DRE() {
                     ))}
                     <TableCell className="text-right bg-muted/50 text-muted-foreground">R$ 0,00</TableCell>
                   </TableRow>
+                  
+                  {/* Categorias de Custo (ex: Compras de Mercadorias) */}
+                  {categorias
+                    .filter(c => {
+                      // Identificar categorias que são custos (CMV/CPV/CSV)
+                      const nomeLower = c.nome.toLowerCase()
+                      return c.tipo === 'DESPESA' && c.ativo && (
+                        nomeLower.includes('custo') || 
+                        nomeLower.includes('cmv') || 
+                        nomeLower.includes('cpv') || 
+                        nomeLower.includes('csv') ||
+                        nomeLower.includes('compras de mercadorias') ||
+                        nomeLower.includes('custo de') ||
+                        nomeLower.includes('mercadoria')
+                      )
+                    })
+                    .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
+                    .map(categoria => {
+                      const custosCategoria = filteredLancamentos
+                        .filter(l => l.categoria_id === categoria.id && l.categoria_tipo === 'DESPESA')
+                      if (custosCategoria.length === 0) return null
+                      
+                      return (
+                        <TableRow key={`cat-custo-${categoria.id}`} className="hover:bg-muted/20">
+                          <TableCell className="pl-6 text-muted-foreground">
+                            {categoria.nome}
+                          </TableCell>
+                          {analytics.grafico_mensal.map((mes) => {
+                            const valorMes = custosCategoria
+                              .filter(l => l.competencia === mes.periodo)
+                              .reduce((sum, l) => sum + Math.abs(l.valor), 0)
+                            return (
+                              <TableCell key={`${categoria.id}-${mes.periodo}`} className="text-right text-muted-foreground">
+                                {valorMes > 0 ? `R$ ${valorMes.toFixed(2)}` : '-'}
+                              </TableCell>
+                            )
+                          })}
+                          <TableCell className="text-right text-muted-foreground bg-muted/30">
+                            {(() => {
+                              const total = custosCategoria.reduce((sum, l) => sum + Math.abs(l.valor), 0)
+                              return total > 0 ? `R$ ${total.toFixed(2)}` : '-'
+                            })()}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
 
-                  {/* (=) LUCRO BRUTO */}
+                  {/* 5. (=) LUCRO BRUTO */}
                   <TableRow className="bg-primary/10 font-bold">
                     <TableCell className="font-bold">(=) LUCRO BRUTO</TableCell>
                     {analytics.grafico_mensal.map((mes) => {
-                      const lucroBruto = mes.receitas - mes.despesas
+                      // Lucro Bruto = Receita Líquida - Custos (assumindo custos = 0 por enquanto, já que não temos separação clara)
+                      const lucroBruto = mes.receitas - 0 // TODO: adicionar cálculo real de custos quando houver
                       return (
                         <TableCell key={`lucro-bruto-${mes.periodo}`} className="text-right font-bold">
                           R$ {lucroBruto.toFixed(2)}
@@ -452,11 +499,11 @@ export default function DRE() {
                       )
                     })}
                     <TableCell className="text-right font-bold bg-primary/20">
-                      R$ {(analytics.totais.receitas - analytics.totais.despesas).toFixed(2)}
+                      R$ {analytics.totais.receitas.toFixed(2)}
                     </TableCell>
                   </TableRow>
 
-                  {/* (-) DESPESAS OPERACIONAIS */}
+                  {/* 6. (-) DESPESAS OPERACIONAIS */}
                   <TableRow className="bg-muted/30">
                     <TableCell className="font-semibold">(-) DESPESAS OPERACIONAIS</TableCell>
                     {analytics.grafico_mensal.map((mes) => (
@@ -469,9 +516,20 @@ export default function DRE() {
                     </TableCell>
                   </TableRow>
 
-                  {/* Despesas por Categoria */}
+                  {/* Despesas Operacionais por Categoria (excluindo custos) */}
                   {categorias
-                    .filter(c => c.tipo === 'DESPESA' && c.ativo)
+                    .filter(c => {
+                      const nomeLower = c.nome.toLowerCase()
+                      return c.tipo === 'DESPESA' && c.ativo && !(
+                        nomeLower.includes('custo') || 
+                        nomeLower.includes('cmv') || 
+                        nomeLower.includes('cpv') || 
+                        nomeLower.includes('csv') ||
+                        nomeLower.includes('compras de mercadorias') ||
+                        nomeLower.includes('custo de') ||
+                        nomeLower.includes('mercadoria')
+                      )
+                    })
                     .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
                     .map(categoria => {
                       const despesasCategoria = filteredLancamentos
@@ -503,16 +561,21 @@ export default function DRE() {
                       )
                     })}
 
-                  {/* (=) RESULTADO OPERACIONAL */}
+                  {/* 7. (=) RESULTADO OPERACIONAL (EBIT) */}
                   <TableRow className="bg-primary/10 font-bold">
                     <TableCell className="font-bold">(=) RESULTADO OPERACIONAL</TableCell>
-                    {analytics.grafico_mensal.map((mes) => (
-                      <TableCell key={`resultado-op-${mes.periodo}`} className={`text-right font-bold ${
-                        mes.lucro >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                      }`}>
-                        {mes.lucro >= 0 ? '+' : ''}R$ {mes.lucro.toFixed(2)}
-                      </TableCell>
-                    ))}
+                    {analytics.grafico_mensal.map((mes) => {
+                      // Resultado Operacional = Lucro Bruto - Despesas Operacionais
+                      // Por enquanto, assumindo custos = 0, então: Receita - Despesas = Lucro Operacional
+                      const resultadoOperacional = mes.receitas - mes.despesas
+                      return (
+                        <TableCell key={`resultado-op-${mes.periodo}`} className={`text-right font-bold ${
+                          resultadoOperacional >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {resultadoOperacional >= 0 ? '+' : ''}R$ {resultadoOperacional.toFixed(2)}
+                        </TableCell>
+                      )
+                    })}
                     <TableCell className={`text-right font-bold bg-primary/20 ${
                       analytics.totais.lucro >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                     }`}>
@@ -520,7 +583,7 @@ export default function DRE() {
                     </TableCell>
                   </TableRow>
 
-                  {/* (+) OUTRAS RECEITAS */}
+                  {/* 8. (+) OUTRAS RECEITAS */}
                   <TableRow className="bg-muted/30">
                     <TableCell className="font-semibold">(+) OUTRAS RECEITAS</TableCell>
                     {analytics.grafico_mensal.map(() => (
@@ -531,7 +594,7 @@ export default function DRE() {
                     <TableCell className="text-right bg-muted/50 text-muted-foreground">R$ 0,00</TableCell>
                   </TableRow>
 
-                  {/* (-) OUTRAS DESPESAS */}
+                  {/* 8. (-) OUTRAS DESPESAS */}
                   <TableRow className="bg-muted/30">
                     <TableCell className="font-semibold">(-) OUTRAS DESPESAS</TableCell>
                     {analytics.grafico_mensal.map(() => (
@@ -542,58 +605,44 @@ export default function DRE() {
                     <TableCell className="text-right bg-muted/50 text-muted-foreground">R$ 0,00</TableCell>
                   </TableRow>
 
-                  {/* (-) INVESTIMENTOS */}
-                  <TableRow className="bg-muted/30">
-                    <TableCell className="font-semibold">(-) INVESTIMENTOS</TableCell>
-                    {analytics.grafico_mensal.map((mes) => (
-                      <TableCell key={`investimentos-${mes.periodo}`} className="text-right font-semibold text-blue-600 dark:text-blue-400">
-                        R$ {mes.investimentos.toFixed(2)}
-                      </TableCell>
-                    ))}
-                    <TableCell className="text-right font-semibold bg-muted/50 text-blue-600 dark:text-blue-400">
-                      R$ {analytics.totais.investimentos.toFixed(2)}
+                  {/* 9. (=) RESULTADO ANTES DOS TRIBUTOS */}
+                  <TableRow className="bg-primary/10 font-bold">
+                    <TableCell className="font-bold">(=) RESULTADO ANTES DOS TRIBUTOS</TableCell>
+                    {analytics.grafico_mensal.map((mes) => {
+                      // Resultado Antes dos Tributos = Resultado Operacional + Outras Receitas - Outras Despesas
+                      const resultadoAntesTributos = mes.receitas - mes.despesas // Simplificado (outras receitas/despesas = 0)
+                      return (
+                        <TableCell key={`resultado-antestrib-${mes.periodo}`} className={`text-right font-bold ${
+                          resultadoAntesTributos >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {resultadoAntesTributos >= 0 ? '+' : ''}R$ {resultadoAntesTributos.toFixed(2)}
+                        </TableCell>
+                      )
+                    })}
+                    <TableCell className={`text-right font-bold bg-primary/20 ${
+                      analytics.totais.lucro >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                    }`}>
+                      {analytics.totais.lucro >= 0 ? '+' : ''}R$ {analytics.totais.lucro.toFixed(2)}
                     </TableCell>
                   </TableRow>
 
-                  {/* Investimentos por Categoria */}
-                  {categorias
-                    .filter(c => c.tipo === 'INVESTIMENTO' && c.ativo)
-                    .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
-                    .map(categoria => {
-                      const investimentosCategoria = filteredLancamentos
-                        .filter(l => l.categoria_id === categoria.id && l.categoria_tipo === 'INVESTIMENTO')
-                      if (investimentosCategoria.length === 0) return null
-                      
-                      return (
-                        <TableRow key={`cat-investimento-${categoria.id}`} className="hover:bg-muted/20">
-                          <TableCell className="pl-6 text-muted-foreground">
-                            {categoria.nome}
-                          </TableCell>
-                          {analytics.grafico_mensal.map((mes) => {
-                            const valorMes = investimentosCategoria
-                              .filter(l => l.competencia === mes.periodo)
-                              .reduce((sum, l) => sum + Math.abs(l.valor), 0)
-                            return (
-                              <TableCell key={`${categoria.id}-${mes.periodo}`} className="text-right text-muted-foreground">
-                                {valorMes > 0 ? `R$ ${valorMes.toFixed(2)}` : '-'}
-                              </TableCell>
-                            )
-                          })}
-                          <TableCell className="text-right text-muted-foreground bg-muted/30">
-                            {(() => {
-                              const total = investimentosCategoria.reduce((sum, l) => sum + Math.abs(l.valor), 0)
-                              return total > 0 ? `R$ ${total.toFixed(2)}` : '-'
-                            })()}
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
+                  {/* 10. (-) TRIBUTOS SOBRE O LUCRO (IR/CSLL) */}
+                  <TableRow className="bg-muted/30">
+                    <TableCell className="font-semibold">(-) TRIBUTOS SOBRE O LUCRO</TableCell>
+                    {analytics.grafico_mensal.map(() => (
+                      <TableCell key={`tributos-${Math.random()}`} className="text-right text-muted-foreground">
+                        R$ 0,00
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right bg-muted/50 text-muted-foreground">R$ 0,00</TableCell>
+                  </TableRow>
 
-                  {/* (=) RESULTADO LÍQUIDO */}
+                  {/* 11. (=) RESULTADO LÍQUIDO DO PERÍODO */}
                   <TableRow className="bg-primary/20 font-bold border-t-2 border-primary">
-                    <TableCell className="font-bold text-lg">(=) RESULTADO LÍQUIDO</TableCell>
+                    <TableCell className="font-bold text-lg">(=) RESULTADO LÍQUIDO DO PERÍODO</TableCell>
                     {analytics.grafico_mensal.map((mes) => {
-                      const resultadoLiquido = mes.lucro - mes.investimentos
+                      // Resultado Líquido = Resultado Antes dos Tributos - Tributos sobre o Lucro
+                      const resultadoLiquido = mes.receitas - mes.despesas // Simplificado (tributos = 0)
                       return (
                         <TableCell key={`resultado-liquido-${mes.periodo}`} className={`text-right font-bold text-lg ${
                           resultadoLiquido >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
@@ -603,31 +652,76 @@ export default function DRE() {
                       )
                     })}
                     <TableCell className={`text-right font-bold text-lg bg-primary/30 ${
-                      (analytics.totais.lucro - analytics.totais.investimentos) >= 0 
+                      analytics.totais.lucro >= 0 
                         ? 'text-green-600 dark:text-green-400' 
                         : 'text-red-600 dark:text-red-400'
                     }`}>
-                      {(analytics.totais.lucro - analytics.totais.investimentos) >= 0 ? '+' : ''}
-                      R$ {(analytics.totais.lucro - analytics.totais.investimentos).toFixed(2)}
+                      {analytics.totais.lucro >= 0 ? '+' : ''}
+                      R$ {analytics.totais.lucro.toFixed(2)}
                     </TableCell>
                   </TableRow>
 
-                  {/* (=) RESULTADO / RECEITA LÍQUIDA (%) */}
+                  {/* MARGENS */}
+                  {/* Margem Bruta */}
                   <TableRow className="bg-muted/50">
-                    <TableCell className="font-semibold text-muted-foreground">(=) RESULTADO / RECEITA LÍQUIDA (%)</TableCell>
+                    <TableCell className="font-semibold text-muted-foreground">Margem Bruta (%)</TableCell>
                     {analytics.grafico_mensal.map((mes) => {
-                      const percentual = mes.receitas > 0 
-                        ? ((mes.lucro - mes.investimentos) / mes.receitas * 100) 
+                      const margemBruta = mes.receitas > 0 
+                        ? ((mes.receitas - 0) / mes.receitas * 100) // TODO: usar custos reais quando houver
                         : 0
                       return (
-                        <TableCell key={`percentual-${mes.periodo}`} className="text-right text-muted-foreground">
-                          {percentual.toFixed(2)}%
+                        <TableCell key={`margem-bruta-${mes.periodo}`} className="text-right text-muted-foreground">
+                          {margemBruta.toFixed(2)}%
                         </TableCell>
                       )
                     })}
                     <TableCell className="text-right bg-muted/70 text-muted-foreground">
                       {analytics.totais.receitas > 0 
-                        ? (((analytics.totais.lucro - analytics.totais.investimentos) / analytics.totais.receitas) * 100).toFixed(2)
+                        ? '100.00' // TODO: calcular corretamente quando houver custos
+                        : '0.00'
+                      }%
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Margem Operacional */}
+                  <TableRow className="bg-muted/50">
+                    <TableCell className="font-semibold text-muted-foreground">Margem Operacional (%)</TableCell>
+                    {analytics.grafico_mensal.map((mes) => {
+                      const resultadoOperacional = mes.receitas - mes.despesas
+                      const margemOperacional = mes.receitas > 0 
+                        ? (resultadoOperacional / mes.receitas * 100)
+                        : 0
+                      return (
+                        <TableCell key={`margem-op-${mes.periodo}`} className="text-right text-muted-foreground">
+                          {margemOperacional.toFixed(2)}%
+                        </TableCell>
+                      )
+                    })}
+                    <TableCell className="text-right bg-muted/70 text-muted-foreground">
+                      {analytics.totais.receitas > 0 
+                        ? ((analytics.totais.lucro / analytics.totais.receitas) * 100).toFixed(2)
+                        : '0.00'
+                      }%
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Margem Líquida */}
+                  <TableRow className="bg-muted/50">
+                    <TableCell className="font-semibold text-muted-foreground">Margem Líquida (%)</TableCell>
+                    {analytics.grafico_mensal.map((mes) => {
+                      const resultadoLiquido = mes.receitas - mes.despesas
+                      const margemLiquida = mes.receitas > 0 
+                        ? (resultadoLiquido / mes.receitas * 100)
+                        : 0
+                      return (
+                        <TableCell key={`margem-liquida-${mes.periodo}`} className="text-right text-muted-foreground">
+                          {margemLiquida.toFixed(2)}%
+                        </TableCell>
+                      )
+                    })}
+                    <TableCell className="text-right bg-muted/70 text-muted-foreground">
+                      {analytics.totais.receitas > 0 
+                        ? ((analytics.totais.lucro / analytics.totais.receitas) * 100).toFixed(2)
                         : '0.00'
                       }%
                     </TableCell>
