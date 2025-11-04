@@ -23,6 +23,7 @@ import FinanceiroSection from "./components/FinanceiroSection";
 import EditorConteudoSection from "./components/EditorConteudoSection";
 import FeedbackSection from "./components/FeedbackSection";
 import LayoutEditor from "./components/LayoutEditor";
+import DisplayDataEditor from "./components/DisplayDataEditor";
 import ThemeToggle from "@/components/ThemeToggle";
 import * as n8nSites from "@/lib/n8n-sites";
 
