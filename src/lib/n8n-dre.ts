@@ -160,6 +160,20 @@ function parseNumeric(value: string | number | null | undefined): number {
 /**
  * Normaliza dados de lançamento DRE retornados do n8n
  */
+function normalizeDRECategoria(data: any): DRECategoria {
+  return {
+    id: String(data.id || data.categoria_id || ''),
+    nome: String(data.nome || ''),
+    tipo: (data.tipo || 'DESPESA') as TipoLancamentoDRE,
+    descricao: data.descricao || null,
+    ordem: Number(data.ordem || 0),
+    ativo: Boolean(data.ativo !== undefined ? data.ativo : true),
+    site_slug: String(data.site_slug || ''),
+    created_at: data.created_at || data.createdAt || new Date().toISOString(),
+    updated_at: data.updated_at || data.updatedAt || data.created_at || data.createdAt || new Date().toISOString()
+  }
+}
+
 function normalizeDRELancamento(data: any): DRELancamento {
   return {
     ...data,
@@ -171,6 +185,16 @@ export async function getUserSiteSlug(providedSlug?: string): Promise<string> {
   if (providedSlug) return providedSlug
   
   try {
+    // Tentar buscar de 'auth' (onde useAuth salva)
+    const authData = localStorage.getItem('auth')
+    if (authData) {
+      const parsed = JSON.parse(authData)
+      if (parsed.siteSlug || parsed.site_slug) {
+        return parsed.siteSlug || parsed.site_slug
+      }
+    }
+    
+    // Fallback para outras chaves
     const stored = localStorage.getItem('elevea:user') || localStorage.getItem('elevea:siteSlug')
     if (stored) {
       const parsed = JSON.parse(stored)
@@ -192,11 +216,17 @@ export async function getDRECategorias(filters?: {
   tipo?: TipoLancamentoDRE
   ativo?: boolean
   pesquisa?: string
+  incluir_predefinidas?: boolean // Incluir categorias pré-programadas (globais)
 }): Promise<DRECategoria[]> {
   const slug = filters?.site_slug || await getUserSiteSlug()
   
   const params = new URLSearchParams()
+  // Sempre incluir site_slug para buscar categorias do cliente + pré-programadas
+  // Se incluir_predefinidas = true, o backend retorna categorias globais + do cliente
   if (slug) params.append('site_slug', slug)
+  if (filters?.incluir_predefinidas !== undefined) {
+    params.append('incluir_predefinidas', String(filters.incluir_predefinidas))
+  }
   if (filters?.tipo) params.append('tipo', filters.tipo)
   if (filters?.ativo !== undefined) params.append('ativo', String(filters.ativo))
   if (filters?.pesquisa) params.append('pesquisa', filters.pesquisa)
@@ -209,7 +239,7 @@ export async function getDRECategorias(filters?: {
     method: 'GET'
   })
   
-  return (data.data || []).map(normalizeDRELancamento)
+  return (data.data || []).map(normalizeDRECategoria)
 }
 
 export async function createDRECategoria(data: {
@@ -217,9 +247,18 @@ export async function createDRECategoria(data: {
   tipo: TipoLancamentoDRE
   descricao?: string
   ordem?: number
+  ativo?: boolean
   site_slug?: string
+  is_custom?: boolean // Indica se é categoria customizada (true) ou pré-programada (false)
 }): Promise<DRECategoria> {
+  // Categorias customizadas sempre requerem site_slug
+  // Categorias pré-programadas são criadas apenas no backend (não pelo frontend)
+  // O frontend só cria categorias customizadas (is_custom = true por padrão)
   const site_slug = await getUserSiteSlug(data.site_slug)
+  
+  if (!site_slug) {
+    throw new Error('site_slug é obrigatório para criar categoria DRE customizada')
+  }
   
   const result = await n8nRequest<{
     success: boolean
@@ -228,12 +267,21 @@ export async function createDRECategoria(data: {
   }>(`/api/financeiro/dre/categorias`, {
     method: 'POST',
     body: JSON.stringify({
-      ...data,
-      site_slug
+      nome: data.nome,
+      tipo: data.tipo,
+      descricao: data.descricao || null,
+      ordem: data.ordem || 0,
+      ativo: data.ativo !== undefined ? data.ativo : true,
+      site_slug, // Sempre obrigatório para categorias customizadas
+      is_custom: true // Frontend sempre cria categorias customizadas
     })
   })
   
-  return normalizeDRELancamento(result.data)
+  if (!result.success) {
+    throw new Error(result.error || 'Erro ao criar categoria DRE customizada')
+  }
+  
+  return result.data
 }
 
 export async function updateDRECategoria(
@@ -249,7 +297,7 @@ export async function updateDRECategoria(
     body: JSON.stringify(updates)
   })
   
-  return normalizeDRELancamento(result.data)
+  return normalizeDRECategoria(result.data)
 }
 
 export async function deleteDRECategoria(id: string): Promise<void> {
@@ -295,11 +343,41 @@ export async function createDRELancamento(data: {
   descricao: string
   valor: number
   competencia: string
+  data_lancamento: string // YYYY-MM-DD - OBRIGATÓRIO conforme especificação
   observacoes?: string
   site_slug?: string
   created_by_id?: string
 }): Promise<DRELancamento> {
   const site_slug = await getUserSiteSlug(data.site_slug)
+  
+  if (!site_slug) {
+    throw new Error('site_slug é obrigatório para criar lançamento DRE')
+  }
+  
+  if (!data.data_lancamento) {
+    throw new Error('data_lancamento é obrigatório e deve estar no formato YYYY-MM-DD')
+  }
+  
+  // Garantir que data_lancamento está no formato YYYY-MM-DD
+  let dataLancamentoFormatada = data.data_lancamento
+  if (dataLancamentoFormatada.includes('T')) {
+    dataLancamentoFormatada = dataLancamentoFormatada.split('T')[0]
+  }
+  
+  // Validar formato YYYY-MM-DD
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataLancamentoFormatada)) {
+    throw new Error('data_lancamento deve estar no formato YYYY-MM-DD')
+  }
+  
+  // Normalizar e validar competencia no formato YYYYMM
+  let competenciaFormatada = data.competencia
+  if (competenciaFormatada.includes('-') || competenciaFormatada.includes('/')) {
+    competenciaFormatada = competenciaFormatada.replace(/[-/]/g, '').substring(0, 6)
+  }
+  
+  if (!competenciaFormatada || competenciaFormatada.length !== 6 || !/^\d{6}$/.test(competenciaFormatada)) {
+    throw new Error('competencia é obrigatória e deve estar no formato YYYYMM (ex: "202511")')
+  }
   
   const result = await n8nRequest<{
     success: boolean
@@ -308,10 +386,20 @@ export async function createDRELancamento(data: {
   }>(`/api/financeiro/dre/lancamentos`, {
     method: 'POST',
     body: JSON.stringify({
-      ...data,
-      site_slug
+      categoria_id: data.categoria_id,
+      descricao: data.descricao,
+      valor: data.valor,
+      competencia: competenciaFormatada, // YYYYMM formatado
+      data_lancamento: dataLancamentoFormatada, // YYYY-MM-DD formatado
+      observacoes: data.observacoes || null,
+      site_slug,
+      created_by_id: data.created_by_id || null
     })
   })
+  
+  if (!result.success) {
+    throw new Error(result.error || 'Erro ao criar lançamento DRE')
+  }
   
   return normalizeDRELancamento(result.data)
 }
@@ -388,9 +476,26 @@ export async function calcularDRE(
 ): Promise<DRECalculo> {
   const slug = await getUserSiteSlug(site_slug)
   
+  if (!slug) {
+    throw new Error('site_slug é obrigatório para calcular DRE')
+  }
+  
   const params = new URLSearchParams()
-  if (slug) params.append('site_slug', slug)
-  if (competencia) params.append('competencia', competencia)
+  params.append('site_slug', slug)
+  
+  // Normalizar e validar competencia no formato YYYYMM se fornecida
+  if (competencia) {
+    let competenciaFormatada = competencia
+    if (competencia.includes('-') || competencia.includes('/')) {
+      competenciaFormatada = competencia.replace(/[-/]/g, '').substring(0, 6)
+    }
+    
+    if (competenciaFormatada.length !== 6 || !/^\d{6}$/.test(competenciaFormatada)) {
+      throw new Error('competencia deve estar no formato YYYYMM (ex: "202511")')
+    }
+    
+    params.append('competencia', competenciaFormatada)
+  }
   
   const data = await n8nRequest<{
     success: boolean
@@ -474,15 +579,55 @@ export interface DREAnalytics {
 
 export async function getDREAnalytics(filters?: {
   site_slug?: string
-  periodo_inicio?: string // formato YYYYMM
-  periodo_fim?: string // formato YYYYMM
+  periodo_inicio?: string // formato YYYY-MM-DD conforme especificação
+  periodo_fim?: string // formato YYYY-MM-DD conforme especificação
 }): Promise<DREAnalytics> {
   const slug = await getUserSiteSlug(filters?.site_slug)
   
+  if (!slug) {
+    throw new Error('site_slug é obrigatório para obter analytics DRE')
+  }
+  
   const params = new URLSearchParams()
-  if (slug) params.append('site_slug', slug)
-  if (filters?.periodo_inicio) params.append('periodo_inicio', filters.periodo_inicio)
-  if (filters?.periodo_fim) params.append('periodo_fim', filters.periodo_fim)
+  params.append('site_slug', slug)
+  
+  // Validar e formatar datas se fornecidas
+  if (filters?.periodo_inicio) {
+    // Garantir formato YYYY-MM-DD
+    let periodoInicio = filters.periodo_inicio
+    if (periodoInicio.includes('T')) {
+      periodoInicio = periodoInicio.split('T')[0]
+    }
+    // Se vier como YYYYMM, converter para YYYY-MM-DD (primeiro dia do mês)
+    if (/^\d{6}$/.test(periodoInicio)) {
+      const ano = periodoInicio.substring(0, 4)
+      const mes = periodoInicio.substring(4, 6)
+      periodoInicio = `${ano}-${mes}-01`
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(periodoInicio)) {
+      throw new Error('periodo_inicio deve estar no formato YYYY-MM-DD')
+    }
+    params.append('periodo_inicio', periodoInicio)
+  }
+  
+  if (filters?.periodo_fim) {
+    // Garantir formato YYYY-MM-DD
+    let periodoFim = filters.periodo_fim
+    if (periodoFim.includes('T')) {
+      periodoFim = periodoFim.split('T')[0]
+    }
+    // Se vier como YYYYMM, converter para YYYY-MM-DD (último dia do mês)
+    if (/^\d{6}$/.test(periodoFim)) {
+      const ano = periodoFim.substring(0, 4)
+      const mes = periodoFim.substring(4, 6)
+      const ultimoDia = new Date(parseInt(ano), parseInt(mes), 0).getDate()
+      periodoFim = `${ano}-${mes}-${String(ultimoDia).padStart(2, '0')}`
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(periodoFim)) {
+      throw new Error('periodo_fim deve estar no formato YYYY-MM-DD')
+    }
+    params.append('periodo_fim', periodoFim)
+  }
   
   const data = await n8nRequest<{
     success: boolean

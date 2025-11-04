@@ -76,7 +76,12 @@ export default function GerenciarColaboradoras() {
     try {
       const cols = await financeiro.getColaboradoras()
       const hoje = new Date()
+      // Formato YYYYMM (ex: "202501")
       const competencia = `${hoje.getFullYear()}${String(hoje.getMonth() + 1).padStart(2, '0')}`
+      
+      if (!competencia || competencia.length !== 6 || !/^\d{6}$/.test(competencia)) {
+        throw new Error('Erro ao gerar competência no formato YYYYMM')
+      }
 
       const colsComLimites = await Promise.all(
         cols.map(async (col) => {

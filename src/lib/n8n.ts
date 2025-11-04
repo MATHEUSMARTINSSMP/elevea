@@ -77,8 +77,19 @@ export const n8n = {
   submitFeedback: (data: { site_slug: string; client_name: string; client_email?: string; rating: number; comment: string; source?: string }) => 
     post("/api/feedback/submit", data),
   
-  listFeedbacks: (params: { site_slug: string; limit?: number; status?: string; page?: number }) => 
-    get(`/api/feedback/list?${new URLSearchParams(params as any).toString()}`),
+  listFeedbacks: (params: { site_slug: string; limit?: number; status?: string; offset?: number }) => {
+    // Converter page para offset se necessário (page * limit = offset)
+    const queryParams: any = { site_slug: params.site_slug }
+    if (params.limit) queryParams.limit = params.limit
+    if (params.status) queryParams.status = params.status
+    if (params.offset !== undefined) queryParams.offset = params.offset
+    // Compatibilidade: se receber page, converter para offset (assumindo limit padrão de 50)
+    const page = (params as any).page
+    if (page !== undefined && params.offset === undefined) {
+      queryParams.offset = (page - 1) * (params.limit || 50)
+    }
+    return get(`/api/feedback/list?${new URLSearchParams(queryParams).toString()}`)
+  },
   
   approveFeedback: (data: { feedbackId: string; site_slug: string; approved_by: string }) => 
     post("/api/feedback/approve", data),

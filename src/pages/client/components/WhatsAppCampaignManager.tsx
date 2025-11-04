@@ -51,37 +51,40 @@ export default function WhatsAppCampaignManager({ siteSlug, vipPin }: WhatsAppCa
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
 
-  // Mock campaigns para visualização
+  // Carregar campanhas reais do n8n
   React.useEffect(() => {
-    setTimeout(() => {
-      setCampaigns([
-        {
-          id: '1',
-          name: 'Campanha Black Friday',
-          templateName: 'promocao_blackfriday',
-          status: 'completed',
-          totalRecipients: 1500,
-          sentCount: 1500,
-          deliveredCount: 1480,
-          readCount: 856,
-          createdAt: '2025-10-25T10:00:00Z',
-        },
-        {
-          id: '2',
-          name: 'Lembrete de Agendamento',
-          templateName: 'lembrete_consulta',
-          status: 'scheduled',
-          totalRecipients: 450,
-          sentCount: 0,
-          deliveredCount: 0,
-          readCount: 0,
-          scheduledAt: '2025-11-02T09:00:00Z',
-          createdAt: '2025-10-28T14:30:00Z',
-        },
-      ]);
-      setLoading(false);
-    }, 1000);
-  }, []);
+    loadCampaigns()
+  }, [siteSlug])
+
+  const loadCampaigns = async () => {
+    try {
+      setLoading(true)
+      // TODO: Implementar chamada para n8n webhook de campanhas quando disponível
+      // Por enquanto, deixar vazio para não usar dados mock
+      setCampaigns([])
+    } catch (err: any) {
+      console.error('Erro ao carregar campanhas:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  // Dados mock removidos - usar dados reais do n8n quando disponível
+  // Exemplo de estrutura esperada (quando implementado):
+  /*
+  {
+    id: string,
+    name: string,
+    templateName: string,
+    status: 'completed' | 'scheduled' | 'draft',
+    totalRecipients: number,
+    sentCount: number,
+    deliveredCount: number,
+    readCount: number,
+    createdAt: string,
+    scheduledAt?: string
+  }
+  */
 
   const getStatusBadge = (status: CampaignStatus) => {
     const config = {

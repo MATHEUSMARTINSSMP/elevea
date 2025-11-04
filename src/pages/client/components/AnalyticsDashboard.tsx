@@ -404,16 +404,18 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
     views: page.views || 0
   })) || [];
 
-  // Dados temporários para seções não implementadas no n8n
-  const mockCountryBreakdown = [
-    { country: 'Brasil', users: 2 },
-    { country: 'Estados Unidos', users: 1 }
-  ];
+  // Processar dados reais de países do n8n (se disponível)
+  const processedCountryBreakdown = data.countryBreakdown?.map((country: any) => ({
+    country: country.country || country.name || 'Desconhecido',
+    users: country.users || country.count || 0
+  })) || [];
 
-  const mockTrafficSources = [
-    { source: 'Google', users: 2, percentage: 66.7 },
-    { source: 'Direct', users: 1, percentage: 33.3 }
-  ];
+  // Processar dados reais de fontes de tráfego do n8n (se disponível)
+  const processedTrafficSources = data.trafficSources?.map((source: any) => ({
+    source: source.source || source.name || 'Desconhecido',
+    users: source.users || source.count || 0,
+    percentage: source.percentage || 0
+  })) || [];
 
   // Debug logs para verificar dados dos gráficos
   console.log('🔍 GRÁFICOS DEBUG:', {
@@ -817,7 +819,8 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {mockTrafficSources.slice(0, 6).map((source, index) => (
+            {processedTrafficSources.length > 0 ? (
+              processedTrafficSources.slice(0, 6).map((source, index) => (
               <div key={source.source} className="dashboard-card/50 rounded-xl p-4 border dashboard-border hover:bg-dashboard-hover transition-colors dashboard-shadow">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
@@ -901,7 +904,14 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                   ></div>
                 </div>
               </div>
-            ))}
+            ))
+            ) : (
+              <div className="col-span-full text-center py-8">
+                <ExternalLinkIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="dashboard-text-muted mb-2">Nenhuma fonte de tráfego registrada ainda</p>
+                <p className="text-sm dashboard-text-subtle">Os dados aparecerão aqui quando houver visitas ao site</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1072,7 +1082,8 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
         <div>
           <h3 className="font-semibold text-sm sm:text-base mb-3 sm:mb-4">Países</h3>
           <div className="space-y-2">
-            {mockCountryBreakdown.slice(0, 5).map((country, index) => (
+            {processedCountryBreakdown.length > 0 ? (
+              processedCountryBreakdown.slice(0, 5).map((country, index) => (
               <div key={country.country} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
                 <div className="flex items-center gap-2">
                   <div 
@@ -1083,7 +1094,13 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                 </div>
                 <span className="text-sm font-medium dashboard-text">{formatNumber(country.users)}</span>
               </div>
-            ))}
+            ))
+            ) : (
+              <div className="text-center py-4">
+                <GlobeIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm dashboard-text-muted">Nenhum dado de país disponível</p>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>

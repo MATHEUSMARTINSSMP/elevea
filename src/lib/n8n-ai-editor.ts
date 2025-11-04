@@ -146,6 +146,11 @@ export async function previewAIEdit(
   command: string,
   vipPin?: string
 ): Promise<AISiteEditPreview> {
+  // Validar site_slug obrigatório
+  if (!siteSlug || siteSlug.trim() === '') {
+    throw new Error('site_slug é obrigatório para preview de edição IA')
+  }
+  
   const data = await n8nRequest<{
     success: boolean
     preview?: AISiteEditPreview
@@ -199,6 +204,11 @@ export async function executeAIEdit(
   confirmPreview: boolean = true,
   vipPin?: string
 ): Promise<AISiteEditResponse> {
+  // Validar site_slug obrigatório
+  if (!siteSlug || siteSlug.trim() === '') {
+    throw new Error('site_slug é obrigatório para executar edição IA')
+  }
+  
   const data = await n8nRequest<AISiteEditResponse>(
     `/ai-site-editor-execute/ai-site-editor-execute/api/sites/${encodeURIComponent(siteSlug)}/ai-edit/execute`,
     {
@@ -242,6 +252,11 @@ export interface AIEditHistoryResponse {
 }
 
 export async function getAIEditHistory(siteSlug: string): Promise<AIEditHistory[]> {
+  // Validar site_slug obrigatório
+  if (!siteSlug || siteSlug.trim() === '') {
+    throw new Error('site_slug é obrigatório para obter histórico de edições IA')
+  }
+  
   const data = await n8nRequest<AIEditHistoryResponse>(
     `/ai-site-editor-history/ai-site-editor-history/api/sites/${encodeURIComponent(siteSlug)}/ai-edit/history`,
     {

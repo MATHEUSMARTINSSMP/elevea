@@ -124,11 +124,40 @@ function getUTMParams() {
   };
 }
 
+// Função para obter site_slug do localStorage (multi-tenant)
+async function getSiteSlug(): Promise<string> {
+  try {
+    const authData = localStorage.getItem('auth')
+    if (authData) {
+      const parsed = JSON.parse(authData)
+      if (parsed.siteSlug || parsed.site_slug) {
+        return parsed.siteSlug || parsed.site_slug
+      }
+    }
+    
+    const stored = localStorage.getItem('elevea:user') || localStorage.getItem('elevea:siteSlug')
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      return parsed.siteSlug || parsed.site_slug || ''
+    }
+  } catch (err) {
+    console.warn('[analytics] Erro ao obter site_slug do localStorage:', err)
+  }
+  
+  return ''
+}
+
 // Enviar hit para o n8n (pageview)
 export async function recordHit(data: Partial<AnalyticsHit> = {}) {
   try {
     const deviceInfo = getDeviceInfo();
-    const siteSlug = data.site_slug || window.location.hostname;
+    const siteSlug = data.site_slug || await getSiteSlug()
+    
+    // Não registrar se não houver site_slug (multi-tenant obrigatório)
+    if (!siteSlug) {
+      console.warn('[analytics] recordHit ignorado - site_slug não fornecido')
+      return { ok: true, message: 'Analytics ignorado - site_slug não fornecido' }
+    }
     
     // Formato esperado pelo webhook n8n (conforme código do workflow)
     const hitData = {
@@ -172,12 +201,12 @@ export async function recordHit(data: Partial<AnalyticsHit> = {}) {
 export async function recordEvent(data: AnalyticsEvent & { site_slug?: string; path?: string; referrer?: string }) {
   try {
     const deviceInfo = getDeviceInfo();
-    const siteSlug = data.site_slug || window.location.hostname;
+    const siteSlug = data.site_slug || await getSiteSlug()
     
-    // Se não tem site, não registrar evento
+    // Se não tem site, não registrar evento (multi-tenant obrigatório)
     if (!siteSlug) {
-      console.warn('Analytics ignorado - site não fornecido');
-      return { ok: true, message: 'Analytics ignorado' };
+      console.warn('[analytics] recordEvent ignorado - site_slug não fornecido');
+      return { ok: true, message: 'Analytics ignorado - site_slug não fornecido' };
     }
     
     // Formato esperado pelo webhook n8n (conforme código do workflow)
@@ -486,13 +515,22 @@ export async function submitFeedback(data: {
   site_slug?: string;
 }) {
   try {
+    const siteSlug = data.site_slug || await getSiteSlug()
+    
+    if (!siteSlug) {
+      throw new Error('site_slug é obrigatório para enviar feedback')
+    }
+    
     const response = await fetch(FEEDBACK_URL, {
       method: 'POST',
       headers: analyticsHeaders(),
       body: JSON.stringify({
-        action: 'feedback_submit',
-        ...data,
-        site_slug: data.site_slug || window.location.hostname
+        site_slug: siteSlug,
+        client_name: data.name, // Mapear name -> client_name conforme especificação
+        client_email: data.email || null,
+        rating: data.rating,
+        comment: data.message, // Mapear message -> comment conforme especificação
+        source: 'website'
       })
     });
 

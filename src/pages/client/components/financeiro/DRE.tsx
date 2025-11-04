@@ -91,7 +91,7 @@ export default function DRE() {
     setLoading(true)
     try {
       const [cats, lancs] = await Promise.all([
-        dre.getDRECategorias().catch(() => []),
+        dre.getDRECategorias({ incluir_predefinidas: true }).catch(() => []),
         dre.getDRELancamentos().catch(() => [])
       ])
 
@@ -157,11 +157,16 @@ export default function DRE() {
         return
       }
 
+      // Garantir data_lancamento no formato YYYY-MM-DD (obrigatório conforme especificação)
+      const hoje = new Date()
+      const dataLancamento = hoje.toISOString().split('T')[0] // YYYY-MM-DD
+      
       await dre.createDRELancamento({
         categoria_id: formData.categoria_id,
         descricao: formData.descricao,
         valor: parseFloat(formData.valor) || 0,
         competencia: competenciaNormalizada,
+        data_lancamento: dataLancamento, // OBRIGATÓRIO conforme especificação
         observacoes: formData.observacoes
       })
       toast.success('Lançamento DRE criado com sucesso!')

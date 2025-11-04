@@ -408,11 +408,16 @@ export async function deleteColaboradora(id: string): Promise<void> {
 export async function getStores(site_slug?: string): Promise<Store[]> {
   const slug = site_slug || await getUserSiteSlug()
   
+  if (!slug) {
+    console.warn('[n8n-financeiro] getStores: site_slug não fornecido')
+    return []
+  }
+  
   const data = await n8nRequest<{
     success: boolean
     data: Store[]
     error?: string
-  }>(`/api/financeiro/stores${slug ? `?site_slug=${encodeURIComponent(slug)}` : ''}`, {
+  }>(`/api/financeiro/stores?site_slug=${encodeURIComponent(slug)}`, {
     method: 'GET'
   })
   
@@ -426,6 +431,10 @@ export async function createStore(data: {
 }): Promise<Store> {
   const site_slug = await getUserSiteSlug(data.site_slug)
   
+  if (!site_slug) {
+    throw new Error('site_slug é obrigatório para criar store')
+  }
+  
   const result = await n8nRequest<{
     success: boolean
     data: Store
@@ -433,10 +442,15 @@ export async function createStore(data: {
   }>(`/api/financeiro/stores`, {
     method: 'POST',
     body: JSON.stringify({
-      ...data,
+      name: data.name,
+      active: data.active !== undefined ? data.active : true,
       site_slug
     })
   })
+  
+  if (!result.success) {
+    throw new Error(result.error || 'Erro ao criar store')
+  }
   
   return result.data
 }
@@ -520,7 +534,7 @@ export async function getCompras(filters?: {
 export async function createCompra(data: {
   colaboradora_id: string
   loja_id: string
-  data_compra: string
+  data_compra: string // YYYY-MM-DD conforme especificação
   item: string
   preco_venda: number
   desconto_beneficio: number
@@ -540,8 +554,16 @@ export async function createCompra(data: {
     throw new Error('primeiro_mes é obrigatório e deve estar no formato YYYYMM (ex: "202501")')
   }
   
-  // Calcular preco_final
-  const preco_final = data.preco_venda - data.desconto_beneficio
+  // Garantir que data_compra está no formato YYYY-MM-DD (não ISO completo)
+  let dataCompraFormatada = data.data_compra
+  if (dataCompraFormatada.includes('T')) {
+    dataCompraFormatada = dataCompraFormatada.split('T')[0]
+  }
+  
+  // Validar formato YYYY-MM-DD
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataCompraFormatada)) {
+    throw new Error('data_compra deve estar no formato YYYY-MM-DD')
+  }
   
   const result = await n8nRequest<{
     success: boolean
@@ -552,7 +574,7 @@ export async function createCompra(data: {
     body: JSON.stringify({
       colaboradora_id: data.colaboradora_id,
       loja_id: data.loja_id,
-      data_compra: data.data_compra,
+      data_compra: dataCompraFormatada, // YYYY-MM-DD conforme especificação
       item: data.item,
       preco_venda: data.preco_venda,
       desconto_beneficio: data.desconto_beneficio,
@@ -706,7 +728,7 @@ export async function getAdiantamentos(filters?: {
 export async function createAdiantamento(data: {
   colaboradora_id: string
   valor: number
-  mes_competencia: string
+  mes_competencia: string // YYYYMM (ex: "202501")
   observacoes?: string
   site_slug?: string
 }): Promise<Adiantamento> {
@@ -716,6 +738,16 @@ export async function createAdiantamento(data: {
     throw new Error('site_slug é obrigatório para criar adiantamento')
   }
   
+  // Normalizar e validar mes_competencia no formato YYYYMM
+  let mesCompetenciaFormatado = data.mes_competencia
+  if (mesCompetenciaFormatado.includes('-') || mesCompetenciaFormatado.includes('/')) {
+    mesCompetenciaFormatado = mesCompetenciaFormatado.replace(/[-/]/g, '').substring(0, 6)
+  }
+  
+  if (!mesCompetenciaFormatado || mesCompetenciaFormatado.length !== 6 || !/^\d{6}$/.test(mesCompetenciaFormatado)) {
+    throw new Error('mes_competencia é obrigatório e deve estar no formato YYYYMM (ex: "202501")')
+  }
+  
   const result = await n8nRequest<{
     success: boolean
     data: Adiantamento
@@ -723,9 +755,9 @@ export async function createAdiantamento(data: {
   }>(`/api/financeiro/adiantamentos`, {
     method: 'POST',
     body: JSON.stringify({
-      colaboradora_id: data.colaboradora_id,
-      valor: data.valor,
-      mes_competencia: data.mes_competencia,
+        colaboradora_id: data.colaboradora_id,
+        valor: data.valor,
+        mes_competencia: mesCompetenciaFormatado, // YYYYMM formatado
       observacoes: data.observacoes || null,
       site_slug
     })
@@ -826,11 +858,25 @@ export async function calcularLimitesDisponiveis(
 ): Promise<LimitesDisponiveis> {
   const slug = await getUserSiteSlug(site_slug)
   
+  if (!slug) {
+    throw new Error('site_slug é obrigatório para calcular limites')
+  }
+  
+  // Normalizar e validar competencia no formato YYYYMM
+  let competenciaFormatada = competencia
+  if (competencia.includes('-') || competencia.includes('/')) {
+    competenciaFormatada = competencia.replace(/[-/]/g, '').substring(0, 6)
+  }
+  
+  if (!competenciaFormatada || competenciaFormatada.length !== 6 || !/^\d{6}$/.test(competenciaFormatada)) {
+    throw new Error('competencia é obrigatória e deve estar no formato YYYYMM (ex: "202511")')
+  }
+  
   const data = await n8nRequest<{
     success: boolean
     data: LimitesDisponiveis
     error?: string
-  }>(`/api/financeiro/limites/${encodeURIComponent(colaboradora_id)}?competencia=${encodeURIComponent(competencia)}&site_slug=${encodeURIComponent(slug)}`, {
+  }>(`/api/financeiro/limites/${encodeURIComponent(colaboradora_id)}?competencia=${encodeURIComponent(competenciaFormatada)}&site_slug=${encodeURIComponent(slug)}`, {
     method: 'GET'
   })
   

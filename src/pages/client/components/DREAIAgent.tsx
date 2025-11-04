@@ -82,47 +82,27 @@ export default function DREAIAgent({ onLancamentoCriado }: { onLancamentoCriado?
     setLoading(true)
 
     try {
-      // Chamar workflow n8n do IA Agent
-      const response = await fetch(`${import.meta.env.VITE_N8N_BASE_URL || ''}/webhook/dre-ai-agent/api/dre/ai-agent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-APP-KEY': import.meta.env.VITE_N8N_AUTH_HEADER || '#mmP220411'
-        },
-        body: JSON.stringify({
-          command: trimmed,
-          action: 'process'
-        })
+      // Usar função da biblioteca n8n-dre para criar lançamento via IA
+      const lancamento = await dre.createDRELancamentoIA({
+        prompt: trimmed
       })
-
-      const data = await response.json()
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || data.message || 'Erro ao processar comando')
-      }
 
       // Adicionar resposta da IA
       const aiMessage: AIMessage = {
         role: 'ai',
-        content: data.response || data.message || 'Processado com sucesso',
+        content: `Lançamento DRE criado com sucesso!\n\nDescrição: ${lancamento.descricao}\nValor: R$ ${lancamento.valor.toFixed(2)}\nCompetência: ${lancamento.competencia}`,
         timestamp: new Date().toISOString(),
-        action: data.action
+        action: {
+          type: 'create',
+          data: lancamento
+        }
       }
 
       setMessages(prev => [...prev, aiMessage])
-
-      // Se houve ação de criar lançamento, mostrar preview
-      if (data.action?.type === 'create' && data.preview) {
-        setPreview(data.preview)
-      } else {
-        setPreview(null)
-      }
-
-      // Se lançamento foi criado, recarregar dados
-      if (data.action?.type === 'create' && data.success && !data.preview) {
-        toast.success('Lançamento criado com sucesso!')
-        onLancamentoCriado?.()
-      }
+      setPreview(null)
+      
+      toast.success('Lançamento criado com sucesso!')
+      onLancamentoCriado?.()
 
     } catch (err: any) {
       console.error('Erro ao processar comando IA:', err)
@@ -143,23 +123,10 @@ export default function DREAIAgent({ onLancamentoCriado }: { onLancamentoCriado?
 
     setLoading(true)
     try {
-      const response = await fetch(`${import.meta.env.VITE_N8N_BASE_URL || ''}/webhook/dre-ai-agent/api/dre/ai-agent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-APP-KEY': import.meta.env.VITE_N8N_AUTH_HEADER || '#mmP220411'
-        },
-        body: JSON.stringify({
-          action: 'execute',
-          preview: preview
-        })
+      // Usar função da biblioteca n8n-dre para criar lançamento via IA
+      const lancamento = await dre.createDRELancamentoIA({
+        prompt: preview.prompt || command
       })
-
-      const data = await response.json()
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Erro ao executar lançamento')
-      }
 
       toast.success('Lançamento criado com sucesso!')
       setPreview(null)
@@ -167,7 +134,7 @@ export default function DREAIAgent({ onLancamentoCriado }: { onLancamentoCriado?
 
       setMessages(prev => [...prev, {
         role: 'system',
-        content: 'Lançamento criado com sucesso!',
+        content: `Lançamento criado com sucesso!\n\nDescrição: ${lancamento.descricao}\nValor: R$ ${lancamento.valor.toFixed(2)}`,
         timestamp: new Date().toISOString()
       }])
 

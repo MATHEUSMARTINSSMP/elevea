@@ -127,6 +127,7 @@ export interface SiteSection {
   description?: string
   image?: string
   image_url?: string // Campo retornado pelo n8n
+  content?: Record<string, any> // Campo retornado pelo n8n (mapeado para customFields)
   order: number
   visible: boolean
   customFields?: Record<string, any>
@@ -138,25 +139,33 @@ export interface SiteSection {
 
 interface SectionsResponse {
   success: boolean
-  sections: SiteSection[]
-  count: number
-  siteSlug: string
+  sections?: SiteSection[]  // Pode vir como sections ou data
+  data?: SiteSection[]      // Alternativa: data direto
+  count?: number
+  siteSlug?: string
 }
 
 interface SectionResponse {
   success: boolean
-  section: SiteSection
+  section?: SiteSection  // Pode vir como section ou data
+  data?: SiteSection     // Alternativa: data direto
   message?: string
 }
 
 // Listar seções do site
 export async function getSections(siteSlug: string): Promise<SiteSection[]> {
+  if (!siteSlug || siteSlug.trim() === '') {
+    throw new Error('site_slug é obrigatório para listar seções')
+  }
+  
   const data = await n8nRequest<SectionsResponse>(`/get-sections/api/sites/${encodeURIComponent(siteSlug)}/sections`)
   // Normalizar campos do n8n para o formato esperado pelo frontend
-  return (data.sections || []).map(section => ({
+  const sections = data.sections || data.data || []
+  return sections.map((section: any) => ({
     ...section,
     image: section.image_url || section.image,
-    customFields: section.custom_fields || section.customFields || {},
+    // Mapear content (do webhook) para customFields (do frontend)
+    customFields: section.content || section.custom_fields || section.customFields || {},
     lastUpdated: section.updated_at || section.lastUpdated || section.created_at
   }))
 }
@@ -175,16 +184,33 @@ export async function createSection(
     custom_fields?: Record<string, any>
   }
 ): Promise<SiteSection> {
+  if (!siteSlug || siteSlug.trim() === '') {
+    throw new Error('site_slug é obrigatório para criar seção')
+  }
+  
+  // Garantir que order e visible têm valores padrão conforme especificação
+  const sectionData = {
+    type: section.type,
+    title: section.title || null,
+    subtitle: section.subtitle || null,
+    description: section.description || null,
+    image_url: section.image_url || null,
+    content: section.custom_fields || null, // Mapear custom_fields para content conforme especificação
+    order: section.order !== undefined ? section.order : 0,
+    visible: section.visible !== undefined ? section.visible : true
+  }
+  
   const data = await n8nRequest<SectionResponse>(`/create-section/api/sites/${encodeURIComponent(siteSlug)}/sections`, {
     method: 'POST',
-    body: JSON.stringify(section)
+    body: JSON.stringify(sectionData)
   })
   // Normalizar campos do n8n para o formato esperado pelo frontend
-  const newSection = data.section
+  const newSection = data.section || data.data
   return {
     ...newSection,
     image: newSection.image_url || newSection.image,
-    customFields: newSection.custom_fields || newSection.customFields || {},
+    // Mapear content (do webhook) para customFields (do frontend)
+    customFields: newSection.content || newSection.custom_fields || newSection.customFields || {},
     lastUpdated: newSection.updated_at || newSection.lastUpdated || newSection.created_at
   }
 }
@@ -204,22 +230,48 @@ export async function updateSection(
     custom_fields: Record<string, any>
   }>
 ): Promise<SiteSection> {
+  if (!siteSlug || siteSlug.trim() === '') {
+    throw new Error('site_slug é obrigatório para atualizar seção')
+  }
+  if (!sectionId || sectionId.trim() === '') {
+    throw new Error('ID da seção é obrigatório')
+  }
+  
+  // Normalizar updates para formato esperado pelo webhook
+  const updateData: any = {}
+  if (updates.type !== undefined) updateData.type = updates.type
+  if (updates.title !== undefined) updateData.title = updates.title
+  if (updates.subtitle !== undefined) updateData.subtitle = updates.subtitle
+  if (updates.description !== undefined) updateData.description = updates.description
+  if (updates.image_url !== undefined) updateData.image_url = updates.image_url
+  if (updates.custom_fields !== undefined) updateData.content = updates.custom_fields // Mapear custom_fields para content
+  if (updates.order !== undefined) updateData.order = updates.order
+  if (updates.visible !== undefined) updateData.visible = updates.visible
+  
   const data = await n8nRequest<SectionResponse>(`/update-section/api/sites/${encodeURIComponent(siteSlug)}/sections/${encodeURIComponent(sectionId)}`, {
     method: 'PUT',
-    body: JSON.stringify(updates)
+    body: JSON.stringify(updateData)
   })
   // Normalizar campos do n8n para o formato esperado pelo frontend
-  const section = data.section
+  const section = data.section || data.data
   return {
     ...section,
     image: section.image_url || section.image,
-    customFields: section.custom_fields || section.customFields || {},
+    // Mapear content (do webhook) para customFields (do frontend)
+    customFields: section.content || section.custom_fields || section.customFields || {},
     lastUpdated: section.updated_at || section.lastUpdated || section.created_at
   }
 }
 
 // Deletar seção
 export async function deleteSection(siteSlug: string, sectionId: string): Promise<void> {
+  if (!siteSlug || siteSlug.trim() === '') {
+    throw new Error('site_slug é obrigatório para deletar seção')
+  }
+  if (!sectionId || sectionId.trim() === '') {
+    throw new Error('ID da seção é obrigatório')
+  }
+  
   await n8nRequest(`/delete-section/api/sites/${encodeURIComponent(siteSlug)}/sections/${encodeURIComponent(sectionId)}`, {
     method: 'DELETE'
   })
@@ -231,20 +283,23 @@ export async function deleteSection(siteSlug: string, sectionId: string): Promis
 
 export interface SiteMedia {
   id: string
-  key: string
+  key?: string
   fileName: string
+  filename?: string  // Campo retornado pelo n8n (conforme especificação)
   url: string
   githubPath?: string
   mimeType?: string
+  mime_type?: string  // Campo retornado pelo n8n (conforme especificação)
   size?: number
   uploadedAt?: string
 }
 
 interface MediaResponse {
   success: boolean
-  media: SiteMedia[]
-  count: number
-  siteSlug: string
+  media?: SiteMedia[]  // Pode vir como media ou data
+  data?: SiteMedia[]  // Alternativa: data direto
+  count?: number
+  siteSlug?: string
 }
 
 interface MediaUploadResponse {
@@ -255,8 +310,20 @@ interface MediaUploadResponse {
 
 // Listar mídias do site
 export async function getMedia(siteSlug: string): Promise<SiteMedia[]> {
+  if (!siteSlug || siteSlug.trim() === '') {
+    throw new Error('site_slug é obrigatório para listar mídias')
+  }
+  
   const data = await n8nRequest<MediaResponse>(`/get-media/api/sites/${encodeURIComponent(siteSlug)}/media`)
-  return data.media || []
+  const mediaList = data.media || data.data || []
+  
+  // Normalizar campos do n8n para o formato esperado pelo frontend
+  return mediaList.map((media: any) => ({
+    ...media,
+    fileName: media.filename || media.fileName || media.file_name || '',
+    mimeType: media.mime_type || media.mimeType || media.mimeType || '',
+    key: media.key || media.id
+  }))
 }
 
 // Upload de mídia
@@ -265,6 +332,10 @@ export async function uploadMedia(
   file: File,
   key?: string
 ): Promise<SiteMedia> {
+  if (!siteSlug || siteSlug.trim() === '') {
+    throw new Error('site_slug é obrigatório para upload de mídia')
+  }
+  
   const formData = new FormData()
   formData.append('file', file)
   if (key) {
@@ -322,6 +393,13 @@ export async function uploadMediaBase64(
 
 // Deletar mídia
 export async function deleteMedia(siteSlug: string, mediaId: string): Promise<void> {
+  if (!siteSlug || siteSlug.trim() === '') {
+    throw new Error('site_slug é obrigatório para deletar mídia')
+  }
+  if (!mediaId || mediaId.trim() === '') {
+    throw new Error('ID da mídia é obrigatório')
+  }
+  
   await n8nRequest(`/delete-media/api/sites/${encodeURIComponent(siteSlug)}/media/${encodeURIComponent(mediaId)}`, {
     method: 'DELETE'
   })
@@ -347,6 +425,10 @@ interface SiteContentResponse {
 
 // Carregar conteúdo completo do site
 export async function getSiteContent(siteSlug: string): Promise<SiteContentResponse> {
+  if (!siteSlug || siteSlug.trim() === '') {
+    throw new Error('site_slug é obrigatório para obter conteúdo do site')
+  }
+  
   return n8nRequest<SiteContentResponse>(`/get-site-content/api/sites/${encodeURIComponent(siteSlug)}/content`)
 }
 

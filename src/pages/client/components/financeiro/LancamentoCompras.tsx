@@ -131,10 +131,15 @@ export default function LancamentoCompras() {
       const itemsDescricao = items.map(i => i.item).filter(Boolean).join(', ')
       const competencia = formData.primeiro_mes.replace('-', '').substring(0, 6)
 
+      // Garantir que data_compra está no formato YYYY-MM-DD (não ISO completo)
+      const dataCompra = formData.data_compra.includes('T') 
+        ? formData.data_compra.split('T')[0]
+        : formData.data_compra
+
       await financeiro.createCompra({
         colaboradora_id: formData.colaboradora_id,
         loja_id: formData.loja_id,
-        data_compra: new Date(formData.data_compra).toISOString(),
+        data_compra: dataCompra, // YYYY-MM-DD conforme especificação
         item: itemsDescricao,
         preco_venda: totalVenda,
         desconto_beneficio: totalDesconto,
