@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import * as financeiro from '@/lib/supabase-financeiro'
+import * as financeiro from '@/lib/n8n-financeiro'
 import { toast } from 'sonner'
 
 interface Item {
@@ -138,7 +138,6 @@ export default function LancamentoCompras() {
         item: itemsDescricao,
         preco_venda: totalVenda,
         desconto_beneficio: totalDesconto,
-        preco_final: calcularPrecoFinal(),
         num_parcelas: parseInt(formData.num_parcelas),
         primeiro_mes: competencia,
         observacoes: formData.observacoes

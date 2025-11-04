@@ -31,17 +31,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { BarChart3, Plus, Trash2, TrendingUp, TrendingDown, DollarSign, Filter } from 'lucide-react'
-import * as financeiro from '@/lib/supabase-financeiro'
+import * as dre from '@/lib/n8n-dre'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 
-interface DRELancamentoCompleto extends financeiro.DRELancamento {
+interface DRELancamentoCompleto extends dre.DRELancamento {
   categoria_nome: string
-  categoria_tipo: financeiro.TipoLancamentoDRE
+  categoria_tipo: dre.TipoLancamentoDRE
 }
 
 export default function DRE() {
-  const [categorias, setCategorias] = useState<financeiro.DRECategoria[]>([])
+  const [categorias, setCategorias] = useState<dre.DRECategoria[]>([])
   const [lancamentos, setLancamentos] = useState<DRELancamentoCompleto[]>([])
   const [loading, setLoading] = useState(true) // Começar como true para mostrar loading inicial
   const [error, setError] = useState<string | null>(null)
@@ -49,7 +49,7 @@ export default function DRE() {
   const [deleteDialog, setDeleteDialog] = useState<string | null>(null)
   const [filtros, setFiltros] = useState({
     competencia: 'all',
-    tipo: 'all' as 'all' | '' | financeiro.TipoLancamentoDRE,
+    tipo: 'all' as 'all' | '' | dre.TipoLancamentoDRE,
     categoria_id: 'all'
   })
   const [formData, setFormData] = useState({
@@ -68,8 +68,8 @@ export default function DRE() {
     setLoading(true)
     try {
       const [cats, lancs] = await Promise.all([
-        financeiro.getDRECategorias().catch(() => []),
-        financeiro.getDRELancamentos().catch(() => [])
+        dre.getDRECategorias().catch(() => []),
+        dre.getDRELancamentos().catch(() => [])
       ])
 
       setCategorias(cats || [])
@@ -117,7 +117,7 @@ export default function DRE() {
         return
       }
 
-      await financeiro.createDRELancamento({
+      await dre.createDRELancamento({
         categoria_id: formData.categoria_id,
         descricao: formData.descricao,
         valor: parseFloat(formData.valor) || 0,
@@ -146,7 +146,7 @@ export default function DRE() {
 
     setLoading(true)
     try {
-      await financeiro.deleteDRELancamento(deleteDialog)
+      await dre.deleteDRELancamento(deleteDialog)
       toast.success('Lançamento excluído com sucesso!')
       setDeleteDialog(null)
       loadData()
@@ -191,7 +191,7 @@ export default function DRE() {
   // Obter competências futuras com proteção contra erro
   let mesesDisponiveis: Array<{ value: string; label: string }> = []
   try {
-    mesesDisponiveis = financeiro.getCompetenciasFuturas()
+    mesesDisponiveis = dre.getCompetenciasFuturas()
   } catch (err) {
     console.error('Erro ao obter competências futuras:', err)
     mesesDisponiveis = []
@@ -530,7 +530,7 @@ export default function DRE() {
                   // Formatar competência com proteção
                   let competenciaFormatada = competencia
                   try {
-                    competenciaFormatada = financeiro.formatCompetencia(competencia)
+                    competenciaFormatada = dre.formatCompetencia(competencia)
                   } catch (err) {
                     console.error('Erro ao formatar competência:', err)
                   }

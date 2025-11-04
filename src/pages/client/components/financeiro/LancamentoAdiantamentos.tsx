@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import * as financeiro from '@/lib/supabase-financeiro'
+import * as financeiro from '@/lib/n8n-financeiro'
 import { toast } from 'sonner'
 
 export default function LancamentoAdiantamentos() {

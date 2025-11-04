@@ -37,7 +37,7 @@ import {
   TrendingUp,
   Clock
 } from 'lucide-react'
-import * as financeiro from '@/lib/supabase-financeiro'
+import * as financeiro from '@/lib/n8n-financeiro'
 import { toast } from 'sonner'
 
 interface ColaboradoraComLimites extends financeiro.Colaboradora {
@@ -318,7 +318,7 @@ export default function GerenciarColaboradoras() {
                   required
                 />
                 <p className="text-xs dashboard-text-muted mt-1">
-                  O usuário será criado automaticamente no Supabase Auth
+                  Email único por site. Será usado para identificação da colaboradora.
                 </p>
               </div>
               <div>

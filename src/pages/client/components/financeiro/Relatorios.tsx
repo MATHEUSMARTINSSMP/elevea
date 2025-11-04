@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { FileText, Download, Trash2, ChevronDown, ChevronRight, Undo2, Filter, ShoppingCart, DollarSign, Clock } from 'lucide-react'
-import * as financeiro from '@/lib/supabase-financeiro'
+import * as financeiro from '@/lib/n8n-financeiro'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 
@@ -145,17 +145,8 @@ export default function Relatorios() {
       if (deleteDialog.type === 'compra') {
         const compra = compras.find(c => c.id === deleteDialog.id)
         if (compra) {
-          // Deletar parcelas
-          for (const parcela of compra.parcelas) {
-            await fetch(`/api/parcelas/${parcela.id}`, { method: 'DELETE' }).catch(() => {})
-          }
-          // Deletar compra via Supabase
-          const { supabase } = await import('@/integrations/supabase/client')
-          const { error } = await supabase
-            .from('financeiro_compras')
-            .delete()
-            .eq('id', deleteDialog.id)
-          if (error) throw error
+          // Deletar compra via n8n (cascade de parcelas será feito pelo workflow)
+          await financeiro.deleteCompra(deleteDialog.id)
 
           setDeletedItems([...deletedItems, { 
             type: 'compra', 
@@ -166,15 +157,10 @@ export default function Relatorios() {
           toast.success('Compra excluída! Você pode desfazer nos próximos 30 segundos.')
         }
       } else if (deleteDialog.type === 'parcela') {
-        const { supabase } = await import('@/integrations/supabase/client')
-        const { error } = await supabase
-          .from('financeiro_parcelas')
-          .delete()
-          .eq('id', deleteDialog.id)
-        if (error) throw error
-
         const compra = compras.find(c => c.parcelas.some(p => p.id === deleteDialog.id))
         const parcela = compra?.parcelas.find(p => p.id === deleteDialog.id)
+        
+        await financeiro.deleteParcela(deleteDialog.id)
         
         setDeletedItems([...deletedItems, { 
           type: 'parcela', 
@@ -185,14 +171,9 @@ export default function Relatorios() {
         }])
         toast.success('Parcela excluída! Você pode desfazer nos próximos 30 segundos.')
       } else if (deleteDialog.type === 'adiantamento') {
-        const { supabase } = await import('@/integrations/supabase/client')
         const adiantamento = adiantamentos.find(a => a.id === deleteDialog.id)
-        const { error } = await supabase
-          .from('financeiro_adiantamentos')
-          .delete()
-          .eq('id', deleteDialog.id)
-        if (error) throw error
-
+        await financeiro.deleteAdiantamento(deleteDialog.id)
+        
         setDeletedItems([...deletedItems, { 
           type: 'adiantamento', 
           id: deleteDialog.id, 
@@ -212,79 +193,11 @@ export default function Relatorios() {
 
   const handleUndo = async (item: DeletedItem) => {
     try {
-      const { supabase } = await import('@/integrations/supabase/client')
+      // TODO: Implementar undo via n8n quando necessário
+      // Por enquanto, a funcionalidade de undo será implementada nos workflows n8n
+      toast.info('Funcionalidade de desfazer será implementada via n8n')
       
-      if (item.type === 'compra' && item.data) {
-        const compra: CompraData = item.data
-        // Recriar compra
-        const { data: novaCompra } = await supabase
-          .from('financeiro_compras')
-          .insert({
-            colaboradora_id: compra.colaboradora_id,
-            loja_id: compra.loja_id,
-            data_compra: compra.data_compra,
-            item: compra.item,
-            preco_venda: compra.preco_venda,
-            desconto_beneficio: compra.desconto_beneficio,
-            preco_final: compra.preco_final,
-            num_parcelas: compra.num_parcelas,
-            status_compra: compra.status_compra,
-            observacoes: compra.observacoes,
-            created_by_id: compra.created_by_id
-          })
-          .select()
-          .single()
-
-        if (novaCompra && compra.parcelas) {
-          // Recriar parcelas
-          await supabase
-            .from('financeiro_parcelas')
-            .insert(compra.parcelas.map(p => ({
-              compra_id: novaCompra.id,
-              n_parcela: p.n_parcela,
-              competencia: p.competencia,
-              valor_parcela: p.valor_parcela,
-              status_parcela: p.status_parcela,
-              data_baixa: p.data_baixa,
-              baixado_por_id: p.baixado_por_id,
-              motivo_estorno: p.motivo_estorno
-            })))
-        }
-      } else if (item.type === 'parcela' && item.data && item.compraId) {
-        const parcela: financeiro.Parcela = item.data
-        await supabase
-          .from('financeiro_parcelas')
-          .insert({
-            compra_id: item.compraId,
-            n_parcela: parcela.n_parcela,
-            competencia: parcela.competencia,
-            valor_parcela: parcela.valor_parcela,
-            status_parcela: parcela.status_parcela,
-            data_baixa: parcela.data_baixa,
-            baixado_por_id: parcela.baixado_por_id,
-            motivo_estorno: parcela.motivo_estorno
-          })
-      } else if (item.type === 'adiantamento' && item.data) {
-        const adiantamento: financeiro.Adiantamento = item.data
-        await supabase
-          .from('financeiro_adiantamentos')
-          .insert({
-            colaboradora_id: adiantamento.colaboradora_id,
-            valor: adiantamento.valor,
-            data_solicitacao: adiantamento.data_solicitacao,
-            mes_competencia: adiantamento.mes_competencia,
-            status: adiantamento.status,
-            motivo_recusa: adiantamento.motivo_recusa,
-            data_aprovacao: adiantamento.data_aprovacao,
-            data_desconto: adiantamento.data_desconto,
-            aprovado_por_id: adiantamento.aprovado_por_id,
-            descontado_por_id: adiantamento.descontado_por_id,
-            observacoes: adiantamento.observacoes
-          })
-      }
-
       setDeletedItems(deletedItems.filter(d => d.id !== item.id))
-      toast.success('Exclusão desfeita!')
       loadData()
     } catch (err: any) {
       toast.error('Erro ao desfazer: ' + err.message)
