@@ -716,22 +716,32 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                     <stop offset="95%" stopColor="#10B981" stopOpacity={0.1}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <CartesianGrid 
+                  strokeDasharray="3 3" 
+                  stroke={document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.2)' : 'rgba(229, 231, 235, 1)'}
+                />
                 <XAxis 
                   dataKey="date" 
-                  stroke="#6B7280" 
+                  stroke={document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.6)' : 'rgba(107, 114, 128, 1)'}
+                  tick={{ fill: document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.6)' : 'rgba(107, 114, 128, 1)' }}
                   fontSize={12}
                   tickFormatter={(value) => new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                 />
-                <YAxis stroke="#6B7280" fontSize={12} />
+                <YAxis 
+                  stroke={document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.6)' : 'rgba(107, 114, 128, 1)'}
+                  tick={{ fill: document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.6)' : 'rgba(107, 114, 128, 1)' }}
+                  fontSize={12} 
+                />
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: '#FFFFFF', 
-                    border: '1px solid #E5E7EB', 
+                    backgroundColor: document.documentElement.classList.contains('dark') ? 'rgba(31, 41, 55, 1)' : 'rgba(255, 255, 255, 1)',
+                    border: document.documentElement.classList.contains('dark') ? '1px solid rgba(75, 85, 99, 1)' : '1px solid rgba(229, 231, 235, 1)', 
                     borderRadius: '8px',
-                    color: '#374151',
+                    color: document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 1)' : 'rgba(55, 65, 81, 1)',
                     boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                   }}
+                  labelStyle={{ color: document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 1)' : 'rgba(55, 65, 81, 1)' }}
+                  itemStyle={{ color: document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 1)' : 'rgba(55, 65, 81, 1)' }}
                   labelFormatter={(value) => new Date(value).toLocaleDateString('pt-BR')}
                 />
                 <Area
@@ -828,7 +838,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                     {(source.source.toLowerCase().includes('google') || 
                       source.source.toLowerCase().includes('organic') ||
                       source.source.toLowerCase().includes('search')) && 
-                      <SearchIcon className="w-5 h-5 text-blue-400" />}
+                      <SearchIcon className="w-5 h-5 text-blue-500 dark:text-blue-400" />}
                     
                     {/* Instagram */}
                     {source.source.toLowerCase().includes('instagram') && 
@@ -848,7 +858,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                     
                     {/* TikTok */}
                     {source.source.toLowerCase().includes('tiktok') && 
-                      <MessageCircleIcon className="w-5 h-5 text-black bg-white rounded" />}
+                      <MessageCircleIcon className="w-5 h-5 text-black dark:text-white bg-white dark:bg-gray-800 rounded" />}
                     
                     {/* LinkedIn */}
                     {source.source.toLowerCase().includes('linkedin') && 
@@ -1018,24 +1028,35 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={processedTopPages.slice(0, 5)}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <CartesianGrid 
+                    strokeDasharray="3 3" 
+                    stroke={document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.2)' : 'rgba(229, 231, 235, 1)'}
+                  />
                   <XAxis 
                     dataKey="page" 
-                    stroke="#6B7280" 
+                    stroke={document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.6)' : 'rgba(107, 114, 128, 1)'}
+                    tick={{ fill: document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.6)' : 'rgba(107, 114, 128, 1)' }}
                     fontSize={10}
                     angle={-45}
                     textAnchor="end"
                     height={60}
                   />
-                  <YAxis stroke="#6B7280" fontSize={12} />
+                  <YAxis 
+                    stroke={document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.6)' : 'rgba(107, 114, 128, 1)'}
+                    tick={{ fill: document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.6)' : 'rgba(107, 114, 128, 1)' }}
+                    fontSize={12} 
+                  />
                   <Tooltip 
                     contentStyle={{ 
-                      backgroundColor: '#FFFFFF', 
-                      border: '1px solid #E5E7EB', 
+                      backgroundColor: document.documentElement.classList.contains('dark') ? 'rgba(31, 41, 55, 1)' : 'rgba(255, 255, 255, 1)',
+                      border: document.documentElement.classList.contains('dark') ? '1px solid rgba(75, 85, 99, 1)' : '1px solid rgba(229, 231, 235, 1)', 
                       borderRadius: '8px',
-                      color: '#374151',
+                      color: document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 1)' : 'rgba(55, 65, 81, 1)',
                       boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                     }}
+                    wrapperStyle={{ zIndex: 1000 }}
+                    labelStyle={{ color: document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 1)' : 'rgba(55, 65, 81, 1)' }}
+                    itemStyle={{ color: document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 1)' : 'rgba(55, 65, 81, 1)' }}
                   />
                   <Bar dataKey="views" fill="#3B82F6" radius={[4, 4, 0, 0]} />
                 </BarChart>
@@ -1065,12 +1086,14 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                   </Pie>
                   <Tooltip 
                     contentStyle={{ 
-                      backgroundColor: '#FFFFFF', 
-                      border: '1px solid #E5E7EB', 
+                      backgroundColor: document.documentElement.classList.contains('dark') ? 'rgba(31, 41, 55, 1)' : 'rgba(255, 255, 255, 1)',
+                      border: document.documentElement.classList.contains('dark') ? '1px solid rgba(75, 85, 99, 1)' : '1px solid rgba(229, 231, 235, 1)', 
                       borderRadius: '8px',
-                      color: '#374151',
+                      color: document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 1)' : 'rgba(55, 65, 81, 1)',
                       boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
                     }}
+                    labelStyle={{ color: document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 1)' : 'rgba(55, 65, 81, 1)' }}
+                    itemStyle={{ color: document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 1)' : 'rgba(55, 65, 81, 1)' }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -1098,6 +1121,74 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
             ) : (
               <div className="text-center py-4">
                 <GlobeIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm dashboard-text-muted">Nenhum dado de país disponível</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+  } catch (error) {
+    console.error('🔍 AnalyticsDashboard: Erro de renderização', error);
+    return (
+      <Card className="rounded-2xl border border-red-500/50 bg-red-500/10 text-white">
+        <CardContent className="p-6">
+          <div className="text-center text-red-400">
+            <p>Erro ao renderizar analytics</p>
+            <p className="text-sm dashboard-text-muted mt-2">Detalhes: {error?.message || 'Erro desconhecido'}</p>
+            <p className="text-xs dashboard-text-subtle mt-1">Dados: {JSON.stringify(data, null, 2)}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+}                <p className="text-sm dashboard-text-muted">Nenhum dado de país disponível</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+  } catch (error) {
+    console.error('🔍 AnalyticsDashboard: Erro de renderização', error);
+    return (
+      <Card className="rounded-2xl border border-red-500/50 bg-red-500/10 text-white">
+        <CardContent className="p-6">
+          <div className="text-center text-red-400">
+            <p>Erro ao renderizar analytics</p>
+            <p className="text-sm dashboard-text-muted mt-2">Detalhes: {error?.message || 'Erro desconhecido'}</p>
+            <p className="text-xs dashboard-text-subtle mt-1">Dados: {JSON.stringify(data, null, 2)}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+}
+                <p className="text-sm dashboard-text-muted">Nenhum dado de país disponível</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+  } catch (error) {
+    console.error('🔍 AnalyticsDashboard: Erro de renderização', error);
+    return (
+      <Card className="rounded-2xl border border-red-500/50 bg-red-500/10 text-white">
+        <CardContent className="p-6">
+          <div className="text-center text-red-400">
+            <p>Erro ao renderizar analytics</p>
+            <p className="text-sm dashboard-text-muted mt-2">Detalhes: {error?.message || 'Erro desconhecido'}</p>
+            <p className="text-xs dashboard-text-subtle mt-1">Dados: {JSON.stringify(data, null, 2)}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+}
                 <p className="text-sm dashboard-text-muted">Nenhum dado de país disponível</p>
               </div>
             )}

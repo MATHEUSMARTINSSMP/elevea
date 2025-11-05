@@ -56,6 +56,12 @@ export default function DRE() {
     tipo: 'all' as 'all' | '' | dre.TipoLancamentoDRE,
     categoria_id: 'all'
   })
+  
+  // Novo: Modo de visualização do período
+  const [modoVisualizacao, setModoVisualizacao] = useState<'mes' | 'ano' | 'ano_meses' | 'ano_completo'>('ano_meses')
+  const [anoSelecionado, setAnoSelecionado] = useState<string>('') // YYYY ou 'all' para todos
+  const [mesSelecionado, setMesSelecionado] = useState<string>('') // YYYYMM
+  
   const [formData, setFormData] = useState({
     categoria_id: '',
     descricao: '',
@@ -120,11 +126,67 @@ export default function DRE() {
     }
   }
 
+  // Detectar anos com dados baseado nos lançamentos
+  const anosComDados = useMemo(() => {
+    const anosSet = new Set<string>()
+    lancamentos.forEach(l => {
+      if (l.competencia && l.competencia.length >= 4) {
+        const ano = l.competencia.substring(0, 4)
+        anosSet.add(ano)
+      }
+    })
+    return Array.from(anosSet).sort((a, b) => b.localeCompare(a)) // Mais recente primeiro
+  }, [lancamentos])
+
+  // Calcular periodo_inicio e periodo_fim baseado no modo de visualização
+  const calcularPeriodos = () => {
+    if (modoVisualizacao === 'mes' && mesSelecionado) {
+      // Por mês: apenas o mês selecionado
+      const ano = mesSelecionado.substring(0, 4)
+      const mes = mesSelecionado.substring(4, 6)
+      const primeiroDia = `${ano}-${mes}-01`
+      const ultimoDia = new Date(parseInt(ano), parseInt(mes), 0).getDate()
+      return {
+        periodo_inicio: primeiroDia,
+        periodo_fim: `${ano}-${mes}-${String(ultimoDia).padStart(2, '0')}`
+      }
+    } else if (modoVisualizacao === 'ano' && anoSelecionado) {
+      // Por ano: todo o ano (01/01 a 31/12)
+      return {
+        periodo_inicio: `${anoSelecionado}-01-01`,
+        periodo_fim: `${anoSelecionado}-12-31`
+      }
+    } else if (modoVisualizacao === 'ano_meses' && anoSelecionado) {
+      // Por ano dividido em meses: 12 meses do ano
+      return {
+        periodo_inicio: `${anoSelecionado}-01-01`,
+        periodo_fim: `${anoSelecionado}-12-31`
+      }
+    } else if (modoVisualizacao === 'ano_completo' && anoSelecionado) {
+      // Ano completo: 01/01 a 31/12
+      return {
+        periodo_inicio: `${anoSelecionado}-01-01`,
+        periodo_fim: `${anoSelecionado}-12-31`
+      }
+    }
+    // Padrão: últimos 12 meses
+    const hoje = new Date()
+    const fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0)
+    const inicio = new Date(hoje.getFullYear(), hoje.getMonth() - 11, 1)
+    return {
+      periodo_inicio: `${inicio.getFullYear()}-${String(inicio.getMonth() + 1).padStart(2, '0')}-01`,
+      periodo_fim: `${fim.getFullYear()}-${String(fim.getMonth() + 1).padStart(2, '0')}-${String(fim.getDate()).padStart(2, '0')}`
+    }
+  }
+
   const loadAnalytics = async () => {
     setLoadingAnalytics(true)
     try {
-      // Buscar últimos 12 meses por padrão
-      const analyticsData = await dre.getDREAnalytics()
+      const periodos = calcularPeriodos()
+      const analyticsData = await dre.getDREAnalytics({
+        periodo_inicio: periodos.periodo_inicio,
+        periodo_fim: periodos.periodo_fim
+      })
       setAnalytics(analyticsData)
     } catch (err: any) {
       console.error('Erro ao carregar analytics DRE:', err)
@@ -136,8 +198,22 @@ export default function DRE() {
 
   useEffect(() => {
     loadData()
-    loadAnalytics()
   }, [])
+
+  // Recarregar analytics quando mudar modo de visualização ou período
+  useEffect(() => {
+    if (lancamentos.length > 0) {
+      loadAnalytics()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modoVisualizacao, anoSelecionado, mesSelecionado, lancamentos.length])
+
+  // Inicializar ano selecionado com o ano mais recente que tem dados
+  useEffect(() => {
+    if (anosComDados.length > 0 && !anoSelecionado) {
+      setAnoSelecionado(anosComDados[0])
+    }
+  }, [anosComDados, anoSelecionado])
 
   const handleNovoLancamento = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -294,7 +370,7 @@ export default function DRE() {
       {/* Resumo DRE - Visão Padrão (similar à imagem) */}
       <Card className="dashboard-card dashboard-border dashboard-shadow">
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+          <CardTitle className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
               <span>Demonstração do Resultado do Exercício</span>
@@ -303,6 +379,55 @@ export default function DRE() {
               {competenciaAtual}
             </Badge>
           </CardTitle>
+          
+          {/* Filtros de Período */}
+          <div className="grid gap-4 md:grid-cols-4 mt-4">
+            <Select value={modoVisualizacao} onValueChange={(v) => {
+              setModoVisualizacao(v as any)
+              if (v === 'mes') {
+                // Se mudar para modo mês, limpar ano selecionado
+                setAnoSelecionado('')
+              }
+            }}>
+              <SelectTrigger className="dashboard-input">
+                <SelectValue placeholder="Modo de visualização" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mes">Por Mês</SelectItem>
+                <SelectItem value="ano">Por Ano</SelectItem>
+                <SelectItem value="ano_meses">Ano Dividido em Meses</SelectItem>
+                <SelectItem value="ano_completo">Ano Completo (01/01 a 31/12)</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Seleção de Ano (aparece quando não for modo "mes") */}
+            {modoVisualizacao !== 'mes' && anosComDados.length > 0 && (
+              <Select value={anoSelecionado} onValueChange={setAnoSelecionado}>
+                <SelectTrigger className="dashboard-input">
+                  <SelectValue placeholder="Selecione o ano" />
+                </SelectTrigger>
+                <SelectContent>
+                  {anosComDados.map(ano => (
+                    <SelectItem key={ano} value={ano}>{ano}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Seleção de Mês (aparece quando for modo "mes") */}
+            {modoVisualizacao === 'mes' && (
+              <Select value={mesSelecionado} onValueChange={setMesSelecionado}>
+                <SelectTrigger className="dashboard-input">
+                  <SelectValue placeholder="Selecione o mês" />
+                </SelectTrigger>
+                <SelectContent>
+                  {mesesDisponiveis.map(m => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-4 gap-4">
@@ -1123,6 +1248,380 @@ export default function DRE() {
                     let dataFormatada = '-'
                     try {
                       if (lancamento.data_lancamento) {
+                        dataFormatada = format(new Date(lancamento.data_lancamento), 'dd/MM/yyyy')
+                      }
+                    } catch (err) {
+                      dataFormatada = lancamento.data_lancamento || '-'
+                    }
+
+                    return (
+                      <TableRow key={lancamento.id}>
+                        <TableCell>{dataFormatada}</TableCell>
+                        <TableCell>
+                          <Badge variant={
+                            lancamento.categoria_tipo === 'RECEITA' ? 'default' :
+                            lancamento.categoria_tipo === 'DESPESA' ? 'destructive' :
+                            'secondary'
+                          }>
+                            {lancamento.categoria_nome}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-medium dashboard-text">{lancamento.descricao || '-'}</TableCell>
+                        <TableCell className={`text-right font-semibold ${
+                          lancamento.categoria_tipo === 'RECEITA' ? 'text-green-500' :
+                          lancamento.categoria_tipo === 'DESPESA' ? 'text-red-500' :
+                          'text-blue-500'
+                        }`}>
+                          {lancamento.categoria_tipo === 'DESPESA' || lancamento.categoria_tipo === 'INVESTIMENTO' ? '-' : '+'}
+                          R$ {Math.abs(lancamento.valor || 0).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="dashboard-text-muted text-sm">
+                          {lancamento.observacoes || '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteDialog(lancamento.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+
+              {/* Controles de Paginação - Rodapé */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    Página {currentPage} de {totalPages}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Anterior
+                    </Button>
+                    <div className="flex gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum: number
+                        if (totalPages <= 5) {
+                          pageNum = i + 1
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i
+                        } else {
+                          pageNum = currentPage - 2 + i
+                        }
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setCurrentPage(pageNum)}
+                            className="w-10"
+                          >
+                            {pageNum}
+                          </Button>
+                        )
+                      })}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Próxima
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Delete Dialog */}
+      <AlertDialog open={!!deleteDialog} onOpenChange={() => setDeleteDialog(null)}>
+        <AlertDialogContent className="dashboard-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este lançamento DRE? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
+                        dataFormatada = format(new Date(lancamento.data_lancamento), 'dd/MM/yyyy')
+                      }
+                    } catch (err) {
+                      dataFormatada = lancamento.data_lancamento || '-'
+                    }
+
+                    return (
+                      <TableRow key={lancamento.id}>
+                        <TableCell>{dataFormatada}</TableCell>
+                        <TableCell>
+                          <Badge variant={
+                            lancamento.categoria_tipo === 'RECEITA' ? 'default' :
+                            lancamento.categoria_tipo === 'DESPESA' ? 'destructive' :
+                            'secondary'
+                          }>
+                            {lancamento.categoria_nome}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-medium dashboard-text">{lancamento.descricao || '-'}</TableCell>
+                        <TableCell className={`text-right font-semibold ${
+                          lancamento.categoria_tipo === 'RECEITA' ? 'text-green-500' :
+                          lancamento.categoria_tipo === 'DESPESA' ? 'text-red-500' :
+                          'text-blue-500'
+                        }`}>
+                          {lancamento.categoria_tipo === 'DESPESA' || lancamento.categoria_tipo === 'INVESTIMENTO' ? '-' : '+'}
+                          R$ {Math.abs(lancamento.valor || 0).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="dashboard-text-muted text-sm">
+                          {lancamento.observacoes || '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteDialog(lancamento.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+
+              {/* Controles de Paginação - Rodapé */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    Página {currentPage} de {totalPages}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Anterior
+                    </Button>
+                    <div className="flex gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum: number
+                        if (totalPages <= 5) {
+                          pageNum = i + 1
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i
+                        } else {
+                          pageNum = currentPage - 2 + i
+                        }
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setCurrentPage(pageNum)}
+                            className="w-10"
+                          >
+                            {pageNum}
+                          </Button>
+                        )
+                      })}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Próxima
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Delete Dialog */}
+      <AlertDialog open={!!deleteDialog} onOpenChange={() => setDeleteDialog(null)}>
+        <AlertDialogContent className="dashboard-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este lançamento DRE? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
+
+                        dataFormatada = format(new Date(lancamento.data_lancamento), 'dd/MM/yyyy')
+                      }
+                    } catch (err) {
+                      dataFormatada = lancamento.data_lancamento || '-'
+                    }
+
+                    return (
+                      <TableRow key={lancamento.id}>
+                        <TableCell>{dataFormatada}</TableCell>
+                        <TableCell>
+                          <Badge variant={
+                            lancamento.categoria_tipo === 'RECEITA' ? 'default' :
+                            lancamento.categoria_tipo === 'DESPESA' ? 'destructive' :
+                            'secondary'
+                          }>
+                            {lancamento.categoria_nome}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-medium dashboard-text">{lancamento.descricao || '-'}</TableCell>
+                        <TableCell className={`text-right font-semibold ${
+                          lancamento.categoria_tipo === 'RECEITA' ? 'text-green-500' :
+                          lancamento.categoria_tipo === 'DESPESA' ? 'text-red-500' :
+                          'text-blue-500'
+                        }`}>
+                          {lancamento.categoria_tipo === 'DESPESA' || lancamento.categoria_tipo === 'INVESTIMENTO' ? '-' : '+'}
+                          R$ {Math.abs(lancamento.valor || 0).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="dashboard-text-muted text-sm">
+                          {lancamento.observacoes || '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteDialog(lancamento.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+
+              {/* Controles de Paginação - Rodapé */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    Página {currentPage} de {totalPages}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Anterior
+                    </Button>
+                    <div className="flex gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum: number
+                        if (totalPages <= 5) {
+                          pageNum = i + 1
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i
+                        } else {
+                          pageNum = currentPage - 2 + i
+                        }
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setCurrentPage(pageNum)}
+                            className="w-10"
+                          >
+                            {pageNum}
+                          </Button>
+                        )
+                      })}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Próxima
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Delete Dialog */}
+      <AlertDialog open={!!deleteDialog} onOpenChange={() => setDeleteDialog(null)}>
+        <AlertDialogContent className="dashboard-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este lançamento DRE? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
+
                         dataFormatada = format(new Date(lancamento.data_lancamento), 'dd/MM/yyyy')
                       }
                     } catch (err) {

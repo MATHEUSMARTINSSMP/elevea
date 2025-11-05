@@ -69,12 +69,14 @@ export default function FinanceiroSection() {
               </div>
             </div>
 
-            <FinanceiroHub />
+            <div data-page-context="FinanceiroHub">
+              <FinanceiroHub />
+            </div>
           </CardContent>
         </Card>
 
         {/* Sistema 2: DRE (Análise de Resultados) */}
-        <Card className="border-2 border-emerald-500/20 bg-gradient-to-br from-background to-emerald-500/5 shadow-lg">
+        <Card className="border-2 border-emerald-500/20 bg-gradient-to-br from-background to-emerald-500/5 shadow-lg" data-page-context="DRE">
           <CardContent className="p-6">
             <div className="flex items-start gap-3 mb-4">
               <div className="flex-1">
@@ -113,4 +115,6 @@ export default function FinanceiroSection() {
     </div>
   )
 }
+
+
 

@@ -198,6 +198,70 @@ export async function previewAIEdit(
  * Executa o comando de edição via IA após preview confirmado
  * Modifica arquivos no GitHub do repositório específico do site_slug
  */
+/**
+ * Obter ajuda contextual com IA para uma seção específica
+ */
+export async function getAIHelp(data: {
+  pageContext: string
+  siteSlug: string
+  currentData?: Record<string, any>
+  prompt?: string
+}): Promise<{
+  success: boolean
+  data: {
+    title: string
+    sections: Array<{
+      heading: string
+      content?: string
+      items?: Array<{
+        field: string
+        description: string
+        required?: boolean
+        example?: string
+      }>
+      steps?: string[]
+      tips?: string[]
+      warnings?: string[]
+    }>
+  }
+  error?: string
+}> {
+  if (!data.siteSlug || data.siteSlug.trim() === '') {
+    throw new Error('site_slug é obrigatório para obter ajuda com IA')
+  }
+
+  const result = await n8nRequest<{
+    success: boolean
+    data: {
+      title: string
+      sections: Array<{
+        heading: string
+        content?: string
+        items?: Array<{
+          field: string
+          description: string
+          required?: boolean
+          example?: string
+        }>
+        steps?: string[]
+        tips?: string[]
+        warnings?: string[]
+      }>
+    }
+    error?: string
+  }>(`/api/ai/help`, {
+    method: 'POST',
+    body: JSON.stringify({
+      pageContext: data.pageContext,
+      site_slug: data.siteSlug,
+      currentData: data.currentData || null,
+      prompt: data.prompt || null
+    })
+  })
+
+  return result
+}
+
 export async function executeAIEdit(
   siteSlug: string,
   command: string,
@@ -255,6 +319,197 @@ export async function getAIEditHistory(siteSlug: string): Promise<AIEditHistory[
   // Validar site_slug obrigatório
   if (!siteSlug || siteSlug.trim() === '') {
     throw new Error('site_slug é obrigatório para obter histórico de edições IA')
+  }
+  
+  const data = await n8nRequest<AIEditHistoryResponse>(
+    `/ai-site-editor-history/ai-site-editor-history/api/sites/${encodeURIComponent(siteSlug)}/ai-edit/history`,
+    {
+      method: 'GET' // ✅ Explícito: History é GET
+    }
+  )
+  
+  return data.history || []
+}
+
+/**
+ * Valida se o comando é válido antes de enviar para IA
+ */
+export function validateAICommand(command: string): {
+  valid: boolean
+  error?: string
+  suggestions?: string[]
+} {
+  const trimmed = command.trim()
+  
+  if (!trimmed || trimmed.length < 10) {
+    return {
+      valid: false,
+      error: 'Comando muito curto. Descreva o que você quer fazer com mais detalhes.',
+      suggestions: [
+        'Exemplo: "Mude o título da seção sobre produtos para \'Nossos Produtos\'"',
+        'Exemplo: "Atualize a descrição da seção hero com texto mais moderno"'
+      ]
+    }
+  }
+  
+  if (trimmed.length > 500) {
+    return {
+      valid: false,
+      error: 'Comando muito longo. Tente ser mais específico ou divida em comandos menores.',
+      suggestions: [
+        'Faça uma mudança por vez',
+        'Exemplo: "Mude o título..." depois "Agora atualize a descrição..."'
+      ]
+    }
+  }
+  
+  // Palavras perigosas que não devem ser permitidas
+  const dangerousWords = ['delete', 'remove', 'apagar', 'remover', 'excluir']
+  const lowerCommand = trimmed.toLowerCase()
+  const hasDangerousWord = dangerousWords.some(word => lowerCommand.includes(word))
+  
+  if (hasDangerousWord) {
+    return {
+      valid: false,
+      error: 'Comandos de exclusão não são permitidos por segurança. Use "editar" ou "atualizar" ao invés de "deletar".',
+      suggestions: [
+        'Ao invés de "delete a seção X", use "desative a seção X"',
+        'Ao invés de "remove o texto Y", use "substitua o texto Y por Z"'
+      ]
+    }
+  }
+  
+  return { valid: true }
+}
+
+  }
+  
+  const data = await n8nRequest<AIEditHistoryResponse>(
+    `/ai-site-editor-history/ai-site-editor-history/api/sites/${encodeURIComponent(siteSlug)}/ai-edit/history`,
+    {
+      method: 'GET' // ✅ Explícito: History é GET
+    }
+  )
+  
+  return data.history || []
+}
+
+/**
+ * Valida se o comando é válido antes de enviar para IA
+ */
+export function validateAICommand(command: string): {
+  valid: boolean
+  error?: string
+  suggestions?: string[]
+} {
+  const trimmed = command.trim()
+  
+  if (!trimmed || trimmed.length < 10) {
+    return {
+      valid: false,
+      error: 'Comando muito curto. Descreva o que você quer fazer com mais detalhes.',
+      suggestions: [
+        'Exemplo: "Mude o título da seção sobre produtos para \'Nossos Produtos\'"',
+        'Exemplo: "Atualize a descrição da seção hero com texto mais moderno"'
+      ]
+    }
+  }
+  
+  if (trimmed.length > 500) {
+    return {
+      valid: false,
+      error: 'Comando muito longo. Tente ser mais específico ou divida em comandos menores.',
+      suggestions: [
+        'Faça uma mudança por vez',
+        'Exemplo: "Mude o título..." depois "Agora atualize a descrição..."'
+      ]
+    }
+  }
+  
+  // Palavras perigosas que não devem ser permitidas
+  const dangerousWords = ['delete', 'remove', 'apagar', 'remover', 'excluir']
+  const lowerCommand = trimmed.toLowerCase()
+  const hasDangerousWord = dangerousWords.some(word => lowerCommand.includes(word))
+  
+  if (hasDangerousWord) {
+    return {
+      valid: false,
+      error: 'Comandos de exclusão não são permitidos por segurança. Use "editar" ou "atualizar" ao invés de "deletar".',
+      suggestions: [
+        'Ao invés de "delete a seção X", use "desative a seção X"',
+        'Ao invés de "remove o texto Y", use "substitua o texto Y por Z"'
+      ]
+    }
+  }
+  
+  return { valid: true }
+}
+
+
+  }
+  
+  const data = await n8nRequest<AIEditHistoryResponse>(
+    `/ai-site-editor-history/ai-site-editor-history/api/sites/${encodeURIComponent(siteSlug)}/ai-edit/history`,
+    {
+      method: 'GET' // ✅ Explícito: History é GET
+    }
+  )
+  
+  return data.history || []
+}
+
+/**
+ * Valida se o comando é válido antes de enviar para IA
+ */
+export function validateAICommand(command: string): {
+  valid: boolean
+  error?: string
+  suggestions?: string[]
+} {
+  const trimmed = command.trim()
+  
+  if (!trimmed || trimmed.length < 10) {
+    return {
+      valid: false,
+      error: 'Comando muito curto. Descreva o que você quer fazer com mais detalhes.',
+      suggestions: [
+        'Exemplo: "Mude o título da seção sobre produtos para \'Nossos Produtos\'"',
+        'Exemplo: "Atualize a descrição da seção hero com texto mais moderno"'
+      ]
+    }
+  }
+  
+  if (trimmed.length > 500) {
+    return {
+      valid: false,
+      error: 'Comando muito longo. Tente ser mais específico ou divida em comandos menores.',
+      suggestions: [
+        'Faça uma mudança por vez',
+        'Exemplo: "Mude o título..." depois "Agora atualize a descrição..."'
+      ]
+    }
+  }
+  
+  // Palavras perigosas que não devem ser permitidas
+  const dangerousWords = ['delete', 'remove', 'apagar', 'remover', 'excluir']
+  const lowerCommand = trimmed.toLowerCase()
+  const hasDangerousWord = dangerousWords.some(word => lowerCommand.includes(word))
+  
+  if (hasDangerousWord) {
+    return {
+      valid: false,
+      error: 'Comandos de exclusão não são permitidos por segurança. Use "editar" ou "atualizar" ao invés de "deletar".',
+      suggestions: [
+        'Ao invés de "delete a seção X", use "desative a seção X"',
+        'Ao invés de "remove o texto Y", use "substitua o texto Y por Z"'
+      ]
+    }
+  }
+  
+  return { valid: true }
+}
+
+
   }
   
   const data = await n8nRequest<AIEditHistoryResponse>(

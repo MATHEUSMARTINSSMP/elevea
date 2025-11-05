@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Phone, MapPin, Instagram, Facebook, Clock, Mail, Globe, Save, Loader2, Info } from 'lucide-react'
 import { toast } from 'sonner'
 import * as n8nSites from '@/lib/n8n-sites'
+import AIHelpButton from '@/components/AIHelpButton'
 
 interface DisplayDataEditorProps {
   siteSlug: string
@@ -125,6 +126,10 @@ export default function DisplayDataEditor({ siteSlug, vipPin, onDataUpdated }: D
       })
 
       toast.success('Dados atualizados com sucesso!')
+      
+      // Recarregar dados após salvar para mostrar os valores atualizados
+      await loadDisplayData()
+      
       onDataUpdated?.()
     } catch (err: any) {
       console.error('Erro ao salvar dados:', err)
@@ -162,14 +167,23 @@ export default function DisplayDataEditor({ siteSlug, vipPin, onDataUpdated }: D
   return (
     <Card className="dashboard-card dashboard-border dashboard-shadow">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Info className="h-5 w-5 text-primary" />
-          Dados para Exibição
-        </CardTitle>
-        <CardDescription className="mt-2">
-          Informações básicas exibidas globalmente no seu site: telefone, endereço, redes sociais e horários de funcionamento.
-          Essas informações aparecem no rodapé, seções de contato e em outros lugares do site.
-        </CardDescription>
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <CardTitle className="flex items-center gap-2">
+              <Info className="h-5 w-5 text-primary" />
+              Dados para Exibição
+            </CardTitle>
+            <CardDescription className="mt-2">
+              Informações básicas exibidas globalmente no seu site: telefone, endereço, redes sociais e horários de funcionamento.
+              Essas informações aparecem no rodapé, seções de contato e em outros lugares do site.
+            </CardDescription>
+          </div>
+          <AIHelpButton 
+            pageContext="DisplayDataEditor" 
+            siteSlug={siteSlug}
+            currentData={formData}
+          />
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Telefone */}
@@ -324,6 +338,47 @@ export default function DisplayDataEditor({ siteSlug, vipPin, onDataUpdated }: D
             </>
           )}
         </Button>
+
+        {/* Info */}
+        <div className="p-4 bg-muted/50 rounded-lg border border-border">
+          <p className="text-sm text-muted-foreground">
+            <strong>Nota:</strong> Esses dados são exibidos globalmente no site (rodapé, seções de contato, etc.).
+            As alterações serão refletidas imediatamente após salvar.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+
+        {/* Info */}
+        <div className="p-4 bg-muted/50 rounded-lg border border-border">
+          <p className="text-sm text-muted-foreground">
+            <strong>Nota:</strong> Esses dados são exibidos globalmente no site (rodapé, seções de contato, etc.).
+            As alterações serão refletidas imediatamente após salvar.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+
+
+        {/* Info */}
+        <div className="p-4 bg-muted/50 rounded-lg border border-border">
+          <p className="text-sm text-muted-foreground">
+            <strong>Nota:</strong> Esses dados são exibidos globalmente no site (rodapé, seções de contato, etc.).
+            As alterações serão refletidas imediatamente após salvar.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+
 
         {/* Info */}
         <div className="p-4 bg-muted/50 rounded-lg border border-border">
