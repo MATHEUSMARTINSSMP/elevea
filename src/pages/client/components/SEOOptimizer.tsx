@@ -217,46 +217,35 @@ export default function SEOOptimizer({ siteSlug, vipPin }: SEOOptimizerProps) {
 
   return (
     <>
-      <Card className="rounded-2xl border border-white/10 bg-white/5 text-white">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-primary" />
-                SEO Automático
-              </CardTitle>
-              <CardDescription className="text-slate-400 mt-1">
-                Otimização automática de SEO com IA para melhor posicionamento nos buscadores
-              </CardDescription>
-            </div>
-            {analysis && (
-              <Badge className={`px-4 py-2 rounded-full border text-lg font-bold ${getScoreColor(analysis.score.overall)}`}>
-                {analysis.score.overall}/100
-              </Badge>
-            )}
+      <div className="space-y-6">
+        {error && (
+          <div className="p-4 rounded-lg bg-red-400/10 border border-red-400/20 text-red-400">
+            <p className="text-sm">{error}</p>
           </div>
-        </CardHeader>
+        )}
 
-        <CardContent className="space-y-6">
-          {error && (
-            <div className="p-4 rounded-lg bg-red-400/10 border border-red-400/20 text-red-400">
-              <p className="text-sm">{error}</p>
+        {/* Score Badge - Mostrar no topo se tiver análise */}
+        {analysis && (
+          <div className="flex justify-end mb-4">
+            <Badge className={`px-4 py-2 rounded-full border text-lg font-bold ${getScoreColor(analysis.score.overall)}`}>
+              {analysis.score.overall}/100
+            </Badge>
+          </div>
+        )}
+
+        {/* Análise Atual */}
+        {analysis && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Análise Atual do SEO
+              </h3>
+              <Button variant="outline" size="sm" onClick={analyzeSEO} disabled={loading}>
+                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Re-analisar
+              </Button>
             </div>
-          )}
-
-          {/* Análise Atual */}
-          {analysis && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <FileText className="w-5 h-5" />
-                  Análise Atual do SEO
-                </h3>
-                <Button variant="outline" size="sm" onClick={analyzeSEO} disabled={loading}>
-                  <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                  Re-analisar
-                </Button>
-              </div>
 
               {/* Score Geral */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -417,13 +406,12 @@ export default function SEOOptimizer({ siteSlug, vipPin }: SEOOptimizerProps) {
             </Button>
           </div>
 
-          {lastOptimization && (
-            <div className="text-xs text-slate-400 text-center pt-2 border-t border-white/10">
-              Última otimização: {new Date(lastOptimization).toLocaleString('pt-BR')}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        {lastOptimization && (
+          <div className="text-xs text-slate-400 text-center pt-2 border-t border-white/10">
+            Última otimização: {new Date(lastOptimization).toLocaleString('pt-BR')}
+          </div>
+        )}
+      </div>
 
       {/* Dialog de Preview */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
