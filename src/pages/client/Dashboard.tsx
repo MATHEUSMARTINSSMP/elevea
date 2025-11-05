@@ -10,6 +10,7 @@ import GoogleReviews from "./components/GoogleReviews";
 import FeedbackManager from "./components/FeedbackManager";
 import SEOOptimizer from "./components/SEOOptimizer";
 import WhatsAppHub from "./components/WhatsAppHub";
+import InstagramHub from "./components/InstagramHub";
 import LeadScoring from "./components/LeadScoring";
 import { LeadCapture } from "@/components/dashboard/LeadCapture";
 import MultiLanguageManager from "./components/MultiLanguageManager";
@@ -29,7 +30,7 @@ import * as n8nSites from "@/lib/n8n-sites";
 import { Card as UICard, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Search, Info } from "lucide-react";
+import { Search, Info, Instagram } from "lucide-react";
 
 // === Extras / UI ===
 import { AICopywriter } from "@/components/ui/ai-copywriter";
@@ -381,6 +382,7 @@ function ClientDashboardContent() {
     const vipAllowedFeatures = [
       "whatsapp-chatbot",    // Agente WhatsApp
       "google-reviews",      // Google Meu Negócio  
+      "instagram-hub",       // Instagram Hub
       "feedback-system",     // Sistema de Feedback
       "color-palette",       // Paleta de cores
       "traffic-analytics",   // Tráfego do site
@@ -402,7 +404,8 @@ function ClientDashboardContent() {
     // Para VIP, funcionalidades fora da lista permitida estão em desenvolvimento
     const vipAllowedFeatures = [
       "whatsapp-chatbot",
-      "google-reviews", 
+      "google-reviews",
+      "instagram-hub",
       "feedback-system",
       "color-palette",
       "traffic-analytics",
@@ -945,6 +948,75 @@ useEffect(() => {
             {isFeatureEnabled("traffic-analytics") && (
               <section className="space-y-6">
                 <AnalyticsDashboard siteSlug={user?.siteSlug || ""} vipPin={vipPin || "FORCED"} />
+              </section>
+            )}
+
+            {/* Instagram Hub - Logo abaixo de Analytics */}
+            {isFeatureEnabled("instagram-hub") && (
+              <section className="space-y-8">
+                {/* Header Geral */}
+                <div className="text-center space-y-2 pb-2">
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                    Instagram Hub
+                  </h1>
+                  <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+                    Gestão completa do Instagram com IA: agende posts, gerencie comentários, analise métricas e muito mais
+                  </p>
+                </div>
+
+                {/* Separador Visual */}
+                <div className="relative">
+                  <Separator className="my-8" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="bg-background px-4">
+                      <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                        Gestão de Redes Sociais
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card Principal */}
+                <UICard className="border-2 border-pink-500/20 bg-gradient-to-br from-background to-pink-500/5 shadow-lg">
+                  <CardContent className="p-6">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h2 className="text-xl font-bold text-foreground">Instagram Hub</h2>
+                          <Badge variant="outline" className="text-xs">IA</Badge>
+                          <Badge variant="outline" className="text-xs bg-pink-500/10 text-pink-700 dark:text-pink-400 border-pink-500/50">
+                            Multi-tenant
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Agende posts, gerencie comentários, analise métricas e agende stories com inteligência artificial
+                        </p>
+                      </div>
+                      <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center">
+                        <Instagram className="h-5 w-5 text-white" />
+                      </div>
+                    </div>
+                    
+                    <div className="bg-pink-50/50 dark:bg-pink-950/20 rounded-lg p-3 mb-4 border border-pink-200/50 dark:border-pink-800/50">
+                      <div className="flex items-start gap-2">
+                        <Info className="h-4 w-4 text-pink-600 dark:text-pink-400 mt-0.5 flex-shrink-0" />
+                        <div className="text-xs text-pink-900 dark:text-pink-100 space-y-1">
+                          <p className="font-medium">O que é este sistema?</p>
+                          <p>
+                            Gerencie seu Instagram de forma profissional com automações inteligentes. Agende posts e stories,
+                            responda comentários automaticamente, gere legendas e hashtags com IA, e acompanhe métricas detalhadas
+                            para otimizar sua estratégia de conteúdo.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <InstagramHub
+                      siteSlug={user?.siteSlug || ""}
+                      vipPin={vipPin || "FORCED"}
+                    />
+                  </CardContent>
+                </UICard>
               </section>
             )}
 

@@ -158,4 +158,78 @@ export const n8n = {
   
   startGoogleAuth: (params: { customerId: string; siteSlug: string }) => 
     get(`/api/auth/google/start?customerId=${encodeURIComponent(params.customerId)}&siteSlug=${encodeURIComponent(params.siteSlug)}`),
+
+  // Instagram APIs (n8n webhooks) - Multi-tenant
+  connectInstagram: (data: { site_slug: string; vipPin: string }) => 
+    post("/api/instagram/connect", data),
+  
+  getInstagramStatus: (params: { site_slug: string }) => 
+    get(`/api/instagram/status?${new URLSearchParams({ site_slug: params.site_slug })}`),
+  
+  getInstagramPosts: (params: { site_slug: string; limit?: number; offset?: number }) => {
+    const queryParams: any = { site_slug: params.site_slug }
+    if (params.limit) queryParams.limit = params.limit
+    if (params.offset) queryParams.offset = params.offset
+    return get(`/api/instagram/posts?${new URLSearchParams(queryParams).toString()}`)
+  },
+  
+  // API pública para buscar últimas postagens (sem autenticação VIP)
+  getInstagramPublicFeed: (params: { site_slug: string; limit?: number }) => {
+    const queryParams: any = { site_slug: params.site_slug }
+    if (params.limit) queryParams.limit = params.limit
+    return get(`/api/instagram/public/feed?${new URLSearchParams(queryParams).toString()}`)
+  },
+  
+  scheduleInstagramPost: (data: { 
+    site_slug: string; 
+    image_url: string; 
+    caption: string; 
+    scheduled_time: string;
+    hashtags?: string[];
+  }) => post("/api/instagram/schedule", data),
+  
+  deleteScheduledPost: (data: { site_slug: string; post_id: string }) => 
+    post("/api/instagram/schedule/delete", data),
+  
+  getInstagramAnalytics: (params: { site_slug: string; period?: string }) => {
+    const queryParams: any = { site_slug: params.site_slug }
+    if (params.period) queryParams.period = params.period
+    return get(`/api/instagram/analytics?${new URLSearchParams(queryParams).toString()}`)
+  },
+  
+  getInstagramComments: (params: { site_slug: string; post_id?: string; status?: string }) => {
+    const queryParams: any = { site_slug: params.site_slug }
+    if (params.post_id) queryParams.post_id = params.post_id
+    if (params.status) queryParams.status = params.status
+    return get(`/api/instagram/comments?${new URLSearchParams(queryParams).toString()}`)
+  },
+  
+  respondToComment: (data: { 
+    site_slug: string; 
+    comment_id: string; 
+    response: string;
+  }) => post("/api/instagram/comment/respond", data),
+  
+  getInstagramStories: (params: { site_slug: string }) => 
+    get(`/api/instagram/stories?${new URLSearchParams({ site_slug: params.site_slug })}`),
+  
+  scheduleInstagramStory: (data: {
+    site_slug: string;
+    image_url: string;
+    scheduled_time: string;
+    duration?: number;
+  }) => post("/api/instagram/stories/schedule", data),
+  
+  generateCaptionWithAI: (data: {
+    site_slug: string;
+    image_description?: string;
+    context?: string;
+    tone?: string;
+  }) => post("/api/instagram/ai/generate-caption", data),
+  
+  generateHashtagsWithAI: (data: {
+    site_slug: string;
+    caption: string;
+    context?: string;
+  }) => post("/api/instagram/ai/generate-hashtags", data),
 };
