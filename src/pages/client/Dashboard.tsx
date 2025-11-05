@@ -214,10 +214,60 @@ const getQSBool = (key: string) => {
   return v === "1" || v === "true";
 };
 
+/* ================= Error Boundary Component ================= */
+class DashboardErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("❌ Dashboard Error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen grid place-items-center dashboard-bg p-4">
+          <div className="max-w-2xl w-full rounded-2xl border border-red-300 bg-red-50 p-6 space-y-4">
+            <h1 className="text-xl font-bold text-red-900">Erro ao carregar o Dashboard</h1>
+            <p className="text-sm text-red-700">
+              Ocorreu um erro ao renderizar o dashboard. Por favor, recarregue a página.
+            </p>
+            {this.state.error && (
+              <details className="text-xs text-red-600 bg-red-100 p-3 rounded">
+                <summary className="cursor-pointer font-semibold">Detalhes técnicos</summary>
+                <pre className="mt-2 whitespace-pre-wrap">{this.state.error.toString()}</pre>
+              </details>
+            )}
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+            >
+              Recarregar Página
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 /* ================= Página ================= */
-export default function ClientDashboard() {
+function ClientDashboardContent() {
   const { user, loading, logout: authLogout } = useAuth();
-  const canQuery = !!user?.email && !!user?.siteSlug && user?.role === "client";
+  // Permitir carregar dashboard mesmo sem siteSlug (usuários novos podem não ter site ainda)
+  const canQuery = !!user?.email && user?.role === "client";
+  const siteSlug = user?.siteSlug || "";
 
   // Debug logs
   console.log("🔍 Dashboard Debug:", { user, canQuery });
@@ -280,7 +330,12 @@ export default function ClientDashboard() {
 
   // Detecção de plano: dev (acesso total) ou vip (limitado) ou essential
   const isDevUser = user?.plan === "dev" || user?.email === "dev";
-  const isVipUser = looksVip(plan || undefined) || looksVip(status?.plan) || isActiveStatus(status?.status);
+  // Verificar VIP de múltiplas fontes: user.plan (direto do login), plan (estado), status.plan (API), status.status (ativo)
+  const isVipUser = 
+    looksVip(user?.plan) ||           // Plano do usuário (salvo no login)
+    looksVip(plan || undefined) ||     // Plano do estado (setado pelo useEffect)
+    looksVip(status?.plan) ||          // Plano do status (API)
+    isActiveStatus(status?.status);    // Status ativo também indica VIP
   
   // VIP habilita se QUALQUER fonte indicar isso (ou DEV force) 
   // Agora também considera cache e fallbacks para resilência
@@ -403,10 +458,17 @@ export default function ClientDashboard() {
       setLoadingStatus(false);
       setPlanErr(null);
       
+      // Salvar no cache se for VIP para fallback futuro
+      try {
+        if (looksVip(user.plan)) {
+          sessionStorage.setItem(cacheKey, user.plan);
+        }
+      } catch {}
+      
       // Define status básico baseado no plano
       setStatus({
         ok: true,
-        siteSlug: user.siteSlug || "",
+        siteSlug: siteSlug,
         status: "active",
         plan: user.plan,
         nextCharge: null,
@@ -418,8 +480,18 @@ export default function ClientDashboard() {
       setCheckingPlan(false);
       setLoadingStatus(false);
       setPlanErr(null);
+      
+      // Define status básico mesmo sem plano
+      setStatus({
+        ok: true,
+        siteSlug: siteSlug,
+        status: "active",
+        plan: "essential",
+        nextCharge: null,
+        lastPayment: null,
+      });
     }
-  }, [canQuery, user?.siteSlug, user?.plan]);
+  }, [canQuery, siteSlug, user?.plan, cacheKey]);
 
   // Função retryPlan removida - agora usa user.plan do n8n
 
@@ -447,10 +519,16 @@ export default function ClientDashboard() {
         return; // já tem dados do plano
       }
 
+      // Só buscar status se tiver siteSlug
+      if (!siteSlug) {
+        setLoadingStatus(false);
+        return;
+      }
+
       try {
         console.log("📡 Fetching status...");
         const s = await getJSON<StatusResp>(
-          `/.netlify/functions/client-api?action=get_status&site=${encodeURIComponent(user!.siteSlug!)}`,
+          `/.netlify/functions/client-api?action=get_status&site=${encodeURIComponent(siteSlug)}`,
           CARDS_TIMEOUT_MS * 2 // Dobrar o timeout
         );
         if (!alive) return;
@@ -467,8 +545,9 @@ export default function ClientDashboard() {
     // SETTINGS
     (async () => {
       try {
-        if (user?.siteSlug) {
-          const siteSettings = await n8nSites.getSiteSettings(user.siteSlug);
+        // Só buscar settings se tiver siteSlug
+        if (siteSlug) {
+          const siteSettings = await n8nSites.getSiteSettings(siteSlug);
           if (alive) {
             // Mapear SiteSettings para ClientSettings
             setSettings({
@@ -484,9 +563,25 @@ export default function ClientDashboard() {
             });
             // Não alterar vipPin aqui, manter o que veio do sessionStorage/QS
           }
+        } else {
+          // Se não tem siteSlug, usar settings padrão
+          setSettings({
+            showBrand: true,
+            showPhone: false,
+            showWhatsApp: false,
+            vipPin: vipPin
+          });
         }
       } catch {
-        // silencioso
+        // silencioso - usar settings padrão em caso de erro
+        if (alive) {
+          setSettings({
+            showBrand: true,
+            showPhone: false,
+            showWhatsApp: false,
+            vipPin: vipPin
+          });
+        }
       } finally {
         if (alive) setLoadingSettings(false);
       }
@@ -503,7 +598,7 @@ export default function ClientDashboard() {
     return () => {
       alive = false;
     };
-  }, [canQuery, user?.siteSlug, status?.nextCharge, status?.lastPayment, DEV_FORCE_VIP]);
+  }, [canQuery, siteSlug, status?.nextCharge, status?.lastPayment, DEV_FORCE_VIP]);
 
   /* 3) FEEDBACKS */
 useEffect(() => {
@@ -642,6 +737,7 @@ useEffect(() => {
       };
       
       // Atualizar via n8n
+      if (!user?.siteSlug) return;
       const updated = await n8nSites.updateSiteSettings(user.siteSlug, updates);
       
       // Atualizar state local
@@ -742,7 +838,7 @@ useEffect(() => {
           <div className="flex items-center gap-2 sm:gap-4">
             <img src="/logo-elevea.png" alt="ELEVEA" className="h-5 sm:h-6 w-auto" />
             <div className="text-xs sm:text-sm dashboard-text-muted">
-              {user.email} {user.siteSlug ? `• ${user.siteSlug}` : "• sem site"} {`• ${planLabel}`}
+              {user?.email || "—"} {user?.siteSlug ? `• ${user.siteSlug}` : "• sem site"} {`• ${planLabel || "—"}`}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -814,8 +910,8 @@ useEffect(() => {
           />
         </section>
 
-        {/* ================== FUNCIONALIDADES VIP FUNCIONAIS ================== */}
-        {vipEnabled && (
+        {/* ================== FUNCIONALIDADES DISPONÍVEIS ================== */}
+        {(vipEnabled || canQuery) && (
           <>
             <div className="mb-8">
               <h2 className="text-2xl font-bold dashboard-text mb-2">🚀 Funcionalidades Disponíveis</h2>
@@ -825,7 +921,7 @@ useEffect(() => {
             {/* Tráfego do Site - Analytics Dashboard */}
             {isFeatureEnabled("traffic-analytics") && (
               <section className="space-y-6">
-                <AnalyticsDashboard siteSlug={user.siteSlug || ""} vipPin={vipPin || "FORCED"} />
+                <AnalyticsDashboard siteSlug={user?.siteSlug || ""} vipPin={vipPin || "FORCED"} />
               </section>
             )}
 
@@ -833,7 +929,7 @@ useEffect(() => {
             {isFeatureEnabled("site-editor") && (
               <section className="space-y-6">
                 <EditorConteudoSection
-                  siteSlug={user.siteSlug || ""}
+                  siteSlug={user?.siteSlug || ""}
                   vipPin={vipPin || "FORCED"}
                   onContentUpdated={(sectionId, field, value) => {
                     console.log('Conteúdo atualizado:', { sectionId, field, value })
@@ -848,12 +944,12 @@ useEffect(() => {
                     teaser="Personalize cores e layout do seu site"
                   >
                     <LayoutEditor
-                      siteSlug={user.siteSlug || ""}
+                      siteSlug={user?.siteSlug || ""}
                       vipPin={vipPin || "FORCED"}
                       onSettingsUpdated={async () => {
                         // Recarregar configurações após atualização
                         try {
-                          const updatedSettings = await n8nSites.getSiteSettings(user.siteSlug || "")
+                          const updatedSettings = await n8nSites.getSiteSettings(user?.siteSlug || "")
                           setSettings({
                             showBrand: updatedSettings.showBrand,
                             showPhone: updatedSettings.showPhone,
@@ -881,12 +977,12 @@ useEffect(() => {
                     teaser="Edite informações básicas exibidas no site"
                   >
                     <DisplayDataEditor
-                      siteSlug={user.siteSlug || ""}
+                      siteSlug={user?.siteSlug || ""}
                       vipPin={vipPin || "FORCED"}
                       onDataUpdated={async () => {
                         // Recarregar configurações após atualização
                         try {
-                          const updatedSettings = await n8nSites.getSiteSettings(user.siteSlug || "")
+                          const updatedSettings = await n8nSites.getSiteSettings(user?.siteSlug || "")
                           setSettings({
                             showBrand: updatedSettings.showBrand,
                             showPhone: updatedSettings.showPhone,
@@ -912,7 +1008,7 @@ useEffect(() => {
             {isFeatureEnabled("feedback-system") && (
               <section className="space-y-6">
                 <FeedbackSection
-                  siteSlug={user.siteSlug || ""}
+                  siteSlug={user?.siteSlug || ""}
                   vipPin={vipPin || "FORCED"}
                 />
               </section>
@@ -921,7 +1017,7 @@ useEffect(() => {
             {/* Captação de Leads */}
             {isFeatureEnabled("lead-capture") && (
               <section className="space-y-6">
-                <LeadCapture siteSlug={user.siteSlug || ""} vipPin={vipPin || "FORCED"} />
+                <LeadCapture siteSlug={user?.siteSlug || ""} vipPin={vipPin || "FORCED"} />
               </section>
             )}
 
@@ -1015,19 +1111,19 @@ useEffect(() => {
         )}
 
         {/* ================== FUNCIONALIDADES EM DESENVOLVIMENTO ================== */}
-        {vipEnabled && !isDevUser && (
+        {(vipEnabled || canQuery) && !isDevUser && (
           <>
             {/* Google Meu Negócio - Logo acima de Em Desenvolvimento */}
             {isFeatureEnabled("google-reviews") && (
               <section className="space-y-6">
-                <GoogleReviews siteSlug={user.siteSlug || ""} vipPin={vipPin || "FORCED"} userEmail={user.email} />
+                <GoogleReviews siteSlug={user?.siteSlug || ""} vipPin={vipPin || "FORCED"} userEmail={user?.email || ""} />
               </section>
             )}
 
             {/* WhatsApp Hub - Logo acima de Em Desenvolvimento */}
             {isFeatureEnabled("whatsapp-chatbot") && (
               <section className="space-y-6">
-                <WhatsAppHub siteSlug={user.siteSlug || ""} vipPin={vipPin || "FORCED"} />
+                <WhatsAppHub siteSlug={user?.siteSlug || ""} vipPin={vipPin || "FORCED"} />
               </section>
             )}
 
@@ -1116,7 +1212,7 @@ useEffect(() => {
             {/* Business Insights - DEV */}
             <section className="space-y-6">
               <BusinessInsights
-                  siteSlug={user.siteSlug || ""}
+                  siteSlug={user?.siteSlug || ""}
                   businessType="geral"
                   businessName={user?.siteSlug || "seu negócio"}
                   vipPin={vipPin || "FORCED"}
@@ -1151,13 +1247,13 @@ useEffect(() => {
 
             {/* Lead Scoring - DEV */}
             <section className="space-y-6">
-              <LeadScoring siteSlug={user.siteSlug || ""} vipPin={vipPin || "FORCED"} />
+              <LeadScoring siteSlug={user?.siteSlug || ""} vipPin={vipPin || "FORCED"} />
             </section>
 
             {/* SEO Optimizer - DEV */}
             <section className="space-y-6">
               <SEOOptimizer
-                siteSlug={user.siteSlug || ""}
+                siteSlug={user?.siteSlug || ""}
                 vipPin={vipPin || "FORCED"}
               />
             </section>
@@ -1166,7 +1262,7 @@ useEffect(() => {
             <section className="space-y-6">
               <div className="rounded-2xl border dashboard-border dashboard-card p-6 dashboard-shadow">
                 <AICopywriter
-                  businessName={user.siteSlug || "seu negócio"}
+                  businessName={user?.siteSlug || "seu negócio"}
                   businessType="negócio"
                   businessDescription=""
                 />
@@ -1201,7 +1297,7 @@ useEffect(() => {
             {/* Feature Manager - DEV */}
             <section className="space-y-6">
               <FeatureManager
-                siteSlug={user.siteSlug || ""}
+                siteSlug={user?.siteSlug || ""}
                 vipPin={vipPin || "FORCED"}
                 userPlan={userPlan}
               />
@@ -1210,7 +1306,7 @@ useEffect(() => {
         )}
 
       {/* Botão flutuante do Chat AI - apenas para VIP */}
-      {vipEnabled && (
+      {vipEnabled && canQuery && (
         <button
           onClick={() => setShowAIChat(true)}
           className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center z-40"
@@ -1247,6 +1343,15 @@ useEffect(() => {
       )}
       </div>
     </div>
+  );
+}
+
+/* ================= Export with Error Boundary ================= */
+export default function ClientDashboard() {
+  return (
+    <DashboardErrorBoundary>
+      <ClientDashboardContent />
+    </DashboardErrorBoundary>
   );
 }
 

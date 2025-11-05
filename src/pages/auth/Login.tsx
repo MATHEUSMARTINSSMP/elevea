@@ -121,29 +121,59 @@ export default function LoginPage() {
       let userData = data.user || data;
       let role = userData?.role as Role | undefined;
 
-      // Se não tem role, consulta /me para obter dados completos
-      if (!role) {
+      console.log("🔍 Login: Resposta inicial do webhook:", { data, userData });
+
+      // Se não tem role ou site_slug, consulta /me para obter dados completos
+      if (!role || !userData?.site_slug) {
         try {
+          console.log("🔍 Login: Consultando /me para obter dados completos...");
           const meR = await fetch(ME_URL, {
             method: "POST",
             headers: authHeaders(),
             body: JSON.stringify({ email: emailLc }),
           });
           const me: ApiResp = await meR.json().catch(() => ({} as any));
-          if (me.success && me.user) {
-            userData = me.user;
-            role = me.user.role as Role | undefined;
-          } else if (me.user) {
-            userData = me.user;
-            role = me.user.role as Role | undefined;
+          console.log("🔍 Login: Resposta /me:", me);
+          
+          // Processar resposta do /me (pode ser array ou objeto)
+          const meData = Array.isArray(me) ? me[0] : me;
+          
+          if (meData?.success && meData?.user) {
+            userData = { ...userData, ...meData.user };
+            role = meData.user.role as Role | undefined;
+            console.log("🔍 Login: Dados atualizados do /me:", userData);
+          } else if (meData?.user) {
+            userData = { ...userData, ...meData.user };
+            role = meData.user.role as Role | undefined;
+            console.log("🔍 Login: Dados atualizados do /me (fallback):", userData);
           }
-        } catch {}
+        } catch (e) {
+          console.error("🔍 Login: Erro ao consultar /me:", e);
+        }
       }
 
       if (!role) {
         setErr("Resposta inválida do servidor.");
         return;
       }
+
+      // Extrair site_slug de todas as formas possíveis
+      const siteSlug = 
+        userData?.site_slug || 
+        userData?.siteSlug || 
+        (data as any)?.site_slug || 
+        (data as any)?.siteSlug || 
+        "";
+
+      // Extrair plan de todas as formas possíveis
+      const plan = 
+        userData?.user_plan || 
+        userData?.plan || 
+        (data as any)?.user_plan || 
+        (data as any)?.plan || 
+        "";
+
+      console.log("🔍 Login: Dados finais extraídos:", { email: emailLc, role, siteSlug, plan });
 
       // Salvar dados completos do usuário no localStorage
       try {
@@ -153,14 +183,14 @@ export default function LoginPage() {
         const authData = {
           email: userData.email || emailLc,
           role: role,
-          siteSlug: userData.site_slug || userData.siteSlug || "",
-          plan: userData.user_plan || userData.plan || "",
+          siteSlug: siteSlug,
+          plan: plan,
         };
         window.localStorage.setItem("auth", JSON.stringify(authData));
         
         console.log("✅ Login bem-sucedido, dados salvos:", authData);
       } catch (e) {
-        console.error("Erro ao salvar dados de autenticação:", e);
+        console.error("❌ Erro ao salvar dados de autenticação:", e);
       }
       
       redirectByRole(role, next);

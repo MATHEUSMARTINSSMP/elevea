@@ -88,7 +88,7 @@ export function useAuth() {
         });
         
         const data: MeResp = await r.json().catch(() => ({} as any));
-        console.log("🔍 useAuth: Resposta n8n", data);
+        console.log("🔍 useAuth: Resposta n8n RAW:", data);
         console.log("🔍 useAuth: Status da resposta", r.status);
         console.log("🔍 useAuth: data.success =", data?.success);
         console.log("🔍 useAuth: data.user =", data?.user);
@@ -99,21 +99,44 @@ export function useAuth() {
         const responseData = Array.isArray(data) ? data[0] : data;
         console.log("🔍 useAuth: responseData processado", responseData);
         
-        if (responseData?.success === true && responseData?.user) {
+        // Verificar se a resposta é válida (pode ter success ou ok)
+        const isValid = responseData?.success === true || responseData?.ok === true;
+        const hasUser = !!responseData?.user;
+        
+        console.log("🔍 useAuth: Validação - isValid:", isValid, "hasUser:", hasUser);
+        
+        if (isValid && hasUser) {
           console.log("🔍 useAuth: Sessão válida, salvando no localStorage");
+          
+          // Extrair dados de todas as formas possíveis
+          const userFromResponse = responseData.user;
+          const siteSlug = 
+            userFromResponse?.site_slug || 
+            userFromResponse?.siteSlug || 
+            (responseData as any)?.site_slug || 
+            "";
+          
+          const plan = 
+            userFromResponse?.user_plan || 
+            userFromResponse?.plan || 
+            (responseData as any)?.user_plan || 
+            (responseData as any)?.plan || 
+            "";
+          
           const userData = {
-            email: responseData.user.email,
-            role: responseData.user.role,
-            siteSlug: responseData.user.site_slug || responseData.user.siteSlug || "",
-            plan: responseData.user.user_plan || responseData.user.plan || "",
+            email: userFromResponse.email || lastEmail,
+            role: userFromResponse.role || "client",
+            siteSlug: siteSlug,
+            plan: plan,
           };
-          console.log("🔍 useAuth: userData final", userData);
+          
+          console.log("🔍 useAuth: userData final extraído:", userData);
           setUser(userData);
           setError(null); // Limpar erro ao ter sucesso
           try { localStorage.setItem("auth", JSON.stringify(userData)); } catch {}
         } else {
           console.log("🔍 useAuth: Sessão inválida, limpando dados");
-          console.log("🔍 useAuth: Motivo - success:", responseData?.success, "user:", !!responseData?.user);
+          console.log("🔍 useAuth: Motivo - isValid:", isValid, "hasUser:", hasUser);
           setUser(null);
           setError(null); // Não mostrar erro se sessão expirou, apenas limpar
           try { localStorage.removeItem("auth"); } catch {}
