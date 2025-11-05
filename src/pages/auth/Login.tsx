@@ -117,8 +117,11 @@ export default function LoginPage() {
         return;
       }
 
-      // se o respond de login não fornecer role, consulta /me
-      let role = data.user?.role as Role | undefined;
+      // Normalizar dados do usuário - o login pode retornar diretamente ou dentro de user
+      let userData = data.user || data;
+      let role = userData?.role as Role | undefined;
+
+      // Se não tem role, consulta /me para obter dados completos
       if (!role) {
         try {
           const meR = await fetch(ME_URL, {
@@ -127,15 +130,39 @@ export default function LoginPage() {
             body: JSON.stringify({ email: emailLc }),
           });
           const me: ApiResp = await meR.json().catch(() => ({} as any));
-          role = me.user?.role as Role | undefined;
+          if (me.success && me.user) {
+            userData = me.user;
+            role = me.user.role as Role | undefined;
+          } else if (me.user) {
+            userData = me.user;
+            role = me.user.role as Role | undefined;
+          }
         } catch {}
       }
+
       if (!role) {
         setErr("Resposta inválida do servidor.");
         return;
       }
 
-      try { window.localStorage.setItem("elevea_last_email", emailLc); } catch {}
+      // Salvar dados completos do usuário no localStorage
+      try {
+        window.localStorage.setItem("elevea_last_email", emailLc);
+        
+        // Salvar dados do usuário como auth
+        const authData = {
+          email: userData.email || emailLc,
+          role: role,
+          siteSlug: userData.site_slug || userData.siteSlug || "",
+          plan: userData.user_plan || userData.plan || "",
+        };
+        window.localStorage.setItem("auth", JSON.stringify(authData));
+        
+        console.log("✅ Login bem-sucedido, dados salvos:", authData);
+      } catch (e) {
+        console.error("Erro ao salvar dados de autenticação:", e);
+      }
+      
       redirectByRole(role, next);
     } catch (e: any) {
       setErr(e?.message || "Erro de rede");

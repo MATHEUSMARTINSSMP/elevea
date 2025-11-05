@@ -65,6 +65,7 @@ export function useAuth() {
         if (storedUser) {
           console.log("🔍 useAuth: Usuário encontrado no localStorage", storedUser);
           setUser(storedUser);
+          setError(null); // Limpar qualquer erro anterior
           setLoading(false);
           return;
         }
@@ -74,6 +75,7 @@ export function useAuth() {
         if (!lastEmail) {
           console.log("🔍 useAuth: Nenhum email salvo, usuário não logado");
           setUser(null);
+          setError(null); // Não é um erro, apenas não está logado
           setLoading(false);
           return;
         }
@@ -107,19 +109,30 @@ export function useAuth() {
           };
           console.log("🔍 useAuth: userData final", userData);
           setUser(userData);
+          setError(null); // Limpar erro ao ter sucesso
           try { localStorage.setItem("auth", JSON.stringify(userData)); } catch {}
         } else {
           console.log("🔍 useAuth: Sessão inválida, limpando dados");
           console.log("🔍 useAuth: Motivo - success:", responseData?.success, "user:", !!responseData?.user);
           setUser(null);
+          setError(null); // Não mostrar erro se sessão expirou, apenas limpar
           try { localStorage.removeItem("auth"); } catch {}
           try { localStorage.removeItem("elevea_last_email"); } catch {}
         }
       } catch (e: any) {
         if (!alive) return;
         console.log("🔍 useAuth: Erro na validação", e);
-        setError(e?.message || "Falha ao carregar sessão");
-        setUser(null);
+        // Só mostrar erro se for um erro crítico de rede, não para sessão expirada
+        if (e?.message && !e.message.includes("Failed to fetch") && !e.message.includes("NetworkError")) {
+          setError(e.message);
+        } else {
+          setError(null); // Erros de rede não são críticos para mostrar ao usuário
+        }
+        // Se já tem usuário no localStorage, não limpar mesmo com erro de rede
+        const storedUser = readAuthFromStorage();
+        if (!storedUser) {
+          setUser(null);
+        }
       } finally {
         if (alive) setLoading(false);
       }
