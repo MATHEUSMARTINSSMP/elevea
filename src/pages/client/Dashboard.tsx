@@ -25,7 +25,6 @@ import FeedbackSection from "./components/FeedbackSection";
 import LayoutEditor from "./components/LayoutEditor";
 import DisplayDataEditor from "./components/DisplayDataEditor";
 import ThemeToggle from "@/components/ThemeToggle";
-import AIHelpFloatingButton from "@/components/AIHelpFloatingButton";
 import * as n8nSites from "@/lib/n8n-sites";
 
 // === Extras / UI ===
@@ -1316,16 +1315,11 @@ useEffect(() => {
         </button>
       </div>
 
-      {/* Botão flutuante de Ajuda com IA - para todos os usuários */}
-      {(vipEnabled || canQuery) && user?.siteSlug && (
-        <AIHelpFloatingButton />
-      )}
-
       {/* Botão flutuante do Chat AI - apenas para VIP */}
       {vipEnabled && canQuery && (
         <button
           onClick={() => setShowAIChat(true)}
-          className="fixed bottom-6 right-24 w-14 h-14 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center z-40"
+          className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center justify-center z-40"
           title="Chat de Suporte Inteligente"
         >
           <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
