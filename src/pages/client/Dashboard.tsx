@@ -1158,12 +1158,6 @@ useEffect(() => {
               <SEOOptimizer
                 siteSlug={user.siteSlug || ""}
                 vipPin={vipPin || "FORCED"}
-                businessData={{
-                  name: user.siteSlug || "seu negócio",
-                  type: "negócio",
-                  location: "Brasil",
-                  description: "",
-                }}
               />
             </section>
 

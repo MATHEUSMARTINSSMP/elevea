@@ -318,3 +318,68 @@ export function validateAICommand(command: string): {
   return { valid: true }
 }
 
+/**
+ * Interface para resposta de ajuda da IA
+ */
+export interface AIHelpResponse {
+  success: boolean
+  data?: {
+    title: string
+    sections: Array<{
+      heading: string
+      content?: string
+      items?: Array<{
+        field: string
+        description: string
+        required?: boolean
+        example?: string
+      }>
+      steps?: string[]
+      tips?: string[]
+      warnings?: string[]
+    }>
+  }
+  error?: string
+}
+
+/**
+ * Obtém ajuda contextual da IA para preencher formulários
+ */
+export async function getAIHelp(params: {
+  pageContext: string
+  siteSlug: string
+  currentData?: Record<string, any>
+  prompt?: string
+}): Promise<AIHelpResponse> {
+  // Validar site_slug obrigatório
+  if (!params.siteSlug || params.siteSlug.trim() === '') {
+    return {
+      success: false,
+      error: 'site_slug é obrigatório para obter ajuda'
+    }
+  }
+
+  try {
+    const data = await n8nRequest<AIHelpResponse>(
+      '/ai/help',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          site_slug: params.siteSlug.toLowerCase().trim(),
+          pageContext: params.pageContext,
+          currentData: params.currentData || {},
+          prompt: params.prompt
+        })
+      }
+    )
+
+    return data
+  } catch (err: any) {
+    console.error('[n8n-ai-editor] Erro ao obter ajuda:', err)
+    return {
+      success: false,
+      error: err.message || 'Erro ao obter ajuda da IA'
+    }
+  }
+}
+
