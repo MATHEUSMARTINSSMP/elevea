@@ -89,7 +89,7 @@ type ClientSettings = {
   whatsAppNumber?: string;
   footerText?: string;
   colorScheme?: string;
-  theme?: { primary: string; background: string; accent: string };
+  theme?: { primary?: string; background?: string; accent?: string } | null;
   customCSS?: string;
   vipPin?: string;
 };
@@ -478,7 +478,7 @@ export default function ClientDashboard() {
               whatsAppNumber: siteSettings.whatsAppNumber,
               footerText: siteSettings.footerText,
               colorScheme: siteSettings.colorScheme,
-              theme: siteSettings.theme,
+              theme: siteSettings.theme || undefined,
               customCSS: siteSettings.customCSS,
               vipPin: vipPin // Manter o PIN atual
             });
@@ -651,9 +651,12 @@ useEffect(() => {
         vipPin: vipPin
       });
       
-      // Toast de sucesso
-      if (window.toast) {
-        window.toast.success('Configurações salvas com sucesso!');
+      // Toast de sucesso (usando sonner se disponível)
+      try {
+        const { toast } = await import('sonner')
+        toast.success('Configurações salvas com sucesso!')
+      } catch {
+        console.log('Configurações salvas com sucesso!')
       }
     } catch (e: any) {
       console.error('[Dashboard] Erro ao salvar settings:', e);
@@ -858,7 +861,7 @@ useEffect(() => {
                             whatsAppNumber: updatedSettings.whatsAppNumber,
                             footerText: updatedSettings.footerText,
                             colorScheme: updatedSettings.colorScheme,
-                            theme: updatedSettings.theme,
+                            theme: updatedSettings.theme || undefined,
                             customCSS: updatedSettings.customCSS,
                             vipPin: vipPin
                           })
@@ -891,7 +894,7 @@ useEffect(() => {
                             whatsAppNumber: updatedSettings.whatsAppNumber,
                             footerText: updatedSettings.footerText,
                             colorScheme: updatedSettings.colorScheme,
-                            theme: updatedSettings.theme,
+                            theme: updatedSettings.theme || undefined,
                             customCSS: updatedSettings.customCSS,
                             vipPin: vipPin
                           })
@@ -1111,9 +1114,8 @@ useEffect(() => {
         {isDevUser && (
           <>
             {/* Business Insights - DEV */}
-            {siteStructure && (
-              <section className="space-y-6">
-                <BusinessInsights
+            <section className="space-y-6">
+              <BusinessInsights
                   siteSlug={user.siteSlug || ""}
                   businessType="geral"
                   businessName={user?.siteSlug || "seu negócio"}
@@ -1145,8 +1147,7 @@ useEffect(() => {
                     ],
                   }}
                 />
-              </section>
-            )}
+            </section>
 
             {/* Lead Scoring - DEV */}
             <section className="space-y-6">
@@ -1228,7 +1229,7 @@ useEffect(() => {
       {/* Chat AI Modal */}
       {showAIChat && vipEnabled && (
         <AIChat
-          businessType={siteStructure?.category || "geral"}
+          businessType="geral"
           businessName={user?.siteSlug || "seu negócio"}
           onClose={() => setShowAIChat(false)}
         />

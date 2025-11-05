@@ -29,9 +29,18 @@ export function useCurrentPageContext(): PageContext {
   })
 
   useEffect(() => {
+    // Verificar se estamos no browser
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+
     // Criar observadores para cada seção
     const observers: IntersectionObserver[] = []
     const sections = document.querySelectorAll('[data-page-context]')
+
+    if (sections.length === 0) {
+      return
+    }
 
     const observerOptions = {
       root: null,
