@@ -96,9 +96,27 @@ export default function DRE() {
   const loadData = async () => {
     setLoading(true)
     try {
+      // Obter site_slug do localStorage
+      let site_slug = ''
+      try {
+        const authData = localStorage.getItem('auth')
+        if (authData) {
+          const parsed = JSON.parse(authData)
+          site_slug = parsed.siteSlug || parsed.site_slug || ''
+        }
+      } catch (err) {
+        console.warn('[DRE] Erro ao obter site_slug do localStorage:', err)
+      }
+      
       const [cats, lancs] = await Promise.all([
-        dre.getDRECategorias({ incluir_predefinidas: true }).catch(() => []),
-        dre.getDRELancamentos().catch(() => [])
+        dre.getDRECategorias({ site_slug, incluir_predefinidas: true }).catch((err) => {
+          console.error('[DRE] Erro ao carregar categorias:', err)
+          return []
+        }),
+        dre.getDRELancamentos({ site_slug }).catch((err) => {
+          console.error('[DRE] Erro ao carregar lançamentos:', err)
+          return []
+        })
       ])
 
       setCategorias(cats || [])

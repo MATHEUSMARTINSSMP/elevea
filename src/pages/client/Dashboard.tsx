@@ -373,14 +373,15 @@ function ClientDashboardContent() {
     // Dev user sempre tem acesso a todas as features
     if (isDevUser) return true;
     
-    // VIP tem acesso apenas às 6 funcionalidades permitidas
+    // VIP tem acesso às funcionalidades permitidas
     const vipAllowedFeatures = [
       "whatsapp-chatbot",    // Agente WhatsApp
       "google-reviews",      // Google Meu Negócio  
       "feedback-system",     // Sistema de Feedback
       "color-palette",       // Paleta de cores
       "traffic-analytics",   // Tráfego do site
-      "site-editor"          // Editor de Site
+      "site-editor",        // Editor de Site
+      "seo-optimizer"       // SEO Optimizer
     ];
     
     if (vipEnabled) {
@@ -1057,81 +1058,6 @@ useEffect(() => {
             {/* Layout em Grid para Funcionalidades Básicas */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
               <div className="lg:col-span-2 space-y-6">
-                {/* CONFIGURAÇÕES GERAIS */}
-                {isFeatureEnabled("color-palette") && (
-                  <VipGate
-                    enabled={vipEnabled}
-                    checking={checkingPlan && !DEV_FORCE_VIP}
-                    teaser="Configure aparência, tema e PIN VIP"
-                  >
-                    <section className="rounded-2xl border dashboard-border dashboard-card p-6 space-y-4 dashboard-shadow">
-                      <h2 className="text-lg font-semibold">Configurações Gerais</h2>
-
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={settings.showBrand ?? true}
-                            onChange={(e) => saveSettings({ showBrand: e.target.checked })}
-                            className="rounded"
-                            data-testid="checkbox-show-brand"
-                          />
-                          <span className="text-sm">Mostrar marca no rodapé</span>
-                        </label>
-
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={settings.showPhone ?? false}
-                            onChange={(e) => saveSettings({ showPhone: e.target.checked })}
-                            className="rounded"
-                            data-testid="checkbox-show-phone"
-                          />
-                          <span className="text-sm">Mostrar telefone</span>
-                        </label>
-                      </div>
-
-                      {settings.showPhone && (
-                        <div>
-                          <label className="block text-sm font-medium mb-1">Número WhatsApp</label>
-                          <input
-                            type="tel"
-                            value={settings.whatsAppNumber || ""}
-                            onChange={(e) => saveSettings({ whatsAppNumber: e.target.value })}
-                            placeholder="(11) 99999-9999"
-                            className="w-full px-3 py-2 border rounded-lg"
-                            data-testid="input-whatsapp-number"
-                          />
-                        </div>
-                      )}
-
-                      <div>
-                        <label className="block text-sm font-medium mb-1">PIN VIP</label>
-                        <input
-                          type="password"
-                          value={vipPin}
-                          onChange={(e) => setVipPin(e.target.value)}
-                          placeholder="Digite seu PIN para acessar recursos VIP"
-                          className="w-full px-3 py-2 border rounded-lg"
-                          data-testid="input-vip-pin"
-                        />
-                        <div className="text-xs text-slate-500 mt-1">
-                          Use seu PIN para acessar todas as funcionalidades do painel.
-                        </div>
-                      </div>
-
-                      {/* Paleta de cores removida - agora gerenciada via LayoutEditor */}
-
-                      {saving && (
-                        <div className="flex items-center gap-2 text-blue-600 text-sm">
-                          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                          Salvando configurações...
-                        </div>
-                      )}
-                    </section>
-                  </VipGate>
-                )}
-
                 {/* Gerenciador de Mídias removido - agora gerenciado via ModernSiteEditor */}
               </div>
             </div>
