@@ -404,18 +404,88 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
     views: page.views || 0
   })) || [];
 
-  // Processar dados reais de países do n8n (se disponível)
-  const processedCountryBreakdown = data.countryBreakdown?.map((country: any) => ({
-    country: country.country || country.name || 'Desconhecido',
-    users: country.users || country.count || 0
-  })) || [];
+  // Processar dados reais de países do n8n
+  // Se não vier no formato esperado, extrair dos eventos
+  let processedCountryBreakdown: Array<{ country: string; users: number }> = [];
+  
+  if (data.countryBreakdown && Array.isArray(data.countryBreakdown) && data.countryBreakdown.length > 0) {
+    // Formato direto do webhook
+    processedCountryBreakdown = data.countryBreakdown.map((country: any) => ({
+      country: country.country || country.name || country.country_code || 'Desconhecido',
+      users: country.users || country.count || 0
+    }));
+  } else if (data.events && Array.isArray(data.events) && data.events.length > 0) {
+    // Extrair países dos eventos
+    const countryMap = new Map<string, number>();
+    data.events.forEach((event: any) => {
+      const country = event.country || event.country_code || event.metadata?.country || 'Desconhecido';
+      if (country && country !== 'Unknown') {
+        countryMap.set(country, (countryMap.get(country) || 0) + 1);
+      }
+    });
+    processedCountryBreakdown = Array.from(countryMap.entries())
+      .map(([country, count]) => ({ country, users: count }))
+      .sort((a, b) => b.users - a.users);
+  }
 
-  // Processar dados reais de fontes de tráfego do n8n (se disponível)
-  const processedTrafficSources = data.trafficSources?.map((source: any) => ({
-    source: source.source || source.name || 'Desconhecido',
-    users: source.users || source.count || 0,
-    percentage: source.percentage || 0
-  })) || [];
+  // Processar dados reais de fontes de tráfego do n8n
+  // Se não vier no formato esperado, extrair dos eventos
+  let processedTrafficSources: Array<{ source: string; users: number; percentage: number }> = [];
+  
+  if (data.trafficSources && Array.isArray(data.trafficSources) && data.trafficSources.length > 0) {
+    // Formato direto do webhook
+    processedTrafficSources = data.trafficSources.map((source: any) => ({
+      source: source.source || source.name || 'Desconhecido',
+      users: source.users || source.count || 0,
+      percentage: source.percentage || 0
+    }));
+  } else if (data.events && Array.isArray(data.events) && data.events.length > 0) {
+    // Extrair fontes de tráfego dos eventos
+    const sourceMap = new Map<string, number>();
+    data.events.forEach((event: any) => {
+      let source = 'Direct';
+      const referrer = event.referrer || event.metadata?.referrer || '';
+      
+      if (referrer) {
+        if (referrer.includes('google') || referrer.includes('search')) {
+          source = 'Google';
+        } else if (referrer.includes('instagram')) {
+          source = 'Instagram';
+        } else if (referrer.includes('facebook')) {
+          source = 'Facebook';
+        } else if (referrer.includes('whatsapp')) {
+          source = 'WhatsApp';
+        } else if (referrer.includes('youtube')) {
+          source = 'YouTube';
+        } else if (referrer.includes('linkedin')) {
+          source = 'LinkedIn';
+        } else if (referrer.includes('twitter') || referrer.includes('x.com')) {
+          source = 'Twitter';
+        } else if (referrer.includes('tiktok')) {
+          source = 'TikTok';
+        } else if (referrer) {
+          // Tentar extrair domínio do referrer
+          try {
+            const url = new URL(referrer);
+            source = url.hostname.replace('www.', '');
+          } catch {
+            source = 'Outros';
+          }
+        }
+      }
+      
+      sourceMap.set(source, (sourceMap.get(source) || 0) + 1);
+    });
+    
+    const total = Array.from(sourceMap.values()).reduce((sum, count) => sum + count, 0);
+    processedTrafficSources = Array.from(sourceMap.entries())
+      .map(([source, count]) => ({
+        source,
+        users: count,
+        percentage: total > 0 ? Math.round((count / total) * 100) : 0
+      }))
+      .sort((a, b) => b.users - a.users);
+  }
 
   // Debug logs para verificar dados dos gráficos
   console.log('🔍 GRÁFICOS DEBUG:', {
@@ -424,7 +494,13 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
     originalDeviceBreakdown: data.deviceBreakdown,
     processedDeviceBreakdown: processedDeviceBreakdown,
     originalTopPages: data.topPages,
-    processedTopPages: processedTopPages
+    processedTopPages: processedTopPages,
+    originalCountryBreakdown: data.countryBreakdown,
+    processedCountryBreakdown: processedCountryBreakdown,
+    originalTrafficSources: data.trafficSources,
+    processedTrafficSources: processedTrafficSources,
+    eventsCount: data.events?.length || 0,
+    eventsSample: data.events?.slice(0, 3) || []
   });
 
   // Try-catch global para capturar erros de renderização
@@ -941,39 +1017,80 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
             {/* Processar dados reais dos eventos do n8n */}
             {(() => {
               // Processar eventos para criar visitas recentes
-              const events = data.events || [];
+              // Buscar eventos de diferentes formatos possíveis
+              let events: any[] = [];
+              
+              if (data.events && Array.isArray(data.events)) {
+                events = data.events;
+              } else if (data.recentEvents && Array.isArray(data.recentEvents)) {
+                events = data.recentEvents;
+              } else if (data.recent_visits && Array.isArray(data.recent_visits)) {
+                events = data.recent_visits;
+              }
+              
+              // Filtrar e ordenar eventos
               const recentEvents = events
-                .filter(event => event.event_type === 'pageview')
-                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .filter((event: any) => {
+                  const eventType = event.event_type || event.event || event.type || '';
+                  return eventType === 'pageview' || eventType === 'page_view' || !eventType;
+                })
+                .sort((a: any, b: any) => {
+                  const dateA = new Date(a.created_at || a.timestamp || a.date || 0).getTime();
+                  const dateB = new Date(b.created_at || b.timestamp || b.date || 0).getTime();
+                  return dateB - dateA;
+                })
                 .slice(0, 10);
 
               if (recentEvents.length > 0) {
-                return recentEvents.map((event, index) => {
-                  // Detectar fonte baseada no referrer
+                return recentEvents.map((event: any, index: number) => {
+                  // Detectar fonte baseada no referrer (múltiplos formatos possíveis)
                   let source = 'Direct';
-                  if (event.referrer) {
-                    if (event.referrer.includes('google')) source = 'Google';
-                    else if (event.referrer.includes('instagram')) source = 'Instagram';
-                    else if (event.referrer.includes('facebook')) source = 'Facebook';
-                    else if (event.referrer.includes('whatsapp')) source = 'WhatsApp';
-                    else if (event.referrer.includes('youtube')) source = 'YouTube';
-                    else if (event.referrer.includes('tiktok')) source = 'TikTok';
-                    else if (event.referrer.includes('linkedin')) source = 'LinkedIn';
-                    else if (event.referrer.includes('twitter')) source = 'Twitter';
+                  const referrer = event.referrer || event.metadata?.referrer || event.source || '';
+                  
+                  if (referrer) {
+                    if (referrer.includes('google') || referrer.includes('search')) {
+                      source = 'Google';
+                    } else if (referrer.includes('instagram')) {
+                      source = 'Instagram';
+                    } else if (referrer.includes('facebook')) {
+                      source = 'Facebook';
+                    } else if (referrer.includes('whatsapp')) {
+                      source = 'WhatsApp';
+                    } else if (referrer.includes('youtube')) {
+                      source = 'YouTube';
+                    } else if (referrer.includes('tiktok')) {
+                      source = 'TikTok';
+                    } else if (referrer.includes('linkedin')) {
+                      source = 'LinkedIn';
+                    } else if (referrer.includes('twitter') || referrer.includes('x.com')) {
+                      source = 'Twitter';
+                    } else if (referrer) {
+                      try {
+                        const url = new URL(referrer);
+                        source = url.hostname.replace('www.', '');
+                      } catch {
+                        source = 'Outros';
+                      }
+                    }
                   }
 
-                  // Formatar duração
-                  const duration = event.session_duration || 0;
+                  // Formatar duração (múltiplos formatos possíveis)
+                  const duration = event.session_duration || event.metadata?.session_duration || event.duration || 0;
                   const minutes = Math.floor(duration / 60);
                   const seconds = Math.floor(duration % 60);
                   const formattedDuration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
-                  // Formatar horário
-                  const visitTime = new Date(event.created_at);
+                  // Formatar horário (múltiplos formatos possíveis)
+                  const visitTime = new Date(event.created_at || event.timestamp || event.date || Date.now());
                   const timeStr = visitTime.toLocaleTimeString('pt-BR', { 
                     hour: '2-digit', 
                     minute: '2-digit' 
                   });
+
+                  // Extrair dados da página e dispositivo
+                  const pageUrl = event.page_url || event.path || event.page || '/';
+                  const deviceType = event.device_type || event.device || event.metadata?.device || 'Unknown';
+                  const country = event.country || event.country_code || event.metadata?.country || event.metadata?.country_code || 'Unknown';
 
                   return (
                     <div key={index} className="dashboard-card rounded-lg p-4 border dashboard-border dashboard-shadow">
@@ -994,14 +1111,16 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                           {source === 'LinkedIn' && <LinkedinIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
                           {source === 'Twitter' && <TwitterIcon className="w-4 h-4 text-blue-500 dark:text-blue-400" />}
                           {source === 'Direct' && <GlobeIcon className="w-4 h-4 text-green-600 dark:text-green-400" />}
+                          {!['Google', 'Instagram', 'WhatsApp', 'Facebook', 'YouTube', 'TikTok', 'LinkedIn', 'Twitter', 'Direct'].includes(source) && 
+                            <ExternalLinkIcon className="w-4 h-4 text-gray-400" />}
                           <span className="text-sm font-medium dashboard-text">{source}</span>
                         </div>
                       </div>
                       <div className="flex items-center justify-between text-sm dashboard-text-muted">
-                        <span>Página: {event.page_url || '/'}</span>
+                        <span>Página: {pageUrl}</span>
                         <div className="flex items-center gap-4">
-                          <span>Dispositivo: {event.device_type || 'Unknown'}</span>
-                          <span>Local: {event.country || 'Unknown'}</span>
+                          <span>Dispositivo: {deviceType}</span>
+                          <span>Local: {country}</span>
                         </div>
                       </div>
                     </div>
