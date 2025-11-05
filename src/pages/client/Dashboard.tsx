@@ -26,7 +26,7 @@ import LayoutEditor from "./components/LayoutEditor";
 import DisplayDataEditor from "./components/DisplayDataEditor";
 import ThemeToggle from "@/components/ThemeToggle";
 import * as n8nSites from "@/lib/n8n-sites";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card as UICard, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Search, Info } from "lucide-react";
@@ -1070,7 +1070,7 @@ useEffect(() => {
                 </div>
 
                 {/* Card Principal */}
-                <Card className="border-2 border-primary/20 bg-gradient-to-br from-background to-primary/5 shadow-lg">
+                <UICard className="border-2 border-primary/20 bg-gradient-to-br from-background to-primary/5 shadow-lg">
                   <CardContent className="p-6">
                     <div className="flex items-start gap-3 mb-4">
                       <div className="flex-1">
@@ -1105,7 +1105,7 @@ useEffect(() => {
                       vipPin={vipPin || "FORCED"}
                     />
                   </CardContent>
-                </Card>
+                </UICard>
               </section>
             )}
 
