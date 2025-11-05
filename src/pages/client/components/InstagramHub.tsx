@@ -30,7 +30,7 @@ import {
   Heart,
   Share2,
   Eye,
-  Hashtag,
+  Hash,
   Send,
   Plus,
   X,
@@ -570,9 +570,9 @@ export default function InstagramHub({ siteSlug, vipPin }: InstagramHubProps) {
                   {/* Hashtags com IA */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <Label className="flex items-center gap-2">
-                        <Hashtag className="w-4 h-4" />
-                        Hashtags
+                    <Label className="flex items-center gap-2">
+                      <Hash className="w-4 h-4" />
+                      Hashtags
                       </Label>
                       <Button
                         variant="outline"
