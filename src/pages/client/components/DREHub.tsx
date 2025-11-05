@@ -76,7 +76,7 @@ export default function DREHub() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-page-context="DRE">
       {/* Explicação rápida */}
       <div className="bg-emerald-50/50 dark:bg-emerald-950/20 rounded-lg p-3 border border-emerald-200/50 dark:border-emerald-800/50">
         <div className="flex items-start gap-2">

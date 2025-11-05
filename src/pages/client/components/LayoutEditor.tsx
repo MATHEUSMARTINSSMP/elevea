@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Palette, Sparkles, Save, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import * as n8nSites from '@/lib/n8n-sites'
+import AIHelpButton from '@/components/AIHelpButton'
 
 interface ColorPalette {
   id: string
@@ -265,10 +266,21 @@ export default function LayoutEditor({ siteSlug, vipPin, onSettingsUpdated }: La
     return (
       <Card className="dashboard-card dashboard-border dashboard-shadow">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Palette className="h-5 w-5 text-primary" />
-            Editor de Layout
-          </CardTitle>
+          <div className="flex items-start justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Palette className="h-5 w-5 text-primary" />
+              Editor de Layout
+            </CardTitle>
+            <AIHelpButton 
+              pageContext="LayoutEditor" 
+              siteSlug={siteSlug}
+              currentData={{
+                selectedPalette: selectedPalette,
+                useCustomColors: useCustomColors,
+                customColors: customColors
+              }}
+            />
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
@@ -282,13 +294,26 @@ export default function LayoutEditor({ siteSlug, vipPin, onSettingsUpdated }: La
   return (
     <Card className="dashboard-card dashboard-border dashboard-shadow">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Palette className="h-5 w-5 text-primary" />
-          Editor de Layout
-        </CardTitle>
-        <p className="text-sm text-muted-foreground mt-2">
-          Personalize as cores do seu site: fundo, texto, títulos e subtítulos. Escolha uma paleta pré-definida ou crie cores customizadas.
-        </p>
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <CardTitle className="flex items-center gap-2">
+              <Palette className="h-5 w-5 text-primary" />
+              Editor de Layout
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-2">
+              Personalize as cores do seu site: fundo, texto, títulos e subtítulos. Escolha uma paleta pré-definida ou crie cores customizadas.
+            </p>
+          </div>
+          <AIHelpButton 
+            pageContext="LayoutEditor" 
+            siteSlug={siteSlug}
+            currentData={{
+              selectedPalette: selectedPalette,
+              useCustomColors: useCustomColors,
+              customColors: customColors
+            }}
+          />
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Seleção de Paletas */}
@@ -462,6 +487,80 @@ export default function LayoutEditor({ siteSlug, vipPin, onSettingsUpdated }: La
             >
               {saving ? (
                 <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Salvar Cores Customizadas
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+
+        {saving && !useCustomColors && (
+          <div className="flex items-center gap-2 text-primary text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Aplicando paleta...
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Salvar Cores Customizadas
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+
+        {saving && !useCustomColors && (
+          <div className="flex items-center gap-2 text-primary text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Aplicando paleta...
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Salvar Cores Customizadas
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+
+        {saving && !useCustomColors && (
+          <div className="flex items-center gap-2 text-primary text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Aplicando paleta...
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Salvando...
                 </>
