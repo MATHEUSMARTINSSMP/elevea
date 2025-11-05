@@ -151,4 +151,11 @@ export const n8n = {
     user_id?: string;
     plan?: string;
   }) => post("/api/onboarding/start", data),
+
+  // Google Reviews APIs (n8n webhooks)
+  getGoogleReviews: (data: { siteSlug: string; vipPin: string; userEmail?: string }) => 
+    post("/api/google/reviews", data),
+  
+  startGoogleAuth: (params: { customerId: string; siteSlug: string }) => 
+    get(`/api/auth/google/start?customerId=${encodeURIComponent(params.customerId)}&siteSlug=${encodeURIComponent(params.siteSlug)}`),
 };

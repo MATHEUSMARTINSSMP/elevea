@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Star, User as UserIcon, RefreshCw, ExternalLink, Calendar, MessageSquare } from "lucide-react";
+import { n8n } from "@/lib/n8n";
 
 interface GoogleReviewsProps {
   siteSlug: string;
@@ -73,28 +74,15 @@ export default function GoogleReviews({ siteSlug, vipPin, userEmail }: GoogleRev
     try {
       console.log('🔍 Buscando reviews para:', { site: siteSlug, email: userEmail });
       
-      const response = await fetch(`${import.meta.env.VITE_N8N_BASE_URL || ''}/webhook/api/google/reviews`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-APP-KEY': import.meta.env.VITE_N8N_AUTH_HEADER || '#mmP220411'
-        },
-        body: JSON.stringify({
-          siteSlug,
-          vipPin,
-          userEmail
-        })
+      const result = await n8n.getGoogleReviews({
+        siteSlug,
+        vipPin,
+        userEmail
       });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-
-      const result = await response.json();
+      
       console.log('📊 Resultado da API:', result);
       
-      if (result.ok) {
+      if (result.ok || result.success) {
         setReviewsData(result.data);
         setError(null);
         setIsConnected(true);
@@ -227,17 +215,14 @@ export default function GoogleReviews({ siteSlug, vipPin, userEmail }: GoogleRev
                     try {
                       console.log('🔄 Iniciando OAuth para:', { site: siteSlug, email: userEmail });
                       
-                      const response = await fetch(`${import.meta.env.VITE_N8N_BASE_URL || ''}/webhook/api/auth/google/start?customerId=${encodeURIComponent(userEmail || '')}&siteSlug=${encodeURIComponent(siteSlug)}`, {
-                        method: 'GET',
-                        headers: {
-                          'X-APP-KEY': import.meta.env.VITE_N8N_AUTH_HEADER || '#mmP220411'
-                        }
+                      const result = await n8n.startGoogleAuth({
+                        customerId: userEmail || '',
+                        siteSlug
                       });
                       
-                      const result = await response.json();
                       console.log('📊 OAuth start result:', result);
                       
-                      if (result.ok && result.authUrl) {
+                      if ((result.ok || result.success) && result.authUrl) {
                         // Salvar state para validação no callback
                         const state = JSON.stringify({
                           site: siteSlug,
