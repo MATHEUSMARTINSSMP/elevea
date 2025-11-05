@@ -1,11 +1,15 @@
 // src/lib/analytics.ts
 // Sistema de rastreamento de analytics integrado com n8n
 
-const N8N_BASE_URL = 'https://fluxos.eleveaagencia.com.br';
-const ANALYTICS_URL = `${N8N_BASE_URL}/webhook/api/analytics/dashboard`;
-const TRACK_URL = `${N8N_BASE_URL}/webhook/api/analytics/track`;
-const FEEDBACK_URL = `${N8N_BASE_URL}/webhook/api/feedback/submit`;
-const FEEDBACK_PUBLIC_URL = `${N8N_BASE_URL}/webhook/api/feedback/public`;
+// Usar variável de ambiente como outras bibliotecas n8n
+const BASE = (import.meta.env.VITE_N8N_BASE_URL || 'https://fluxos.eleveaagencia.com.br').replace(/\/$/, '');
+const MODE = (import.meta.env.VITE_N8N_MODE || 'prod').toLowerCase();
+const PREFIX = MODE === 'test' ? '/webhook-test' : '/webhook';
+
+const ANALYTICS_URL = `${BASE}${PREFIX}/api/analytics/dashboard`;
+const TRACK_URL = `${BASE}${PREFIX}/api/analytics/track`;
+const FEEDBACK_URL = `${BASE}${PREFIX}/api/feedback/submit`;
+const FEEDBACK_PUBLIC_URL = `${BASE}${PREFIX}/api/feedback/public`;
 
 const APP_KEY_HEADER = "X-APP-KEY";
 // fallback ajuda em build local; em produção deixe via env
