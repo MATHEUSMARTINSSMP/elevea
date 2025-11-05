@@ -1,5 +1,6 @@
 // src/pages/login/index.tsx
 import React, { useEffect, useMemo, useState } from "react";
+import { n8n } from "@/lib/n8n";
 
 type Role = "admin" | "client";
 type ApiResp = {
@@ -8,27 +9,11 @@ type ApiResp = {
   error?: string;
   message?: string;
   id?: string;
-  user?: { email?: string; role?: Role; siteSlug?: string };
+  user?: { email?: string; role?: Role; siteSlug?: string; site_slug?: string; plan?: string; user_plan?: string };
   token?: string;
   token_id?: string;
   access_token?: string;
 };
-
-const N8N_BASE  = "https://fluxos.eleveaagencia.com.br/webhook";
-const LOGIN_URL = `${N8N_BASE}/api/auth/login`;
-const ME_URL    = `${N8N_BASE}/api/auth/me`;
-const RESET_URL = `${N8N_BASE}/api/auth/password-reset-request`;
-
-const APP_KEY_HEADER = "X-APP-KEY";
-// fallback ajuda em build local; em produção deixe via env
-const APP_KEY = (import.meta as any).env?.VITE_APP_KEY || "#mmP220411";
-
-function authHeaders(): Record<string, string> {
-  return {
-    "Content-Type": "application/json",
-    ...(APP_KEY ? { [APP_KEY_HEADER]: APP_KEY } : {}),
-  };
-}
 
 function detectSiteSlug(): string | undefined {
   try {
@@ -45,14 +30,6 @@ function detectSiteSlug(): string | undefined {
   return undefined;
 }
 
-function isLoginSuccess(data: ApiResp, resp: Response) {
-  if (!resp.ok) return false;
-  if (data?.success === true || data?.ok === true) return true;
-  if (data?.user) return true;
-  if (data?.token || data?.token_id || data?.access_token) return true;
-  // alguns responds não trazem corpo; 2xx já é “ok”
-  return resp.status >= 200 && resp.status < 300;
-}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -78,10 +55,10 @@ export default function LoginPage() {
       try {
         const current = window.localStorage.getItem("elevea_last_email") || "";
         if (!current) return;
-        const r = await fetch(ME_URL, { method: "POST", headers: authHeaders(), body: JSON.stringify({ email: current }) });
-        const data: ApiResp = await r.json().catch(() => ({} as any));
-        const ok = data?.success === true || data?.ok === true;
-        if (ok && data.user?.role) redirectByRole(data.user.role, next);
+        const data: ApiResp = await n8n.me({ email: current });
+        const responseData = Array.isArray(data) ? data[0] : data;
+        const ok = responseData?.success === true || responseData?.ok === true;
+        if (ok && responseData.user?.role) redirectByRole(responseData.user.role, next);
       } catch {}
     })();
   }, [next]);
@@ -102,17 +79,18 @@ export default function LoginPage() {
       const emailLc = email.trim().toLowerCase();
       const site = detectSiteSlug();
 
-      const r = await fetch(LOGIN_URL, {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({ email: emailLc, password: pass, site }),
-      });
-
       let data: ApiResp = {};
-      try { data = await r.json(); } catch {}
+      try {
+        data = await n8n.login({ email: emailLc, password: pass, site });
+      } catch (e: any) {
+        setErr(e?.message || "Erro ao fazer login");
+        return;
+      }
 
-      if (!isLoginSuccess(data, r)) {
-        const code = data?.error || data?.message || (r.ok ? "Falha no login" : `HTTP ${r.status}`);
+      // Verificar se login foi bem-sucedido
+      const isValid = data?.success === true || data?.ok === true || !!data?.user || !!data?.token;
+      if (!isValid) {
+        const code = data?.error || data?.message || "Falha no login";
         setErr(code);
         return;
       }
@@ -127,12 +105,7 @@ export default function LoginPage() {
       if (!role || !userData?.site_slug) {
         try {
           console.log("🔍 Login: Consultando /me para obter dados completos...");
-          const meR = await fetch(ME_URL, {
-            method: "POST",
-            headers: authHeaders(),
-            body: JSON.stringify({ email: emailLc }),
-          });
-          const me: ApiResp = await meR.json().catch(() => ({} as any));
+          const me: ApiResp = await n8n.me({ email: emailLc });
           console.log("🔍 Login: Resposta /me:", me);
           
           // Processar resposta do /me (pode ser array ou objeto)
@@ -215,32 +188,20 @@ export default function LoginPage() {
     }
   }
 
-  function wasResetAccepted(resp: Response, data: any): boolean {
-    if (!resp.ok) return false;
-    if (data?.success === true || data?.ok === true) return true;
-    if (typeof data?.id === "string") return true;
-    if (typeof data?.message === "string" && /enviado|sent|ok/i.test(data.message)) return true;
-    return resp.status >= 200 && resp.status < 300;
-  }
-
   async function handleSendReset(emailIn: string): Promise<{ ok: boolean; error?: string }> {
     try {
       const email = emailIn.trim().toLowerCase();
       if (!email || !/^\S+@\S+\.\S+$/.test(email)) return { ok:false, error:"E-mail inválido" };
 
       setForgotLoading(true);
-      const r = await fetch(RESET_URL, {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({ email }),
-      });
-
-      let data: ApiResp = {};
-      try { data = await r.json(); } catch {}
-      setForgotLoading(false);
-
-      if (wasResetAccepted(r, data)) return { ok:true };
-      return { ok:false, error: data?.error || data?.message || `Erro ${r.status}` };
+      try {
+        await n8n.requestPasswordReset({ email });
+        setForgotLoading(false);
+        return { ok:true };
+      } catch (e: any) {
+        setForgotLoading(false);
+        return { ok:false, error: e?.message || "Erro ao solicitar recuperação" };
+      }
     } catch (e: any) {
       setForgotLoading(false);
       return { ok:false, error:String(e?.message || e) };

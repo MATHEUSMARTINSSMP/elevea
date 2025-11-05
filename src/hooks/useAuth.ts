@@ -16,20 +16,6 @@ type MeResp = {
   message?: string;
 };
 
-const N8N_BASE = "https://fluxos.eleveaagencia.com.br/webhook";
-const ME_URL = `${N8N_BASE}/api/auth/me`;
-const LOGOUT_URL = `${N8N_BASE}/api/auth/logout`;
-
-const APP_KEY_HEADER = "X-APP-KEY";
-const APP_KEY = (import.meta as any).env?.VITE_APP_KEY || "#mmP220411";
-
-function authHeaders(): Record<string, string> {
-  return {
-    "Content-Type": "application/json",
-    ...(APP_KEY ? { [APP_KEY_HEADER]: APP_KEY } : {}),
-  };
-}
-
 function usePathname() {
   return typeof window !== "undefined" ? window.location.pathname : "/";
 }
@@ -91,15 +77,8 @@ export function useAuth() {
         }
 
         console.log("🔍 useAuth: Validando sessão com n8n para", lastEmail);
-        const r = await fetch(ME_URL, {
-          method: "POST",
-          headers: authHeaders(),
-          body: JSON.stringify({ email: lastEmail }),
-        });
-        
-        const data: MeResp = await r.json().catch(() => ({} as any));
+        const data: MeResp = await n8n.me({ email: lastEmail });
         console.log("🔍 useAuth: Resposta n8n RAW:", data);
-        console.log("🔍 useAuth: Status da resposta", r.status);
         console.log("🔍 useAuth: data.success =", data?.success);
         console.log("🔍 useAuth: data.user =", data?.user);
         
@@ -216,17 +195,7 @@ export function useAuth() {
       localStorage.removeItem("auth");
       localStorage.removeItem("elevea_last_email");
       
-      // Chamar logout no n8n (opcional, para invalidar sessão no servidor)
-      const lastEmail = localStorage.getItem("elevea_last_email");
-      if (lastEmail) {
-        try {
-          await fetch(LOGOUT_URL, {
-            method: "POST",
-            headers: authHeaders(),
-            body: JSON.stringify({ email: lastEmail }),
-          });
-        } catch {}
-      }
+      // Nota: n8n não tem endpoint de logout, então apenas limpamos localmente
     } catch {}
     
     setUser(null);
