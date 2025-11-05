@@ -61,13 +61,23 @@ export function useAuth() {
         setError(null);
         
         // Primeiro tenta ler do localStorage
+        // Aguardar um pequeno delay para garantir que o login salvou os dados
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         const storedUser = readAuthFromStorage();
-        if (storedUser) {
+        if (storedUser && storedUser.email) {
           console.log("🔍 useAuth: Usuário encontrado no localStorage", storedUser);
-          setUser(storedUser);
-          setError(null); // Limpar qualquer erro anterior
-          setLoading(false);
-          return;
+          
+          // Se tem siteSlug e plan, já pode usar (dados completos)
+          if (storedUser.siteSlug || storedUser.plan) {
+            setUser(storedUser);
+            setError(null);
+            setLoading(false);
+            return;
+          }
+          
+          // Se não tem siteSlug, tentar buscar do n8n mesmo tendo dados no localStorage
+          console.log("🔍 useAuth: Dados incompletos no localStorage, buscando do n8n...");
         }
 
         // Se não tem no localStorage, tenta validar com n8n

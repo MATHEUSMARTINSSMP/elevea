@@ -189,10 +189,24 @@ export default function LoginPage() {
         window.localStorage.setItem("auth", JSON.stringify(authData));
         
         console.log("✅ Login bem-sucedido, dados salvos:", authData);
+        
+        // Verificar se os dados foram realmente salvos (confirmar escrita)
+        const savedAuth = localStorage.getItem("auth");
+        if (savedAuth) {
+          const parsedSaved = JSON.parse(savedAuth);
+          console.log("✅ Login: Dados confirmados no localStorage:", parsedSaved);
+        } else {
+          console.warn("⚠️ Login: Dados não foram salvos corretamente!");
+        }
       } catch (e) {
         console.error("❌ Erro ao salvar dados de autenticação:", e);
       }
       
+      // Aguardar um pequeno delay para garantir que o localStorage foi atualizado
+      // e que o useAuth em outras páginas tenha tempo de ler os dados
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      console.log("🔄 Login: Redirecionando após delay...");
       redirectByRole(role, next);
     } catch (e: any) {
       setErr(e?.message || "Erro de rede");

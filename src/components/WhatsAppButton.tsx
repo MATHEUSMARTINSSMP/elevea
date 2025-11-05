@@ -8,14 +8,9 @@ const DEFAULT_MSG = "Olá! Quero um site Elevea. Pode me ajudar?";
 const WhatsAppButton = () => {
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    // Usando o endpoint oficial (funciona em mobile e desktop):
-    const url = `https://api.whatsapp.com/send?phone=${PHONE}&text=${encodeURIComponent(
-      DEFAULT_MSG
-    )}`;
+    // Usando wa.me (funciona em mobile e desktop):
+    const url = `https://wa.me/${PHONE}`;
     window.open(url, "_blank", "noopener,noreferrer");
-
-    // Se preferir usar a função centralizada:
-    // openWhatsApp();
   };
 
   return (
