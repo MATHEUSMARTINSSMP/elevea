@@ -153,8 +153,18 @@ export const n8n = {
   }) => post("/api/onboarding/start", data),
 
   // Google Reviews APIs (n8n webhooks)
-  getGoogleReviews: (data: { siteSlug: string; vipPin: string; userEmail?: string }) => 
-    post("/api/google/reviews", data),
+  getGoogleReviews: (data: { siteSlug: string; vipPin: string; userEmail?: string }) => {
+    // O endpoint espera GET com query params: customerId, siteSlug, accountId, locationId
+    // Por enquanto, vamos usar POST para /api/google/reviews/fetch até criar o webhook correto
+    const params = new URLSearchParams({
+      customerId: data.userEmail || '',
+      siteSlug: data.siteSlug,
+      // accountId e locationId precisam ser obtidos das credenciais ou config
+      accountId: '', // TODO: obter das credenciais salvas
+      locationId: '' // TODO: obter das credenciais salvas
+    });
+    return get(`/api/google/reviews/fetch?${params.toString()}`);
+  },
   
   startGoogleAuth: (params: { customerId: string; siteSlug: string }) => 
     get(`/api/auth/google/start?customerId=${encodeURIComponent(params.customerId)}&siteSlug=${encodeURIComponent(params.siteSlug)}`),

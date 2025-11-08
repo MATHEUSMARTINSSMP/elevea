@@ -19,7 +19,7 @@ const SECTION_MAPPING: Record<string, string> = {
   'financeiro-section': 'FinanceiroHub',
   'dre-section': 'DRE',
   'lead-capture': 'LeadCapture',
-  'google-reviews': 'GoogleReviews',
+  'google-reviews': 'GoogleMeuNegocioHub',
   'whatsapp-hub': 'WhatsAppHub'
 }
 

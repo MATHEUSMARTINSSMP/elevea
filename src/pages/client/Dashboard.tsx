@@ -6,7 +6,7 @@ import AIChat from "./components/AIChat";
 import AIContentGenerator from "./components/AIContentGenerator";
 import AnalyticsDashboard from "./components/AnalyticsDashboard";
 import BusinessInsights from "./components/BusinessInsights";
-import GoogleReviews from "./components/GoogleReviews";
+import GoogleMeuNegocioHub from "./components/GoogleMeuNegocioHub";
 import FeedbackManager from "./components/FeedbackManager";
 import SEOOptimizer from "./components/SEOOptimizer";
 import WhatsAppHub from "./components/WhatsAppHub";
@@ -1224,10 +1224,10 @@ useEffect(() => {
         {/* ================== FUNCIONALIDADES EM DESENVOLVIMENTO ================== */}
         {(vipEnabled || canQuery) && !isDevUser && (
           <>
-            {/* Google Meu Negócio - Logo acima de Em Desenvolvimento */}
+            {/* Google Meu Negócio Hub */}
             {isFeatureEnabled("google-reviews") && (
               <section className="space-y-6">
-                <GoogleReviews siteSlug={user?.siteSlug || ""} vipPin={vipPin || "FORCED"} userEmail={user?.email || ""} />
+                <GoogleMeuNegocioHub siteSlug={user?.siteSlug || ""} vipPin={vipPin || "FORCED"} userEmail={user?.email || ""} />
               </section>
             )}
 

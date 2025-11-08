@@ -57,6 +57,20 @@
     },
     {
       "parameters": {
+        "httpMethod": "POST",
+        "path": "api/google/reviews",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-fetch-post",
+      "name": "🔍 Webhook - Reviews Fetch POST",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [736, 1200],
+      "webhookId": "google-reviews-fetch-post"
+    },
+    {
+      "parameters": {
         "jsCode": "// Normalize Fetch Reviews (MELHORADO - Multi-tenant)\nconst now = () => new Date().toISOString();\nconst trim = v => typeof v === 'string' ? v.trim() : v;\nconst low = v => typeof v === 'string' ? v.toLowerCase() : v;\n\nconst out = [];\nfor (const {json} of items) {\n  const headers = Object.fromEntries(Object.entries(json.headers || {}).map(([k, v]) => [k.toLowerCase(), v]));\n  const method = (json.req?.method || json.method || '').toUpperCase();\n  \n  // Handle CORS preflight\n  if (method === 'OPTIONS' || headers['access-control-request-method']) {\n    out.push({json: {_preflight: true}});\n    continue;\n  }\n  \n  const q = json.query || {};\n  const customerId = trim(q.customerId || '');\n  const siteSlug = low(trim(q.siteSlug || ''));\n  const accountId = trim(q.accountId || '');\n  const locationId = trim(q.locationId || '');\n  const limit = Math.min(Math.max(parseInt(q.limit) || 50, 1), 200);\n  const pageToken = trim(q.pageToken || '');\n  \n  if (!customerId || !siteSlug || !accountId || !locationId) {\n    out.push({\n      json: {\n        success: false,\n        error: 'customerId, siteSlug, accountId e locationId são obrigatórios',\n        statusCode: 400,\n        timestamp: now(),\n        _preflight: false\n      }\n    });\n    continue;\n  }\n  \n  out.push({\n    json: {\n      customerId,\n      siteSlug,\n      accountId,\n      locationId,\n      limit,\n      pageToken,\n      _preflight: false\n    }\n  });\n}\nreturn out;"
       },
       "id": "code-fetch-normalize",

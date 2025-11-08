@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Star, User as UserIcon, RefreshCw, ExternalLink, Calendar, MessageSquare } from "lucide-react";
+import { Star, User as UserIcon, RefreshCw, ExternalLink, Calendar, MessageSquare, Building2, Link as LinkIcon } from "lucide-react";
 import { n8n } from "@/lib/n8n";
 
-interface GoogleReviewsProps {
+interface GoogleMeuNegocioHubProps {
   siteSlug: string;
   vipPin: string;
   userEmail?: string;
@@ -28,13 +28,14 @@ interface ReviewsData {
   businessAddress?: string;
 }
 
-export default function GoogleReviews({ siteSlug, vipPin, userEmail }: GoogleReviewsProps) {
-  const [loading, setLoading] = useState(true);
+export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: GoogleMeuNegocioHubProps) {
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reviewsData, setReviewsData] = useState<ReviewsData | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [needsConnection, setNeedsConnection] = useState(false);
+  const [needsConnection, setNeedsConnection] = useState(true); // Começar verificando conexão
+  const [checkingConnection, setCheckingConnection] = useState(true);
   const [lastFetch, setLastFetch] = useState<number>(0);
 
   // Verificar se é VIP
@@ -43,14 +44,14 @@ export default function GoogleReviews({ siteSlug, vipPin, userEmail }: GoogleRev
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
-            <Star className="h-5 w-5 text-yellow-500" />
-            Google Reviews
+            <Building2 className="h-5 w-5 text-blue-500" />
+            Google Meu Negócio Hub
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
             <div className="w-16 h-16 mx-auto mb-4 bg-red-500/20 rounded-full flex items-center justify-center">
-              <Star className="h-8 w-8 text-red-400" />
+              <Building2 className="h-8 w-8 text-red-400" />
             </div>
             <h3 className="text-lg font-semibold mb-2 text-white">Acesso VIP Necessário</h3>
             <p className="text-slate-400 text-sm">
@@ -61,6 +62,51 @@ export default function GoogleReviews({ siteSlug, vipPin, userEmail }: GoogleRev
       </Card>
     );
   }
+
+  // Verificar status da conexão ao montar o componente
+  useEffect(() => {
+    checkConnectionStatus();
+  }, [siteSlug, userEmail]);
+
+  const checkConnectionStatus = async () => {
+    if (!userEmail || !siteSlug) {
+      setCheckingConnection(false);
+      return;
+    }
+
+    setCheckingConnection(true);
+    try {
+      // Tentar buscar reviews para verificar se está conectado
+      const result = await n8n.getGoogleReviews({
+        siteSlug,
+        vipPin,
+        userEmail
+      });
+      
+      if (result.ok || result.success) {
+        setIsConnected(true);
+        setNeedsConnection(false);
+        setReviewsData(result.data);
+        setLastFetch(Date.now());
+      } else {
+        if (result.error?.includes('Credenciais não encontradas') || 
+            result.error?.includes('Conecte sua conta Google')) {
+          setIsConnected(false);
+          setNeedsConnection(true);
+        } else {
+          setIsConnected(false);
+          setNeedsConnection(true);
+          setError(result.error || 'Erro ao verificar conexão');
+        }
+      }
+    } catch (err: any) {
+      setIsConnected(false);
+      setNeedsConnection(true);
+      setError(null); // Não mostrar erro na verificação inicial
+    } finally {
+      setCheckingConnection(false);
+    }
+  };
 
   const fetchReviews = async (isRefresh = false) => {
     const now = Date.now();
@@ -111,11 +157,52 @@ export default function GoogleReviews({ siteSlug, vipPin, userEmail }: GoogleRev
     }
   };
 
-  useEffect(() => {
-    if (userEmail) {
-      fetchReviews();
+  const handleConnectGoogle = async () => {
+    if (!userEmail) {
+      alert('❌ Email do usuário não encontrado');
+      return;
     }
-  }, [siteSlug, userEmail]);
+
+    // Confirmar antes de redirecionar
+    const confirmed = confirm(
+      '🔗 Conectar Google Meu Negócio\n\n' +
+      'Você será redirecionado para o Google para autorizar o acesso às suas avaliações e informações do seu negócio.\n\n' +
+      'Deseja continuar?'
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+      console.log('🔄 Iniciando OAuth para:', { site: siteSlug, email: userEmail });
+      
+      const result = await n8n.startGoogleAuth({
+        customerId: userEmail,
+        siteSlug
+      });
+      
+      console.log('📊 OAuth start result:', result);
+      
+      if ((result.ok || result.success) && result.authUrl) {
+        // Salvar state para validação no callback
+        const state = JSON.stringify({
+          site: siteSlug,
+          email: userEmail,
+          ts: Date.now(),
+          n: Math.random().toString(36).slice(2)
+        });
+        sessionStorage.setItem('gmb_state', state);
+        
+        // Redirecionar para Google OAuth
+        window.location.href = result.authUrl;
+      } else {
+        console.error('❌ Erro no OAuth start:', result.error);
+        alert(`❌ Erro ao iniciar autenticação:\n\n${result.error || 'Erro desconhecido'}`);
+      }
+    } catch (error: any) {
+      console.error('❌ Erro na requisição OAuth:', error);
+      alert(`❌ Erro na requisição:\n\n${error.message || 'Erro desconhecido'}`);
+    }
+  };
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -136,13 +223,69 @@ export default function GoogleReviews({ siteSlug, vipPin, userEmail }: GoogleRev
     }
   };
 
+  // Mostrar autenticação primeiro se não estiver conectado
+  if (checkingConnection) {
+    return (
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-blue-500" />
+            Google Meu Negócio Hub
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <RefreshCw className="h-8 w-8 text-blue-500 animate-spin" />
+            <span className="ml-2 text-slate-300">Verificando conexão...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (needsConnection || !isConnected) {
+    return (
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-blue-500" />
+            Google Meu Negócio Hub
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <div className="w-20 h-20 mx-auto mb-6 bg-blue-500/20 rounded-full flex items-center justify-center">
+              <LinkIcon className="h-10 w-10 text-blue-400" />
+            </div>
+            <h3 className="text-xl font-semibold mb-3 text-white">Conectar Google Meu Negócio</h3>
+            <p className="text-slate-400 text-sm mb-2 max-w-md mx-auto">
+              Conecte sua conta Google My Business para gerenciar avaliações, responder clientes e acompanhar o desempenho do seu negócio.
+            </p>
+            <div className="mt-6 space-y-3">
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-base"
+                onClick={handleConnectGoogle}
+              >
+                <LinkIcon className="h-5 w-5 mr-2" />
+                Conectar Google Meu Negócio
+              </Button>
+              <div className="text-xs text-slate-500 mt-4">
+                Você será redirecionado para autorizar o acesso
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (loading) {
     return (
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
-            <Star className="h-5 w-5 text-yellow-500" />
-            Google Reviews
+            <Building2 className="h-5 w-5 text-blue-500" />
+            Google Meu Negócio Hub
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -160,14 +303,14 @@ export default function GoogleReviews({ siteSlug, vipPin, userEmail }: GoogleRev
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
-            <Star className="h-5 w-5 text-yellow-500" />
-            Google Reviews
+            <Building2 className="h-5 w-5 text-blue-500" />
+            Google Meu Negócio Hub
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
             <div className="w-16 h-16 mx-auto mb-4 bg-red-500/20 rounded-full flex items-center justify-center">
-              <Star className="h-8 w-8 text-red-400" />
+              <Building2 className="h-8 w-8 text-red-400" />
             </div>
             <h3 className="text-lg font-semibold mb-2 text-white">Erro ao Carregar</h3>
             <p className="text-slate-400 text-sm mb-4">{error}</p>
@@ -181,162 +324,51 @@ export default function GoogleReviews({ siteSlug, vipPin, userEmail }: GoogleRev
     );
   }
 
-  if (needsConnection) {
-    return (
-      <Card className="bg-slate-800/50 border-slate-700">
-        <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            <Star className="h-5 w-5 text-yellow-500" />
-            Google Reviews
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8">
-            <div className="w-16 h-16 mx-auto mb-4 bg-blue-500/20 rounded-full flex items-center justify-center">
-              <UserIcon className="h-8 w-8 text-blue-400" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2 text-white">Conectar Google My Business</h3>
-            <p className="text-slate-400 text-sm mb-4">
-              Para visualizar e gerenciar seus reviews do Google, conecte sua conta Google My Business.
-            </p>
-              {userEmail && (
-                <Button 
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                  onClick={async () => {
-                    // Confirmar antes de redirecionar
-                    const confirmed = confirm(
-                      '🔗 Conectar Google My Business\n\n' +
-                      'Você será redirecionado para o Google para autorizar o acesso às suas avaliações.\n\n' +
-                      'Deseja continuar?'
-                    );
-                    
-                    if (!confirmed) return;
-                    
-                    try {
-                      console.log('🔄 Iniciando OAuth para:', { site: siteSlug, email: userEmail });
-                      
-                      const result = await n8n.startGoogleAuth({
-                        customerId: userEmail || '',
-                        siteSlug
-                      });
-                      
-                      console.log('📊 OAuth start result:', result);
-                      
-                      if ((result.ok || result.success) && result.authUrl) {
-                        // Salvar state para validação no callback
-                        const state = JSON.stringify({
-                          site: siteSlug,
-                          email: userEmail,
-                          ts: Date.now(),
-                          n: Math.random().toString(36).slice(2)
-                        });
-                        sessionStorage.setItem('gmb_state', state);
-                        
-                        // Mostrar mensagem antes do redirect
-                        alert('✅ Redirecionando para o Google...\n\nApós autorizar, você será redirecionado de volta para o dashboard.');
-                        
-                        // Redirecionar para Google OAuth
-                        window.location.href = result.authUrl;
-                      } else {
-                        console.error('❌ Erro no OAuth start:', result.error);
-                        alert(`❌ Erro ao iniciar OAuth:\n\n${result.error}`);
-                      }
-                    } catch (error) {
-                      console.error('❌ Erro na requisição OAuth:', error);
-                      alert(`❌ Erro na requisição:\n\n${error.message}`);
-                    }
-                  }}
-                >
-                  🔗 Conectar Google My Business
-                </Button>
-              )}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card className="bg-slate-800/50 border-slate-700">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-white flex items-center gap-2">
-            <Star className="h-5 w-5 text-yellow-500" />
-            Google Reviews
+            <Building2 className="h-5 w-5 text-blue-500" />
+            Google Meu Negócio Hub
           </CardTitle>
           <div className="flex items-center gap-2">
+            <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+              Conectado
+            </Badge>
             {userEmail && (
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={async () => {
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={async () => {
+                  if (confirm('Tem certeza que deseja desconectar sua conta Google?')) {
                     try {
                       const response = await fetch('/.netlify/functions/client-api', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                          action: 'gmb_diagnose',
+                          action: 'gmb_disconnect',
                           site: siteSlug,
                           email: userEmail
                         })
                       });
                       
-                      const result = await response.json();
-                      console.log('🔍 Diagnóstico GMB:', result);
-                      
-                      if (result.ok) {
-                        const d = result.diagnosis;
-                        alert(`📊 DIAGNÓSTICO GMB:
-                        
-✅ Site encontrado: ${d.site_encontrado ? 'SIM' : 'NÃO'}
-✅ Settings JSON válido: ${d.settings_json_valido ? 'SIM' : 'NÃO'}  
-✅ Tokens presentes: ${d.gmb_tokens_presente ? 'SIM' : 'NÃO'}
-📋 Linhas problemáticas: ${d.linhas_problematicas.length}
-🔑 PropertiesService: ${d.properties_service.tem_client_id ? 'OK' : 'FALTANDO'}
-
-Veja o console para detalhes completos.`);
+                      if (response.ok) {
+                        setNeedsConnection(true);
+                        setIsConnected(false);
+                        setReviewsData(null);
+                        alert('✅ Conta Google desconectada com sucesso');
                       }
                     } catch (e) {
-                      console.error('Erro no diagnóstico:', e);
+                      console.error('Erro ao desconectar:', e);
+                      alert('❌ Erro ao desconectar conta Google');
                     }
-                  }}
-                  className="border-blue-500 text-blue-400 hover:bg-blue-500/10"
-                >
-                  🔍 Diagnóstico
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={async () => {
-                    if (confirm('Tem certeza que deseja desconectar sua conta Google?')) {
-                      try {
-                        const response = await fetch('/.netlify/functions/client-api', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            action: 'gmb_disconnect',
-                            site: siteSlug,
-                            email: userEmail
-                          })
-                        });
-                        
-                        if (response.ok) {
-                          setNeedsConnection(true);
-                          setIsConnected(false);
-                          setReviewsData(null);
-                        }
-                      } catch (e) {
-                        console.error('Erro ao desconectar:', e);
-                      }
-                    }
-                  }}
-                  className="border-red-500 text-red-400 hover:bg-red-500/10"
-                >
-                  Desconectar Google
-                </Button>
-              </div>
+                  }
+                }}
+                className="border-red-500 text-red-400 hover:bg-red-500/10"
+              >
+                Desconectar
+              </Button>
             )}
             <Button
               onClick={() => fetchReviews(true)}
@@ -435,7 +467,10 @@ Veja o console para detalhes completos.`);
             {/* Informações do Negócio */}
             {(reviewsData.businessName || reviewsData.businessAddress) && (
               <div className="bg-slate-700/30 rounded-lg p-4 border border-slate-600">
-                <h5 className="font-medium text-white mb-2">Informações do Negócio</h5>
+                <h5 className="font-medium text-white mb-2 flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Informações do Negócio
+                </h5>
                 {reviewsData.businessName && (
                   <p className="text-sm text-slate-300 mb-1">
                     <strong>Nome:</strong> {reviewsData.businessName}
@@ -454,3 +489,4 @@ Veja o console para detalhes completos.`);
     </Card>
   );
 }
+
