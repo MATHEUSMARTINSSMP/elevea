@@ -23,7 +23,12 @@ function detectSiteSlug(): string | undefined {
     const envSlug = import.meta?.env?.VITE_ELEVEA_SITE_SLUG as string | undefined;
     if (envSlug) return envSlug;
     const host = window.location.hostname.split(".");
-    if (host.length > 2 && !["www", "app"].includes(host[0])) return host[0];
+    if (host.length > 2 && !["www", "app"].includes(host[0])) {
+      const detected = host[0];
+      // Mapear "eleveaagencia" para "elevea" se necessário
+      if (detected === "eleveaagencia") return "elevea";
+      return detected;
+    }
     const m = window.location.pathname.match(/\/app\/([a-z0-9\-]+)/i);
     if (m) return m[1];
   } catch {}
@@ -99,15 +104,18 @@ export default function LoginPage() {
       console.log("🔍 Login: Resposta normalizada:", { original: data, normalized: responseData });
 
       // Verificar se login foi bem-sucedido
-      // Aceita: {success: true}, {ok: true}, {user: {...}}, {token: ...}, ou array com dados do usuário
+      // Aceita: {success: true}, {ok: true}, {user: {...}}, {token: ...}, ou dados do usuário diretamente
+      // Se tiver user_id e email, considera válido (dados do usuário retornados diretamente)
+      const hasUserData = !!(responseData?.user_id || responseData?.email || responseData?.user?.email);
       const isValid = 
         responseData?.success === true || 
         responseData?.ok === true || 
         !!responseData?.user || 
         !!responseData?.token ||
+        hasUserData || // Dados do usuário diretamente na resposta
         (Array.isArray(data) && data.length > 0 && !!data[0]?.email); // Array com dados do usuário
       
-      console.log("🔍 Login: Validação:", { isValid, responseData, isArray: Array.isArray(data) });
+      console.log("🔍 Login: Validação:", { isValid, hasUserData, responseData, isArray: Array.isArray(data) });
       if (!isValid) {
         const code = responseData?.error || responseData?.message || data?.error || data?.message || "Falha no login";
         console.error("❌ Login: Resposta inválida:", { code, responseData, originalData: data });
