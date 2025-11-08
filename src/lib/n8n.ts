@@ -1,6 +1,6 @@
 type Json = Record<string, unknown>;
 
-const BASE = (import.meta.env.VITE_N8N_BASE_URL || "").replace(/\/$/, "");
+const BASE = (import.meta.env.VITE_N8N_BASE_URL || "https://fluxos.eleveaagencia.com.br").replace(/\/$/, "");
 const MODE = (import.meta.env.VITE_N8N_MODE || "prod").toLowerCase(); // prod|test
 const PREFIX = MODE === "test" ? "/webhook-test" : "/webhook";
 const AUTH_HEADER = import.meta.env.VITE_N8N_AUTH_HEADER || "#mmP220411";
