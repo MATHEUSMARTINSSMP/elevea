@@ -23,25 +23,18 @@ export default function GoogleCallback() {
         }
 
         // Validar e extrair dados do state
-        let stateData;
-        try {
-          stateData = JSON.parse(atob(state.replace(/-/g, '+').replace(/_/g, '/')));
-        } catch (e) {
-          setError("State corrompido - tente novamente");
+        // O workflow gera state como: customerId|siteSlug|nonce
+        const stateParts = state.split('|');
+        if (stateParts.length !== 3) {
+          setError("State inválido - formato incorreto");
           return;
         }
         
-        const { site: siteSlug, email: userEmail } = stateData;
+        const [customerId, siteSlug, nonce] = stateParts;
+        const userEmail = customerId; // customerId é o email
         
         if (!siteSlug || !userEmail) {
           setError("State inválido - dados ausentes");
-          return;
-        }
-        
-        // Validar timestamp (state não pode ser muito antigo - 10 minutos)
-        const stateAge = Date.now() - (stateData.ts || 0);
-        if (stateAge > 10 * 60 * 1000) {
-          setError("State expirado - tente novamente");
           return;
         }
 

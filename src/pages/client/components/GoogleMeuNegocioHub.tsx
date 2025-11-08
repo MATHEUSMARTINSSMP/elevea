@@ -183,14 +183,8 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
       console.log('📊 OAuth start result:', result);
       
       if ((result.ok || result.success) && result.authUrl) {
-        // Salvar state para validação no callback
-        const state = JSON.stringify({
-          site: siteSlug,
-          email: userEmail,
-          ts: Date.now(),
-          n: Math.random().toString(36).slice(2)
-        });
-        sessionStorage.setItem('gmb_state', state);
+        // O state já está incluído na URL do Google pelo workflow
+        // Não precisamos salvar nada no sessionStorage
         
         // Redirecionar para Google OAuth
         window.location.href = result.authUrl;

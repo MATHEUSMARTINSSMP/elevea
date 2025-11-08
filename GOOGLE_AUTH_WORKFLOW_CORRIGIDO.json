@@ -77,7 +77,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Config OAuth - Use variáveis de ambiente do n8n\nreturn [{ json: {\n  oauth: {\n    client_id: process.env.GOOGLE_OAUTH_CLIENT_ID || 'CONFIGURE_NO_N8N',\n    client_secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || 'CONFIGURE_NO_N8N',\n    redirect_uri: 'https://fluxos.eleveaagencia.com.br/webhook/api/auth/google/callback',\n    scope: 'openid email https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/business.manage',\n    auth_url: 'https://accounts.google.com/o/oauth2/v2/auth',\n    token_url: 'https://oauth2.googleapis.com/token',\n    revoke_url: 'https://oauth2.googleapis.com/revoke'\n  },\n  mergeKey: \"oauth_flow\"\n}}];"
+        "jsCode": "// Config OAuth - Use variáveis de ambiente do n8n\nreturn [{ json: {\n  oauth: {\n    client_id: process.env.GOOGLE_OAUTH_CLIENT_ID || 'CONFIGURE_NO_N8N',\n    client_secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || 'CONFIGURE_NO_N8N',\n    redirect_uri: 'https://eleveaagencia.netlify.app/auth/google/callback',\n    scope: 'openid email https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/business.manage',\n    auth_url: 'https://accounts.google.com/o/oauth2/v2/auth',\n    token_url: 'https://oauth2.googleapis.com/token',\n    revoke_url: 'https://oauth2.googleapis.com/revoke'\n  },\n  mergeKey: \"oauth_flow\"\n}}];"
       },
       "id": "a9177994-702a-4b96-8bc3-f094c1a73ea1",
       "name": "⚙️ Code - OAuth Config",
