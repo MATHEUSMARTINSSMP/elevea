@@ -5,11 +5,12 @@ import { useRoutes, Navigate } from "react-router-dom";
 // públicas
 const HomePage        = lazy(() => import("@/pages/Index"));
 const LoginPage       = lazy(() => import("@/pages/auth/Login"));
-const GoogleCallback  = lazy(() => import("@/pages/auth/google/callback"));
-const ObrigadoPage    = lazy(() => import("@/pages/obrigado/index"));
-const ResetPage       = lazy(() => import("@/pages/reset/index"));
-const PoliticasPage   = lazy(() => import("@/pages/politicas/index"));
-const NotFoundPage    = lazy(() => import("@/pages/NotFound"));
+const GoogleCallback    = lazy(() => import("@/pages/auth/google/callback"));
+const InstagramCallback = lazy(() => import("@/pages/auth/instagram/callback"));
+const ObrigadoPage      = lazy(() => import("@/pages/obrigado/index"));
+const ResetPage         = lazy(() => import("@/pages/reset/index"));
+const PoliticasPage     = lazy(() => import("@/pages/politicas/index"));
+const NotFoundPage      = lazy(() => import("@/pages/NotFound"));
 
 // logadas
 const ClientDashboard = lazy(() => import("@/pages/client/Dashboard"));
@@ -21,6 +22,7 @@ export default function Routes() {
     { path: "/", element: <HomePage /> },
     { path: "/login", element: <LoginPage /> },
     { path: "/auth/google/callback", element: <GoogleCallback /> },
+    { path: "/auth/instagram/callback", element: <InstagramCallback /> },
     { path: "/obrigado", element: <ObrigadoPage /> },
     { path: "/reset/*", element: <ResetPage /> },
     { path: "/politicas", element: <PoliticasPage /> },

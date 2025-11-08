@@ -1,0 +1,230 @@
+{
+  "name": "Billing - Create Invoice",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "api/billing/create-invoice",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-create-invoice",
+      "name": "🧾 Webhook - Create Invoice",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "webhookId": "elevea-create-invoice"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validar e preparar dados da fatura\nconst out = [];\nfor (const { json } of items) {\n  const body = json.body || {};\n  const siteSlug = (body.siteSlug || '').toString().trim().toLowerCase();\n  const amount = parseFloat(body.amount) || 0;\n  const dueDate = body.dueDate || null;\n  const paymentMethod = (body.paymentMethod || 'pix').toString().toLowerCase();\n  const description = (body.description || 'Fatura criada via sistema').toString().slice(0, 500);\n  const transactionReference = body.transactionReference || null;\n  \n  // Validações\n  if (!siteSlug) {\n    out.push({\n      json: {\n        success: false,\n        code: 400,\n        message: 'siteSlug é obrigatório',\n        timestamp: new Date().toISOString()\n      }\n    });\n    continue;\n  }\n  \n  if (!amount || amount <= 0) {\n    out.push({\n      json: {\n        success: false,\n        code: 400,\n        message: 'amount deve ser um valor maior que zero',\n        timestamp: new Date().toISOString()\n      }\n    });\n    continue;\n  }\n  \n  // Gerar payment_id único\n  const paymentId = `inv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;\n  \n  // Calcular data de vencimento (padrão: 30 dias a partir de hoje)\n  let paymentDate = new Date();\n  if (dueDate) {\n    paymentDate = new Date(dueDate);\n    if (isNaN(paymentDate.getTime())) {\n      paymentDate = new Date();\n      paymentDate.setDate(paymentDate.getDate() + 30);\n    }\n  } else {\n    paymentDate.setDate(paymentDate.getDate() + 30);\n  }\n  \n  out.push({\n    json: {\n      success: true,\n      site_slug: siteSlug,\n      payment_id: paymentId,\n      amount_paid: amount,\n      payment_date: paymentDate.toISOString(),\n      payment_method: paymentMethod,\n      description: description,\n      transaction_reference: transactionReference,\n      status: 'pending'\n    }\n  });\n}\nreturn out;"
+      },
+      "id": "code-prepare-invoice",
+      "name": "🧾 Code - Prepare Invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-valid-data",
+      "name": "🔀 IF - Valid Data",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT client_id AS id, site_slug, email, name FROM elevea.clients WHERE site_slug = $1 LIMIT 1",
+        "options": {
+          "queryReplacement": "={{ [$json.site_slug] }}"
+        }
+      },
+      "id": "postgres-find-client",
+      "name": "🔍 PostgreSQL - Find Client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [900, 200],
+      "credentials": {
+        "postgres": {
+          "id": "S2Hp22T5AgilJMEy",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verificar se cliente existe e preparar dados para inserção\nconst out = [];\nfor (const { json } of items) {\n  const invoiceData = $('🧾 Code - Prepare Invoice').item.json;\n  \n  // PostgreSQL retorna dados diretamente ou em .rows\n  let client = null;\n  if (Array.isArray(json)) {\n    client = json[0] || null;\n  } else if (json.rows && Array.isArray(json.rows)) {\n    client = json.rows[0] || null;\n  } else if (json.client_id || json.id) {\n    client = json;\n  }\n  \n  if (!client || (!client.client_id && !client.id)) {\n    out.push({\n      json: {\n        success: false,\n        code: 404,\n        message: 'Cliente não encontrado',\n        siteSlug: invoiceData.site_slug,\n        timestamp: new Date().toISOString()\n      }\n    });\n    continue;\n  }\n  \n  // Preparar dados completos para inserção\n  out.push({\n    json: {\n      success: true,\n      site_slug: invoiceData.site_slug,\n      payment_id: invoiceData.payment_id,\n      amount_paid: invoiceData.amount_paid,\n      payment_date: invoiceData.payment_date,\n      payment_method: invoiceData.payment_method,\n      description: invoiceData.description,\n      transaction_reference: invoiceData.transaction_reference,\n      status: invoiceData.status,\n      customer_email: client.email || null,\n      customer_name: client.name || null\n    }\n  });\n}\nreturn out;"
+      },
+      "id": "code-compose-insert",
+      "name": "🧩 Code - Compose Insert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO elevea.payments (\n  site_slug,\n  payment_id,\n  amount_paid,\n  payment_date,\n  payment_method,\n  description,\n  transaction_reference,\n  status,\n  customer_email,\n  customer_name,\n  created_at,\n  updated_at\n) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())\nRETURNING payment_id, site_slug, amount_paid, payment_date, payment_method, description, transaction_reference, status, customer_email, customer_name, created_at",
+        "options": {
+          "queryReplacement": "={{ [\n  $json.site_slug,\n  $json.payment_id,\n  $json.amount_paid,\n  $json.payment_date,\n  $json.payment_method,\n  $json.description,\n  $json.transaction_reference,\n  $json.status,\n  $json.customer_email,\n  $json.customer_name\n] }}"
+        }
+      },
+      "id": "postgres-create-invoice",
+      "name": "💾 PostgreSQL - Create Invoice",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1340, 200],
+      "credentials": {
+        "postgres": {
+          "id": "S2Hp22T5AgilJMEy",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar resposta de sucesso\nconst out = [];\nfor (const { json } of items) {\n  // PostgreSQL retorna dados diretamente ou em .rows\n  let invoice = null;\n  if (Array.isArray(json)) {\n    invoice = json[0] || null;\n  } else if (json.rows && Array.isArray(json.rows)) {\n    invoice = json.rows[0] || null;\n  } else if (json.payment_id) {\n    invoice = json;\n  }\n  \n  if (!invoice || !invoice.payment_id) {\n    out.push({\n      json: {\n        success: false,\n        code: 500,\n        message: 'Erro ao criar fatura no banco de dados',\n        timestamp: new Date().toISOString()\n      }\n    });\n    continue;\n  }\n  \n  out.push({\n    json: {\n      success: true,\n      message: 'Fatura criada com sucesso',\n      invoice: {\n        paymentId: invoice.payment_id,\n        siteSlug: invoice.site_slug,\n        amount: parseFloat(invoice.amount_paid) || 0,\n        paymentDate: invoice.payment_date,\n        paymentMethod: invoice.payment_method,\n        description: invoice.description,\n        transactionReference: invoice.transaction_reference,\n        status: invoice.status,\n        customerEmail: invoice.customer_email,\n        customerName: invoice.customer_name,\n        createdAt: invoice.created_at\n      },\n      timestamp: new Date().toISOString()\n    }\n  });\n}\nreturn out;"
+      },
+      "id": "code-format-response",
+      "name": "📋 Code - Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": "={{ $json.code || 200 }}"
+        }
+      },
+      "id": "respond-create-invoice",
+      "name": "📤 Respond - Create Invoice",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": "={{ $json.code || 400 }}"
+        }
+      },
+      "id": "respond-error",
+      "name": "📤 Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [900, 400]
+    }
+  ],
+  "connections": {
+    "🧾 Webhook - Create Invoice": {
+      "main": [
+        [
+          {
+            "node": "🧾 Code - Prepare Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧾 Code - Prepare Invoice": {
+      "main": [
+        [
+          {
+            "node": "🔀 IF - Valid Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 IF - Valid Data": {
+      "main": [
+        [
+          {
+            "node": "🔍 PostgreSQL - Find Client",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📤 Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 PostgreSQL - Find Client": {
+      "main": [
+        [
+          {
+            "node": "🧩 Code - Compose Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧩 Code - Compose Insert": {
+      "main": [
+        [
+          {
+            "node": "💾 PostgreSQL - Create Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💾 PostgreSQL - Create Invoice": {
+      "main": [
+        [
+          {
+            "node": "📋 Code - Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Code - Format Response": {
+      "main": [
+        [
+          {
+            "node": "📤 Respond - Create Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-01-07T12:00:00.000Z",
+  "versionId": "1"
+}
+

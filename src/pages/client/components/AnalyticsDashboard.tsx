@@ -505,7 +505,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
 
   // Try-catch global para capturar erros de renderização
   try {
-    return (
+  return (
     <Card className="rounded-lg border dashboard-border dashboard-card dashboard-shadow-lg">
       <CardHeader className="pb-6 border-b dashboard-divider">
         {/* Header Principal */}
@@ -521,7 +521,7 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               <CardDescription className="dashboard-text-muted text-base">
                 Insights detalhados de tráfego e comportamento
             </CardDescription>
-            </div>
+          </div>
           </div>
           
           {/* Controles Principais */}
@@ -580,34 +580,34 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
             {/* Período */}
             <div>
               <label className="block text-sm font-medium dashboard-text mb-2">Período</label>
-              <div className="flex gap-1">
-                {(['7d', '30d', '90d'] as const).map((range) => (
-                  <Button
-                    key={range}
+            <div className="flex gap-1">
+              {(['7d', '30d', '90d'] as const).map((range) => (
+                <Button
+                  key={range}
                     variant={timeRange === range ? "default" : "outline"}
-                    size="sm"
-                    onClick={async () => {
-                      setTimeRange(range);
+                  size="sm"
+                  onClick={async () => {
+                    setTimeRange(range);
                       await recordEvent({
                         event: 'analytics_time_range_changed',
                         category: 'engagement',
                         site_slug: siteSlug,
                         metadata: { 
-                          new_range: range,
-                          previous_range: timeRange 
+                      new_range: range,
+                      previous_range: timeRange 
                         }
-                      });
-                    }}
+                    });
+                  }}
                     className={`text-xs ${
                       timeRange === range 
                         ? 'bg-primary text-white border-primary' 
                         : 'dashboard-card border dashboard-border dashboard-text hover:bg-dashboard-hover'
                     }`}
-                  >
-                    {range}
-                  </Button>
-                ))}
-              </div>
+                >
+                  {range}
+                </Button>
+              ))}
+            </div>
             </div>
             
             {/* Tipo de Gráfico */}
@@ -615,10 +615,10 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               <label className="block text-sm font-medium dashboard-text mb-2">Tipo de Gráfico</label>
               <div className="flex gap-1">
                 {(['area', 'line', 'bar'] as const).map((type) => (
-                  <Button
+            <Button
                     key={type}
                     variant={chartType === type ? "default" : "outline"}
-                    size="sm"
+              size="sm"
                     onClick={() => setChartType(type)}
                     className={`text-xs ${
                       chartType === type 
@@ -630,10 +630,10 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
                      type === 'line' ? <LineChart className="w-3 h-3 mr-1" /> : 
                      <BarChart3Icon className="w-3 h-3 mr-1" />}
                     {type}
-                  </Button>
+            </Button>
                 ))}
-              </div>
-            </div>
+          </div>
+        </div>
             
             {/* Métrica */}
             <div>
@@ -661,12 +661,12 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800">
                 <EyeIcon className="w-6 h-6 text-blue-600 dark:text-blue-400 dark:text-blue-400" />
-              </div>
+            </div>
               <div className="text-right">
                 <div className="flex items-center justify-end mb-1">
                   <div className="text-3xl font-bold dashboard-text">
                     {formatNumber(processedOverview.pageViews || 0)}
-                  </div>
+            </div>
                   <MetricTooltip
                     title="Visualizações de Página"
                     description="Número total de páginas visualizadas pelos visitantes. Cada vez que alguém carrega uma página do seu site, conta como uma visualização."
@@ -687,12 +687,12 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800">
                 <UsersIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
-              </div>
+            </div>
               <div className="text-right">
                 <div className="flex items-center justify-end mb-1">
                   <div className="text-3xl font-bold dashboard-text">
                     {formatNumber(processedOverview.users || 0)}
-                  </div>
+            </div>
                   <MetricTooltip
                     title="Usuários Únicos"
                     description="Número de pessoas diferentes que visitaram seu site. Cada pessoa conta apenas uma vez, independente de quantas vezes ela visitar."
@@ -713,12 +713,12 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-200">
                 <ClockIcon className="w-6 h-6 text-yellow-600" />
-              </div>
+            </div>
               <div className="text-right">
                 <div className="flex items-center justify-end mb-1">
                   <div className="text-3xl font-bold dashboard-text">
                     {formatDuration(processedOverview.avgSessionDuration || 0)}
-                  </div>
+            </div>
                   <MetricTooltip
                     title="Tempo Médio de Sessão"
                     description="Tempo médio que os visitantes ficam no seu site durante uma visita. Calculado desde o momento que entram até saírem."
@@ -739,12 +739,12 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
             <div className="flex items-center justify-between mb-4">
               <div className="p-3 rounded-lg bg-green-50 border border-green-200">
                 <MessageCircleIcon className="w-6 h-6 text-green-600" />
-              </div>
+            </div>
               <div className="text-right">
                 <div className="flex items-center justify-end mb-1">
                   <div className="text-3xl font-bold dashboard-text">
                     {formatNumber(processedOverview.whatsappClicks || 0)}
-                  </div>
+            </div>
                   <MetricTooltip
                     title="Cliques no WhatsApp"
                     description="Número de vezes que os visitantes clicaram no botão ou link do WhatsApp para entrar em contato."
@@ -1241,10 +1241,10 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
               <div className="text-center py-4">
                 <GlobeIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                 <p className="text-sm dashboard-text-muted">Nenhum dado de país disponível</p>
-              </div>
-            )}
           </div>
+            )}
         </div>
+                </div>
       </CardContent>
     </Card>
   );
@@ -1257,9 +1257,9 @@ export default function AnalyticsDashboard({ siteSlug, vipPin }: AnalyticsDashbo
             <p>Erro ao renderizar analytics</p>
             <p className="text-sm dashboard-text-muted mt-2">Detalhes: {error?.message || 'Erro desconhecido'}</p>
             <p className="text-xs dashboard-text-subtle mt-1">Dados: {JSON.stringify(data, null, 2)}</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
+            </div>
+      </CardContent>
+    </Card>
+  );
   }
 }

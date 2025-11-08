@@ -204,8 +204,8 @@ export default function SEOOptimizer({ siteSlug, vipPin }: SEOOptimizerProps) {
   }
 
   if (loading && !analysis) {
-    return (
-      <Card className="rounded-2xl border border-white/10 bg-white/5 text-white">
+  return (
+    <Card className="rounded-2xl border border-white/10 bg-white/5 text-white">
         <CardContent className="p-6">
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -247,7 +247,7 @@ export default function SEOOptimizer({ siteSlug, vipPin }: SEOOptimizerProps) {
               </Button>
             </div>
 
-              {/* Score Geral */}
+            {/* Score Geral */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div className={`p-4 rounded-lg border space-y-2 ${getScoreColor(analysis.score.overall)}`}>
                   <div className="flex items-center gap-2">
@@ -295,7 +295,7 @@ export default function SEOOptimizer({ siteSlug, vipPin }: SEOOptimizerProps) {
               {analysis.recommendations.length > 0 && (
                 <div className="space-y-3">
                   <h4 className="text-sm font-semibold text-slate-300">Recomendações</h4>
-                  <div className="space-y-2">
+              <div className="space-y-2">
                     {analysis.recommendations.slice(0, 5).map((rec, index) => (
                       <div key={index} className={`flex items-start gap-3 p-3 rounded-lg border ${getSeverityColor(rec.priority)}`}>
                         {rec.priority === 'high' ? (
@@ -341,7 +341,7 @@ export default function SEOOptimizer({ siteSlug, vipPin }: SEOOptimizerProps) {
                 <p className="text-xs text-slate-400">
                   Adicione as palavras-chave mais importantes para o seu negócio. Ex: "salão de beleza", "restaurante italiano", "academia fitness"
                 </p>
-              </div>
+                  </div>
               {keywords.map((keyword, index) => (
                 <div key={index} className="flex gap-2">
                   <Input
@@ -491,7 +491,7 @@ export default function SEOOptimizer({ siteSlug, vipPin }: SEOOptimizerProps) {
                   Headings (Títulos)
                 </h4>
                 <div className="p-4 rounded-lg bg-slate-900/50 border border-slate-700">
-                  <div className="space-y-3">
+            <div className="space-y-3">
                     <div>
                       <Label className="text-xs text-slate-400 flex items-center gap-2 mb-1">
                         <span className="font-mono bg-black/30 px-1.5 py-0.5 rounded text-[10px]">H1</span>
@@ -586,18 +586,18 @@ export default function SEOOptimizer({ siteSlug, vipPin }: SEOOptimizerProps) {
               Cancelar
             </Button>
             <Button onClick={handleApplyOptimizations} disabled={optimizing}>
-              {optimizing ? (
-                <>
+            {optimizing ? (
+              <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Aplicando...
-                </>
-              ) : (
-                <>
+              </>
+            ) : (
+              <>
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Aplicar Otimizações
-                </>
-              )}
-            </Button>
+              </>
+            )}
+          </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

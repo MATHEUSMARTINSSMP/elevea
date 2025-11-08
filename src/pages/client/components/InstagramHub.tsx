@@ -52,6 +52,7 @@ import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Cart
 interface InstagramHubProps {
   siteSlug: string;
   vipPin: string;
+  userEmail?: string;
 }
 
 // Tipos de dados
@@ -113,7 +114,7 @@ interface InstagramStory {
 
 const COLORS = ['#E1306C', '#F56040', '#F77737', '#FCAF45', '#FFDC80', '#C13584'];
 
-export default function InstagramHub({ siteSlug, vipPin }: InstagramHubProps) {
+export default function InstagramHub({ siteSlug, vipPin, userEmail }: InstagramHubProps) {
   const [activeTab, setActiveTab] = useState<'scheduler' | 'analytics' | 'comments' | 'stories'>('scheduler');
   const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -197,14 +198,22 @@ export default function InstagramHub({ siteSlug, vipPin }: InstagramHubProps) {
 
   const connectInstagram = async () => {
     try {
-      const result = await n8n.connectInstagram({ site_slug: siteSlug, vipPin });
-      if (result.success || result.ok) {
-        setIsConnected(true);
-        toast.success('Instagram conectado com sucesso!');
-        await checkConnection();
+      setLoading(true);
+      const result = await n8n.connectInstagram({ 
+        site_slug: siteSlug, 
+        vipPin,
+        userEmail: userEmail || undefined
+      });
+      if (result.success && result.auth_url) {
+        // Redirecionar para Instagram OAuth (igual Google Auth)
+        window.location.href = result.auth_url;
+      } else {
+        toast.error('Erro ao gerar URL de autorização: ' + (result.error || 'Erro desconhecido'));
+        setLoading(false);
       }
     } catch (error: any) {
       toast.error('Erro ao conectar Instagram: ' + error.message);
+      setLoading(false);
     }
   };
 
