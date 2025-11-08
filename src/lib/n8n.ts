@@ -84,8 +84,15 @@ async function post<T = any>(path: string, body: Json): Promise<T> {
       status: res.status, 
       statusText: res.statusText, 
       data,
-      url: finalUrl
+      url: finalUrl,
+      contentType: res.headers.get('content-type')
     });
+    
+    // Se for erro de workflow, tentar dar mais detalhes
+    if (data.message && data.message.includes('Error in workflow')) {
+      throw new Error(`Erro no workflow n8n: ${data.message}. Verifique os logs do n8n.`);
+    }
+    
     throw new Error(errorMsg);
   }
   
