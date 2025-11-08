@@ -91,18 +91,30 @@ export default function LoginPage() {
         return;
       }
 
+      // Normalizar resposta - n8n pode retornar array ou objeto
+      const responseData = Array.isArray(data) ? data[0] : data;
+      console.log("🔍 Login: Resposta normalizada:", { original: data, normalized: responseData });
+
       // Verificar se login foi bem-sucedido
-      const isValid = data?.success === true || data?.ok === true || !!data?.user || !!data?.token;
-      console.log("🔍 Login: Validação:", { isValid, data });
+      // Aceita: {success: true}, {ok: true}, {user: {...}}, {token: ...}, ou array com dados do usuário
+      const isValid = 
+        responseData?.success === true || 
+        responseData?.ok === true || 
+        !!responseData?.user || 
+        !!responseData?.token ||
+        (Array.isArray(data) && data.length > 0 && !!data[0]?.email); // Array com dados do usuário
+      
+      console.log("🔍 Login: Validação:", { isValid, responseData, isArray: Array.isArray(data) });
       if (!isValid) {
-        const code = data?.error || data?.message || "Falha no login";
-        console.error("❌ Login: Resposta inválida:", { code, data });
+        const code = responseData?.error || responseData?.message || data?.error || data?.message || "Falha no login";
+        console.error("❌ Login: Resposta inválida:", { code, responseData, originalData: data });
         setErr(code);
         return;
       }
 
       // Normalizar dados do usuário - o login pode retornar diretamente ou dentro de user
-      let userData = data.user || data;
+      // Se for array, pegar primeiro item; se for objeto, usar user ou o próprio objeto
+      let userData = responseData?.user || (Array.isArray(data) ? data[0] : responseData);
       let role = userData?.role as Role | undefined;
 
       console.log("🔍 Login: Resposta inicial do webhook:", { data, userData });
