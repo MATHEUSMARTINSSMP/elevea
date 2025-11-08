@@ -35,13 +35,29 @@ async function post<T = any>(path: string, body: Json): Promise<T> {
     headers[AUTH_HEADER_NAME] = AUTH_HEADER;
   }
   
+  // Debug em desenvolvimento
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname.includes('netlify'))) {
+    console.log(`[n8n] POST ${finalUrl}`, { body, headers: { ...headers, [AUTH_HEADER_NAME]: '***' } });
+  }
+  
   const res = await fetch(finalUrl, {
     method: "POST",
     headers,
     body: JSON.stringify(body ?? {}),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data.error || data.message || `HTTP ${res.status}`));
+  
+  const data = await res.json().catch(() => {
+    // Se não conseguir fazer parse do JSON, retornar objeto vazio
+    console.error(`[n8n] Erro ao fazer parse do JSON. Status: ${res.status}, StatusText: ${res.statusText}`);
+    return { error: `Erro ao processar resposta do servidor (HTTP ${res.status})` };
+  });
+  
+  if (!res.ok) {
+    const errorMsg = data.error || data.message || `HTTP ${res.status}`;
+    console.error(`[n8n] Erro na requisição:`, { status: res.status, statusText: res.statusText, data });
+    throw new Error(errorMsg);
+  }
+  
   return data as T;
 }
 
@@ -153,18 +169,8 @@ export const n8n = {
   }) => post("/api/onboarding/start", data),
 
   // Google Reviews APIs (n8n webhooks)
-  getGoogleReviews: (data: { siteSlug: string; vipPin: string; userEmail?: string }) => {
-    // O endpoint espera GET com query params: customerId, siteSlug, accountId, locationId
-    // Por enquanto, vamos usar POST para /api/google/reviews/fetch até criar o webhook correto
-    const params = new URLSearchParams({
-      customerId: data.userEmail || '',
-      siteSlug: data.siteSlug,
-      // accountId e locationId precisam ser obtidos das credenciais ou config
-      accountId: '', // TODO: obter das credenciais salvas
-      locationId: '' // TODO: obter das credenciais salvas
-    });
-    return get(`/api/google/reviews/fetch?${params.toString()}`);
-  },
+  getGoogleReviews: (data: { siteSlug: string; vipPin: string; userEmail?: string }) => 
+    post("/api/google/reviews", data),
   
   startGoogleAuth: (params: { customerId: string; siteSlug: string }) => 
     get(`/api/auth/google/start?customerId=${encodeURIComponent(params.customerId)}&siteSlug=${encodeURIComponent(params.siteSlug)}`),

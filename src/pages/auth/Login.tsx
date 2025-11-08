@@ -81,16 +81,22 @@ export default function LoginPage() {
 
       let data: ApiResp = {};
       try {
+        console.log("🔍 Login: Tentando fazer login...", { email: emailLc, site });
         data = await n8n.login({ email: emailLc, password: pass, site });
+        console.log("🔍 Login: Resposta recebida:", data);
       } catch (e: any) {
-        setErr(e?.message || "Erro ao fazer login");
+        console.error("❌ Login: Erro na requisição:", e);
+        const errorMsg = e?.message || e?.error || "Erro ao fazer login";
+        setErr(errorMsg);
         return;
       }
 
       // Verificar se login foi bem-sucedido
       const isValid = data?.success === true || data?.ok === true || !!data?.user || !!data?.token;
+      console.log("🔍 Login: Validação:", { isValid, data });
       if (!isValid) {
         const code = data?.error || data?.message || "Falha no login";
+        console.error("❌ Login: Resposta inválida:", { code, data });
         setErr(code);
         return;
       }
