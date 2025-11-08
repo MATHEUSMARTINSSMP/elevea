@@ -59,7 +59,10 @@ export default function LoginPage() {
         const responseData = Array.isArray(data) ? data[0] : data;
         const ok = responseData?.success === true || responseData?.ok === true;
         if (ok && responseData.user?.role) redirectByRole(responseData.user.role, next);
-      } catch {}
+      } catch (e) {
+        // Ignorar erros silenciosamente - não deve quebrar a página
+        console.warn("Login: Erro ao verificar sessão existente:", e);
+      }
     })();
   }, [next]);
 
@@ -245,29 +248,32 @@ export default function LoginPage() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow p-4 sm:p-8">
         <h1 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Entrar</h1>
 
-        <form className="form-mobile" onSubmit={doLogin}>
+        <form className="form-mobile space-y-4" onSubmit={doLogin}>
           <input
             type="email"
             placeholder="E-mail"
             value={email}
             onChange={(e)=>setEmail(e.target.value)}
-            className="form-input-mobile w-full border rounded-xl"
+            className="form-input-mobile w-full border border-gray-300 rounded-xl px-4 py-3 text-base"
             autoComplete="username"
             required
+            style={{ display: 'block', width: '100%', minHeight: '44px', backgroundColor: '#fff', color: '#000' }}
           />
           <input
             type="password"
             placeholder="Senha"
             value={pass}
             onChange={(e)=>setPass(e.target.value)}
-            className="form-input-mobile w-full border rounded-xl"
+            className="form-input-mobile w-full border border-gray-300 rounded-xl px-4 py-3 text-base"
             autoComplete="current-password"
             required
+            style={{ display: 'block', width: '100%', minHeight: '44px', backgroundColor: '#fff', color: '#000' }}
           />
           <button
             type="submit"
             disabled={loading}
-            className="btn-mobile w-full bg-black text-white rounded-xl hover:bg-gray-800 disabled:opacity-70"
+            className="btn-mobile w-full bg-black text-white rounded-xl hover:bg-gray-800 disabled:opacity-70 px-4 py-3 text-base font-medium"
+            style={{ display: 'block', width: '100%', minHeight: '44px' }}
           >
             {loading ? "Entrando..." : "Entrar"}
           </button>
