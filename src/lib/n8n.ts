@@ -23,7 +23,9 @@ async function post<T = any>(path: string, body: Json): Promise<T> {
   
   // Verificar se temos uma URL válida
   if (!BASE) {
-    throw new Error("n8n não configurado: VITE_N8N_BASE_URL não definido");
+    const errorMsg = "n8n não configurado: VITE_N8N_BASE_URL não definido";
+    console.error(`[n8n] ${errorMsg}`);
+    throw new Error(errorMsg);
   }
   
   // Montar headers com autenticação
@@ -35,26 +37,55 @@ async function post<T = any>(path: string, body: Json): Promise<T> {
     headers[AUTH_HEADER_NAME] = AUTH_HEADER;
   }
   
-  // Debug em desenvolvimento
-  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname.includes('netlify'))) {
-    console.log(`[n8n] POST ${finalUrl}`, { body, headers: { ...headers, [AUTH_HEADER_NAME]: '***' } });
+  // Debug sempre (para ajudar a identificar problemas)
+  console.log(`[n8n] POST ${finalUrl}`, { 
+    body, 
+    headers: { ...headers, [AUTH_HEADER_NAME]: AUTH_HEADER ? '***' : 'não definido' },
+    base: BASE,
+    prefix: PREFIX
+  });
+  
+  let res: Response;
+  try {
+    res = await fetch(finalUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body ?? {}),
+    });
+  } catch (networkError: any) {
+    console.error(`[n8n] Erro de rede ao fazer requisição:`, networkError);
+    throw new Error(`Erro de rede: ${networkError.message || 'Não foi possível conectar ao servidor'}`);
   }
   
-  const res = await fetch(finalUrl, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body ?? {}),
-  });
+  // Tentar fazer parse do JSON
+  let data: any;
+  const contentType = res.headers.get('content-type') || '';
+  const isJson = contentType.includes('application/json');
   
-  const data = await res.json().catch(() => {
-    // Se não conseguir fazer parse do JSON, retornar objeto vazio
-    console.error(`[n8n] Erro ao fazer parse do JSON. Status: ${res.status}, StatusText: ${res.statusText}`);
-    return { error: `Erro ao processar resposta do servidor (HTTP ${res.status})` };
-  });
+  if (isJson) {
+    try {
+      data = await res.json();
+    } catch (parseError) {
+      console.error(`[n8n] Erro ao fazer parse do JSON:`, parseError);
+      const text = await res.text().catch(() => '');
+      console.error(`[n8n] Resposta em texto:`, text);
+      throw new Error(`Erro ao processar resposta do servidor (HTTP ${res.status}): ${text.substring(0, 100)}`);
+    }
+  } else {
+    // Se não for JSON, tentar ler como texto
+    const text = await res.text().catch(() => '');
+    console.error(`[n8n] Resposta não é JSON. Status: ${res.status}, Content-Type: ${contentType}, Texto: ${text.substring(0, 200)}`);
+    data = { error: `Resposta inválida do servidor (HTTP ${res.status})`, raw: text.substring(0, 200) };
+  }
   
   if (!res.ok) {
     const errorMsg = data.error || data.message || `HTTP ${res.status}`;
-    console.error(`[n8n] Erro na requisição:`, { status: res.status, statusText: res.statusText, data });
+    console.error(`[n8n] Erro na requisição:`, { 
+      status: res.status, 
+      statusText: res.statusText, 
+      data,
+      url: finalUrl
+    });
     throw new Error(errorMsg);
   }
   
