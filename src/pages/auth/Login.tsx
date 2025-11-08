@@ -152,6 +152,8 @@ export default function LoginPage() {
       const siteSlug = 
         userData?.site_slug || 
         userData?.siteSlug || 
+        responseData?.site_slug || 
+        responseData?.siteSlug || 
         (data as any)?.site_slug || 
         (data as any)?.siteSlug || 
         "";
@@ -160,6 +162,8 @@ export default function LoginPage() {
       const plan = 
         userData?.user_plan || 
         userData?.plan || 
+        responseData?.user_plan || 
+        responseData?.plan || 
         (data as any)?.user_plan || 
         (data as any)?.plan || 
         "";
