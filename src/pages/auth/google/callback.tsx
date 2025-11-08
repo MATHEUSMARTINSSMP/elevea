@@ -47,30 +47,24 @@ export default function GoogleCallback() {
 
         setMsg("Processando autorização...");
 
-        // Fazer POST para exchange via n8n
+        // Fazer POST para exchange via n8n usando biblioteca
         try {
-          const response = await fetch(`${import.meta.env.VITE_N8N_BASE_URL || ''}/webhook/api/auth/google/callback`, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'X-APP-KEY': import.meta.env.VITE_N8N_AUTH_HEADER || '#mmP220411'
-            },
-            body: JSON.stringify({
-              code,
-              state,
-              redirect_uri: 'https://eleveaagencia.netlify.app/auth/google/callback',
-              siteSlug,
-              userEmail
-            })
+          const { n8n } = await import('@/lib/n8n');
+          
+          const result = await n8n.googleAuthCallback({
+            code,
+            state,
+            redirect_uri: window.location.origin + '/auth/google/callback',
+            siteSlug,
+            userEmail
           });
           
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `HTTP ${response.status}`);
+          if (result.success || result.connected) {
+            // Sucesso - redirecionar para dashboard
+            window.location.replace(`/client/dashboard?gmb=ok&site=${encodeURIComponent(siteSlug)}`);
+          } else {
+            throw new Error(result.error || 'Erro desconhecido na autenticação');
           }
-          
-          // Sucesso - redirecionar para dashboard
-          window.location.replace(`/client/dashboard?gmb=ok&site=${encodeURIComponent(siteSlug)}`);
         } catch (err: any) {
           setError(`Erro na troca de tokens: ${err.message}`);
         }

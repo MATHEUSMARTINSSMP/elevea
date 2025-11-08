@@ -1,0 +1,98 @@
+{
+  "name": "Billing - Dashboard Status",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "api/billing/dashboard-status",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-dashboard-status",
+      "name": "📊 Webhook - Dashboard Status",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [-240, 300],
+      "webhookId": "elevea-dashboard-status"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT client_id AS id, site_slug, email, name, plan, status, last_payment, payment_amount, created_at FROM elevea.clients WHERE site_slug = $1 LIMIT 1",
+        "options": {
+          "queryReplacement": "$1 -> {{$json.body.siteSlug || $json.body.site_slug}}"
+        }
+      },
+      "id": "find-client",
+      "name": "🔍 PostgreSQL - Find Client",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "credentials": {
+        "postgres": {
+          "id": "S2Hp22T5AgilJMEy",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT payment_id, amount_paid, status, payment_date, payment_method, description, created_at FROM elevea.payments WHERE site_slug = $1 AND status = 'approved' ORDER BY payment_date DESC, created_at DESC LIMIT 1",
+        "options": {
+          "queryReplacement": "$1 -> {{$json.body.siteSlug || $json.body.site_slug}}"
+        }
+      },
+      "id": "get-last-payment",
+      "name": "💰 PostgreSQL - Get Last Payment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "credentials": {
+        "postgres": {
+          "id": "S2Hp22T5AgilJMEy",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formatar status para o Dashboard (formato StatusResp)\nconst out = [];\nconst clientData = $('🔍 PostgreSQL - Find Client').item.json.rows?.[0] || {};\nconst lastPaymentData = $('💰 PostgreSQL - Get Last Payment').item.json.rows?.[0] || null;\n\nif (!clientData.client_id) {\n  out.push({\n    json: {\n      ok: false,\n      siteSlug: $json.body.siteSlug || '',\n      status: null,\n      plan: null,\n      nextCharge: null,\n      lastPayment: null,\n      error: 'Cliente não encontrado'\n    }\n  });\n  return out;\n}\n\n// Calcular próximo pagamento (30 dias após último pagamento)\nlet nextCharge = null;\nlet lastPayment = null;\n\nif (lastPaymentData && lastPaymentData.payment_date) {\n  const lastPaymentDate = new Date(lastPaymentData.payment_date);\n  const nextPaymentDate = new Date(lastPaymentDate);\n  nextPaymentDate.setDate(nextPaymentDate.getDate() + 30); // +30 dias\n  nextCharge = nextPaymentDate.toISOString();\n  \n  lastPayment = {\n    date: lastPaymentData.payment_date,\n    amount: Number(lastPaymentData.amount_paid || 0)\n  };\n} else if (clientData.last_payment) {\n  // Usar last_payment do cliente se não houver pagamento aprovado\n  const lastPaymentDate = new Date(clientData.last_payment);\n  const nextPaymentDate = new Date(lastPaymentDate);\n  nextPaymentDate.setDate(nextPaymentDate.getDate() + 30);\n  nextCharge = nextPaymentDate.toISOString();\n  \n  lastPayment = {\n    date: clientData.last_payment,\n    amount: Number(clientData.payment_amount || 0)\n  };\n}\n\nout.push({\n  json: {\n    ok: true,\n    siteSlug: clientData.site_slug || $json.body.siteSlug || '',\n    status: clientData.status || 'active',\n    plan: clientData.plan || 'essential',\n    nextCharge: nextCharge,\n    lastPayment: lastPayment\n  }\n});\n\nreturn out;"
+      },
+      "id": "format-dashboard-status",
+      "name": "📊 Code - Format Dashboard Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": "={{ $json.ok ? 200 : 404 }}"
+        }
+      },
+      "id": "respond-status",
+      "name": "📤 Respond - Dashboard Status",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 300]
+    }
+  ],
+  "connections": {
+    "📊 Webhook - Dashboard Status": {
+      "main": [[{"node": "🔍 PostgreSQL - Find Client", "type": "main", "index": 0}]]
+    },
+    "🔍 PostgreSQL - Find Client": {
+      "main": [[{"node": "💰 PostgreSQL - Get Last Payment", "type": "main", "index": 0}]]
+    },
+    "💰 PostgreSQL - Get Last Payment": {
+      "main": [[{"node": "📊 Code - Format Dashboard Status", "type": "main", "index": 0}]]
+    },
+    "📊 Code - Format Dashboard Status": {
+      "main": [[{"node": "📤 Respond - Dashboard Status", "type": "main", "index": 0}]]
+    }
+  }
+}
+

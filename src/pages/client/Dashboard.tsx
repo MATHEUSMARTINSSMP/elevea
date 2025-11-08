@@ -21,6 +21,7 @@ import TemplateMarketplace from "./components/TemplateMarketplace";
 import AuditLogs from "./components/AuditLogs";
 import ModernSiteEditor from "./components/ModernSiteEditor";
 import FinanceiroSection from "./components/FinanceiroSection";
+import BillingManager from "./components/BillingManager";
 import EditorConteudoSection from "./components/EditorConteudoSection";
 import FeedbackSection from "./components/FeedbackSection";
 import LayoutEditor from "./components/LayoutEditor";
@@ -404,7 +405,7 @@ function ClientDashboardContent() {
     // Para VIP, funcionalidades fora da lista permitida estão em desenvolvimento
     const vipAllowedFeatures = [
       "whatsapp-chatbot",
-      "google-reviews",
+      "google-reviews", 
       "instagram-hub",
       "feedback-system",
       "color-palette",
@@ -488,11 +489,11 @@ function ClientDashboardContent() {
         if (looksVip(user.plan)) {
           sessionStorage.setItem(cacheKey, user.plan);
         }
-      } catch {}
-      
+        } catch {}
+
       // Define status básico baseado no plano
-      setStatus({
-        ok: true,
+        setStatus({
+          ok: true,
         siteSlug: siteSlug,
         status: "active",
         plan: user.plan,
@@ -502,7 +503,7 @@ function ClientDashboardContent() {
     } else {
       console.log("⚠️ No plan found in user data, using essential as fallback");
       setPlan("essential"); // fallback
-      setCheckingPlan(false);
+          setCheckingPlan(false);
       setLoadingStatus(false);
       setPlanErr(null);
       
@@ -551,17 +552,34 @@ function ClientDashboardContent() {
       }
 
       try {
-        console.log("📡 Fetching status...");
-        const s = await getJSON<StatusResp>(
-          `/.netlify/functions/client-api?action=get_status&site=${encodeURIComponent(siteSlug)}`,
-          CARDS_TIMEOUT_MS * 2 // Dobrar o timeout
-        );
+        console.log("📡 Fetching status from n8n...");
+        const { n8n } = await import('@/lib/n8n');
+        const s = await n8n.getDashboardStatus({ siteSlug });
         if (!alive) return;
         console.log("✅ Status loaded:", s);
-        setStatus(prev => ({ ...prev, ...s }));
+        // Converter formato n8n para StatusResp
+        const statusResp: StatusResp = {
+          ok: s.ok || s.success || false,
+          siteSlug: s.siteSlug || siteSlug,
+          status: s.status || 'active',
+          plan: s.plan || user?.plan || 'essential',
+          nextCharge: s.nextCharge || null,
+          lastPayment: s.lastPayment || null
+        };
+        setStatus(prev => ({ ...prev, ...statusResp }));
       } catch (error) {
         console.error("❌ Status fetch error:", error);
-        // silencioso
+        // Fallback: tentar Netlify Function se n8n falhar
+        try {
+          const s = await getJSON<StatusResp>(
+            `/.netlify/functions/client-api?action=get_status&site=${encodeURIComponent(siteSlug)}`,
+            CARDS_TIMEOUT_MS * 2
+          );
+          if (!alive) return;
+          setStatus(prev => ({ ...prev, ...s }));
+        } catch (fallbackError) {
+          console.error("❌ Fallback status fetch error:", fallbackError);
+        }
       } finally {
         if (alive) setLoadingStatus(false);
       }
@@ -812,7 +830,7 @@ useEffect(() => {
 
   // saveSiteStructure, handleContentGenerated e updateSectionField removidos
   // Edição de sites agora via n8n webhooks (SiteEditor component usa n8n-sites.ts)
-  
+
   const handleContentGenerated = (content: any[]) => {
     // Função mantida apenas para compatibilidade com AIContentGenerator
     // Mas não salva mais estrutura antiga - edição agora via SiteEditor/n8n
@@ -840,7 +858,7 @@ useEffect(() => {
   }
 
   if (!user) {
-    return (
+  return (
       <div className="min-h-screen grid place-items-center dashboard-bg">
         <div className="dashboard-text text-center space-y-4">
           <p>Usuário não encontrado</p>
@@ -1014,6 +1032,7 @@ useEffect(() => {
                     <InstagramHub
                       siteSlug={user?.siteSlug || ""}
                       vipPin={vipPin || "FORCED"}
+                      userEmail={user?.email || ""}
                     />
                   </CardContent>
                 </UICard>
@@ -1030,7 +1049,7 @@ useEffect(() => {
                     console.log('Conteúdo atualizado:', { sectionId, field, value })
                   }}
                 />
-                
+
                 {/* Editor de Layout - Logo após Editor de Conteúdo */}
                 {isFeatureEnabled("color-palette") && (
                   <VipGate
@@ -1127,7 +1146,7 @@ useEffect(() => {
                   <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
                     Otimização automática de SEO com IA para melhor posicionamento nos buscadores
                   </p>
-                </div>
+                            </div>
 
                 {/* Separador Visual */}
                 <div className="relative">
@@ -1137,8 +1156,8 @@ useEffect(() => {
                       <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
                         Otimização Inteligente
                       </span>
-                    </div>
-                  </div>
+                            </div>
+                            </div>
                 </div>
 
                 {/* Card Principal */}
@@ -1149,16 +1168,16 @@ useEffect(() => {
                         <div className="flex items-center gap-2 mb-1">
                           <h2 className="text-xl font-bold text-foreground">SEO Automático</h2>
                           <Badge variant="outline" className="text-xs">IA</Badge>
-                        </div>
+                            </div>
                         <p className="text-sm text-muted-foreground">
                           Otimização automática de SEO com inteligência artificial
                         </p>
                       </div>
                       <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                         <Search className="h-5 w-5 text-primary" />
+                        </div>
                       </div>
-                    </div>
-                    
+
                     <div className="bg-blue-50/50 dark:bg-blue-950/20 rounded-lg p-3 mb-4 border border-blue-200/50 dark:border-blue-800/50">
                       <div className="flex items-start gap-2">
                         <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
@@ -1178,13 +1197,20 @@ useEffect(() => {
                     />
                   </CardContent>
                 </UICard>
-              </section>
+                    </section>
             )}
 
             {/* Gestão Financeira - Controle Financeiro e DRE */}
             <section className="space-y-6">
               <FinanceiroSection />
-            </section>
+                  </section>
+
+            {/* Billing Manager - Gerenciamento de Faturamento */}
+            {isFeatureEnabled("billing") && (
+              <section className="space-y-6">
+                <BillingManager siteSlug={user?.siteSlug || ""} vipPin={vipPin || "FORCED"} />
+              </section>
+            )}
 
             {/* Layout em Grid para Funcionalidades Básicas */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
@@ -1260,8 +1286,8 @@ useEffect(() => {
         {isDevUser && (
           <>
             {/* Business Insights - DEV */}
-            <section className="space-y-6">
-              <BusinessInsights
+              <section className="space-y-6">
+                <BusinessInsights
                   siteSlug={user?.siteSlug || ""}
                   businessType="geral"
                   businessName={user?.siteSlug || "seu negócio"}
@@ -1293,7 +1319,7 @@ useEffect(() => {
                     ],
                   }}
                 />
-            </section>
+              </section>
 
             {/* Lead Scoring - DEV */}
             <section className="space-y-6">

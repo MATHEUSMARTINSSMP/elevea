@@ -158,9 +158,12 @@ export const n8n = {
   
   startGoogleAuth: (params: { customerId: string; siteSlug: string }) => 
     get(`/api/auth/google/start?customerId=${encodeURIComponent(params.customerId)}&siteSlug=${encodeURIComponent(params.siteSlug)}`),
+  
+  googleAuthCallback: (data: { code: string; state: string; redirect_uri?: string; siteSlug?: string; userEmail?: string }) => 
+    post("/api/auth/google/callback", data),
 
   // Instagram APIs (n8n webhooks) - Multi-tenant
-  connectInstagram: (data: { site_slug: string; vipPin: string }) => 
+  connectInstagram: (data: { site_slug: string; vipPin: string; userEmail?: string }) => 
     post("/api/instagram/connect", data),
   
   getInstagramStatus: (params: { site_slug: string }) => 
@@ -232,4 +235,24 @@ export const n8n = {
     caption: string;
     context?: string;
   }) => post("/api/instagram/ai/generate-hashtags", data),
+
+  // Billing APIs (n8n webhooks)
+  getPaymentInfo: (data: { siteSlug: string }) => 
+    post("/api/billing/get-payment-info", data),
+  
+  checkPaymentStatus: (data: { siteSlug: string }) => 
+    post("/api/billing/check-payment-status", data),
+  
+  createInvoice: (data: { 
+    siteSlug: string; 
+    amount: number; 
+    dueDate?: string; 
+    paymentMethod?: string; 
+    description?: string; 
+    transactionReference?: string;
+  }) => post("/api/billing/create-invoice", data),
+  
+  // Dashboard Status API - Retorna status formatado para o cabeçalho do Dashboard
+  getDashboardStatus: (data: { siteSlug: string }) => 
+    post("/api/billing/dashboard-status", data),
 };
