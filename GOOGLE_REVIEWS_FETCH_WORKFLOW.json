@@ -1,0 +1,450 @@
+{
+  "name": "Google Reviews - Fetch Data",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "api/google/reviews",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://eleveaagencia.netlify.app"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, X-APP-KEY"
+              }
+            ]
+          }
+        }
+      },
+      "id": "webhook-reviews-fetch",
+      "name": "🔍 Webhook - Reviews Fetch",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "google-reviews-fetch"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Code - Normalize Input\nconst items = $input.all();\nconst out = [];\n\nfor (const item of items) {\n  const body = item.json.body || {};\n  const siteSlug = (body.siteSlug || '').trim().toLowerCase();\n  const userEmail = (body.userEmail || body.user_email || '').trim().toLowerCase();\n  const vipPin = (body.vipPin || body.vip_pin || '').trim();\n  \n  if (!siteSlug || !userEmail) {\n    out.push({\n      json: {\n        success: false,\n        error: 'siteSlug e userEmail são obrigatórios',\n        siteSlug,\n        userEmail\n      }\n    });\n    continue;\n  }\n  \n  out.push({\n    json: {\n      customer_id: userEmail,\n      site_slug: siteSlug,\n      vip_pin: vipPin\n    }\n  });\n}\n\nreturn out;"
+      },
+      "id": "code-normalize-input",
+      "name": "📝 Code - Normalize Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT customer_id, site_slug, access_token, refresh_token, expires_at, scopes, status, token_type\nFROM elevea.google_credentials\nWHERE customer_id = $1 AND site_slug = $2 AND status = 'active'\nLIMIT 1",
+        "options": {
+          "queryReplacement": "=$1 → {{$json.customer_id}}\n$2 → {{$json.site_slug}}"
+        }
+      },
+      "id": "postgres-get-credentials",
+      "name": "🔑 PostgreSQL - Get Credentials",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [680, 300],
+      "credentials": {
+        "postgres": {
+          "id": "S2Hp22T5AgilJMEy",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Code - Token Check\nconst inputData = $input.all();\n\nif (inputData.length === 0 || !inputData[0].json.rows || inputData[0].json.rows.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'Credenciais não encontradas. Conecte sua conta Google primeiro.',\n      needRefresh: false,\n      needsReauth: true\n    }\n  }];\n}\n\nconst row = inputData[0].json.rows[0];\nconst access_token = row.access_token || '';\nconst refresh_token = (row.refresh_token || '').trim();\nconst expires_at = row.expires_at ? new Date(row.expires_at).getTime() : null;\nconst now = Date.now();\n\nconst hasRefreshToken = refresh_token.length > 0;\nconst isExpired = expires_at ? now > (expires_at - 300000) : false; // 5 min antes\nconst needRefresh = hasRefreshToken && (!access_token || isExpired);\nconst needsReauth = !hasRefreshToken && (!access_token || isExpired);\n\nreturn [{\n  json: {\n    customer_id: row.customer_id,\n    site_slug: row.site_slug,\n    access_token: access_token,\n    refresh_token: refresh_token,\n    expires_at: expires_at ? new Date(expires_at).toISOString() : null,\n    scopes: row.scopes || '',\n    status: row.status || 'active',\n    token_type: row.token_type || 'Bearer',\n    needRefresh: needRefresh,\n    needsReauth: needsReauth\n  }\n}];"
+      },
+      "id": "code-token-check",
+      "name": "🧪 Code - Token Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-refresh",
+              "leftValue": "={{$json.needRefresh}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-need-refresh",
+      "name": "🔀 IF - Need Refresh?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Code - Prepare Refresh\nconst inputData = $input.all();\n\nif (inputData.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'Dados de token não encontrados',\n      needsReauth: true\n    }\n  }];\n}\n\nconst tokenData = inputData[0].json || {};\nconst refresh_token = (tokenData.refresh_token || '').trim();\n\nif (!refresh_token || refresh_token.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'refresh_token não disponível. É necessário re-autenticar com o Google.',\n      needsReauth: true,\n      customer_id: tokenData.customer_id,\n      site_slug: tokenData.site_slug\n    }\n  }];\n}\n\nconst oauth = {\n  token_url: 'https://oauth2.googleapis.com/token',\n  client_id: process.env.GOOGLE_OAUTH_CLIENT_ID || 'CONFIGURE_NO_N8N',\n  client_secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || 'CONFIGURE_NO_N8N'\n};\n\nreturn [{\n  json: {\n    url: oauth.token_url,\n    body: {\n      client_id: oauth.client_id,\n      client_secret: oauth.client_secret,\n      refresh_token: refresh_token,\n      grant_type: 'refresh_token'\n    },\n    customer_id: tokenData.customer_id,\n    site_slug: tokenData.site_slug,\n    refresh_token: refresh_token,\n    needsReauth: false\n  }\n}];"
+      },
+      "id": "code-prepare-refresh",
+      "name": "🔄 Code - Prepare Refresh",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 180]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.url}}",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "client_id",
+              "value": "={{$json.body.client_id}}"
+            },
+            {
+              "name": "client_secret",
+              "value": "={{$json.body.client_secret}}"
+            },
+            {
+              "name": "refresh_token",
+              "value": "={{$json.body.refresh_token}}"
+            },
+            {
+              "name": "grant_type",
+              "value": "={{$json.body.grant_type}}"
+            }
+          ]
+        },
+        "options": {
+          "bodyContentType": "x-form-urlencoded"
+        }
+      },
+      "id": "http-refresh-token",
+      "name": "🌐 HTTP - Refresh Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Code - Process Refresh Response\nconst inputData = $input.all();\n\nif (inputData.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'Resposta de refresh não encontrada'\n    }\n  }];\n}\n\nconst httpResponse = inputData[0].json || {};\nconst body = httpResponse.body || httpResponse;\n\nconst access_token = body.access_token || '';\nconst expires_in = body.expires_in || 3600;\nconst expires_at = Date.now() + (expires_in * 1000);\n\n// Obter dados originais do token check\nconst tokenCheck = $('🧪 Code - Token Check').all();\nconst originalData = tokenCheck && tokenCheck.length > 0 ? tokenCheck[0].json : {};\n\nif (!access_token) {\n  return [{\n    json: {\n      success: false,\n      error: 'access_token não encontrado na resposta de refresh'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    customer_id: originalData.customer_id || '',\n    site_slug: originalData.site_slug || '',\n    access_token: access_token,\n    refresh_token: originalData.refresh_token || '',\n    expires_at: expires_at,\n    token_type: body.token_type || 'Bearer',\n    scopes: originalData.scopes || '',\n    status: 'active'\n  }\n}];"
+      },
+      "id": "code-process-refresh",
+      "name": "📦 Code - Process Refresh",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 180]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE elevea.google_credentials\nSET access_token = $1,\nexpires_at = TO_TIMESTAMP($2::numeric / 1000),\nupdated_at = NOW()\nWHERE customer_id = $3 AND site_slug = $4\nRETURNING customer_id, site_slug, access_token, refresh_token, expires_at",
+        "options": {
+          "queryReplacement": "=$1 → {{$json.access_token}}\n$2 → {{$json.expires_at}}\n$3 → {{$json.customer_id}}\n$4 → {{$json.site_slug}}"
+        }
+      },
+      "id": "postgres-update-token",
+      "name": "💾 PostgreSQL - Update Token",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [1780, 180],
+      "credentials": {
+        "postgres": {
+          "id": "S2Hp22T5AgilJMEy",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "fieldsToMatchString": "customer_id,site_slug",
+        "options": {}
+      },
+      "id": "merge-token",
+      "name": "🔀 Merge - Token",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Code - Merge Token\nconst inputData = $input.all();\n\nif (inputData.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'Nenhum dado recebido'\n    }\n  }];\n}\n\nconst firstItem = inputData[0].json || {};\nif (firstItem.success === false || firstItem.error) {\n  return [{\n    json: {\n      success: false,\n      error: firstItem.error || 'Erro ao processar token',\n      needsReauth: firstItem.needsReauth || false\n    }\n  }];\n}\n\n// Se veio do IF False (não precisa refresh), usar dados originais\nconst tokenCheck = $('🧪 Code - Token Check').all();\nif (tokenCheck && tokenCheck.length > 0 && !tokenCheck[0].json?.needRefresh) {\n  const tokenData = tokenCheck[0].json || {};\n  return [{\n    json: {\n      access_token: tokenData.access_token || '',\n      expires_at: tokenData.expires_at,\n      refresh_token: tokenData.refresh_token || '',\n      customer_id: tokenData.customer_id || '',\n      site_slug: tokenData.site_slug || ''\n    }\n  }];\n}\n\n// Se veio do PostgreSQL Update (refresh feito), usar dados atualizados\nconst updatedData = inputData[0].json || {};\nif (updatedData.access_token) {\n  return [{\n    json: {\n      access_token: updatedData.access_token,\n      expires_at: updatedData.expires_at ? new Date(updatedData.expires_at).getTime() : null,\n      refresh_token: updatedData.refresh_token || tokenCheck?.[0]?.json?.refresh_token || '',\n      customer_id: updatedData.customer_id || '',\n      site_slug: updatedData.site_slug || ''\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    success: false,\n    error: 'Não foi possível obter access_token'\n  }\n}];"
+      },
+      "id": "code-merge-token",
+      "name": "🔧 Code - Merge Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2220, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://mybusinessbusinessinformation.googleapis.com/v1/accounts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{$json.token_type || 'Bearer'}} {{$json.access_token}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-list-accounts",
+      "name": "🌐 HTTP - List Accounts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Code - Process Google Data\nconst inputData = $input.all();\n\nif (inputData.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'Nenhuma resposta do Google'\n    }\n  }];\n}\n\nconst httpResponse = inputData[0].json || {};\nconst accounts = httpResponse.body?.accounts || [];\n\nif (accounts.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'Nenhuma conta Google My Business encontrada'\n    }\n  }];\n}\n\n// Pegar primeira conta\nconst account = accounts[0];\nconst accountName = account.name || '';\n\n// Por enquanto, retornar estrutura básica\n// TODO: Buscar locations, reviews, insights\nreturn [{\n  json: {\n    ok: true,\n    success: true,\n    account: {\n      name: accountName,\n      accountName: accountName\n    },\n    reviews: [],\n    averageRating: 0,\n    totalReviews: 0,\n    businessInfo: {\n      name: 'Negócio conectado',\n      accountEmail: $('🔧 Code - Merge Token').item.json.customer_id || ''\n    },\n    connectedAt: new Date().toISOString(),\n    lastUpdated: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "code-process-google",
+      "name": "📊 Code - Process Google Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2660, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://eleveaagencia.netlify.app"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-success",
+      "name": "✅ Respond - Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2880, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://eleveaagencia.netlify.app"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-error",
+      "name": "❌ Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2000, 500]
+    }
+  ],
+  "connections": {
+    "🔍 Webhook - Reviews Fetch": {
+      "main": [
+        [
+          {
+            "node": "📝 Code - Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Code - Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "🔑 PostgreSQL - Get Credentials",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔑 PostgreSQL - Get Credentials": {
+      "main": [
+        [
+          {
+            "node": "🧪 Code - Token Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧪 Code - Token Check": {
+      "main": [
+        [
+          {
+            "node": "🔀 IF - Need Refresh?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 IF - Need Refresh?": {
+      "main": [
+        [
+          {
+            "node": "🔄 Code - Prepare Refresh",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🔀 Merge - Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 Code - Prepare Refresh": {
+      "main": [
+        [
+          {
+            "node": "🌐 HTTP - Refresh Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🌐 HTTP - Refresh Token": {
+      "main": [
+        [
+          {
+            "node": "📦 Code - Process Refresh",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📦 Code - Process Refresh": {
+      "main": [
+        [
+          {
+            "node": "💾 PostgreSQL - Update Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💾 PostgreSQL - Update Token": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge - Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Merge - Token": {
+      "main": [
+        [
+          {
+            "node": "🔧 Code - Merge Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔧 Code - Merge Token": {
+      "main": [
+        [
+          {
+            "node": "🌐 HTTP - List Accounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🌐 HTTP - List Accounts": {
+      "main": [
+        [
+          {
+            "node": "📊 Code - Process Google Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Code - Process Google Data": {
+      "main": [
+        [
+          {
+            "node": "✅ Respond - Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧪 Code - Token Check": {
+      "main": [
+        [
+          {
+            "node": "❌ Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-11-09T03:20:00.000Z",
+  "versionId": "1"
+}
+
