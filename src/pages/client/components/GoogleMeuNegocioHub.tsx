@@ -285,10 +285,17 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
         setIsConnected(false);
         setError(null);
       } else if (errorMsg.includes('Erro de rede') || errorMsg.includes('NetworkError') || errorMsg.includes('Failed to fetch')) {
-        // Erro de rede - mostrar mensagem mais útil
-        setError(`Erro de conexão: Não foi possível conectar ao servidor. Verifique sua conexão com a internet e se o servidor n8n está acessível.`);
-        setNeedsConnection(true);
-        setIsConnected(false);
+        // Se veio do redirect, manter como conectado mas mostrar erro
+        if (isFromRedirect) {
+          setError(`Erro ao buscar dados: Não foi possível conectar ao servidor n8n. O workflow do Google Reviews pode não estar ativo. Verifique se o workflow foi importado no n8n.`);
+          // Manter como conectado mesmo com erro de rede (pois o Google Auth funcionou)
+          setIsConnected(true);
+          setNeedsConnection(false);
+        } else {
+          setError(`Erro de conexão: Não foi possível conectar ao servidor. Verifique sua conexão com a internet e se o servidor n8n está acessível.`);
+          setNeedsConnection(true);
+          setIsConnected(false);
+        }
       } else {
         setError(errorMsg);
       }
@@ -481,9 +488,17 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
         setIsConnected(false);
         setError(null);
       } else if (errorMsg.includes('Erro de rede') || errorMsg.includes('NetworkError') || errorMsg.includes('Failed to fetch')) {
-        setError(`Erro de conexão: Não foi possível conectar ao servidor. Verifique sua conexão com a internet e se o servidor n8n está acessível.`);
-        setNeedsConnection(true);
-        setIsConnected(false);
+        // Se veio do redirect, manter como conectado mas mostrar erro
+        if (isFromRedirect) {
+          setError(`Erro ao buscar dados: Não foi possível conectar ao servidor n8n. O workflow do Google Reviews pode não estar ativo. Verifique se o workflow foi importado no n8n.`);
+          // Manter como conectado mesmo com erro de rede (pois o Google Auth funcionou)
+          setIsConnected(true);
+          setNeedsConnection(false);
+        } else {
+          setError(`Erro de conexão: Não foi possível conectar ao servidor. Verifique sua conexão com a internet e se o servidor n8n está acessível.`);
+          setNeedsConnection(true);
+          setIsConnected(false);
+        }
       } else {
         setError(errorMsg);
       }
@@ -871,6 +886,89 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
     
     // Se tem dados ou erro, continuar para mostrar interface completa abaixo
     // (o código abaixo vai renderizar a interface completa com dados)
+    
+    // Se tem erro mas está conectado (veio do redirect), mostrar interface conectada com erro
+    if (error && !reviewsData) {
+      return (
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="text-center space-y-2 pb-2">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-500 via-blue-400 to-blue-600 bg-clip-text text-transparent">
+              Google Meu Negócio Hub
+            </h1>
+            <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+              Gerencie avaliações, responda clientes e acompanhe o desempenho do seu negócio no Google
+            </p>
+          </div>
+
+          {/* Card Principal com status conectado mas com erro */}
+          <Card className="border-2 border-blue-500/20 bg-gradient-to-br from-background to-blue-500/5 shadow-lg">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                    <Building2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl font-bold text-foreground flex items-center gap-2">
+                      Conectado ao Google Meu Negócio
+                      <Badge className="bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30">
+                        <span className="w-2 h-2 bg-green-500 rounded-full mr-2 inline-block"></span>
+                        Conectado
+                      </Badge>
+                    </CardTitle>
+                    {userEmail && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Conectado como: <span className="font-medium">{userEmail}</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {/* Mensagem de erro */}
+                <div className="bg-red-50/50 dark:bg-red-950/20 rounded-lg p-6 border border-red-200/50 dark:border-red-800/50">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                      <Building2 className="h-6 w-6 text-red-500" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-lg font-semibold text-red-900 dark:text-red-400 mb-2">Erro ao Carregar Dados</div>
+                      <div className="text-sm text-red-800 dark:text-red-300 mb-4">{error}</div>
+                      <Button 
+                        onClick={() => {
+                          setError(null);
+                          const emailToUse = userEmail || localStorage.getItem("elevea_last_email") || "";
+                          const siteSlugToUse = siteFromUrl || siteSlug;
+                          if (emailToUse && siteSlugToUse) {
+                            fetchReviewsWithData(siteSlugToUse, emailToUse, true);
+                          }
+                        }}
+                        variant="outline"
+                        className="border-red-500 text-red-600 dark:text-red-400 hover:bg-red-500/10"
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Tentar Novamente
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50/50 dark:bg-blue-950/20 rounded-lg p-4 border border-blue-200/50 dark:border-blue-800/50">
+                  <div className="text-sm text-blue-800 dark:text-blue-300">
+                    <strong>Dica:</strong> Se o erro persistir, verifique se o workflow "Google Reviews" está ativo no n8n e se o endpoint <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">/webhook/api/google/reviews</code> está configurado corretamente.
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+    
+    // Continuar para mostrar interface completa com dados (se tiver dados)
   } else if (needsConnection || !isConnected) {
     // Só mostrar tela de "Conectar" se REALMENTE não está conectado E não veio do redirect
     return (
