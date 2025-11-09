@@ -165,14 +165,23 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ { success: $json.success, connected: $json.connected, customerId: $json.customerId, siteSlug: $json.siteSlug, expiresAt: $json.expiresAt, hasRefreshToken: $json.hasRefreshToken } }}",
+        "respondWith": "html",
+        "responseCode": 302,
+        "responseBody": "={{`<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"0;url=${$json.redirectUrl || 'https://eleveaagencia.netlify.app/client/dashboard?gmb=ok'}\"></head><body><script>window.location.href=\"${$json.redirectUrl || 'https://eleveaagencia.netlify.app/client/dashboard?gmb=ok'}\";</script><p>Redirecionando... <a href=\"${$json.redirectUrl || 'https://eleveaagencia.netlify.app/client/dashboard?gmb=ok'}\">Clique aqui se não redirecionar automaticamente</a></p></body></html>`}}",
         "options": {
           "responseHeaders": {
             "entries": [
               {
+                "name": "Location",
+                "value": "={{$json.redirectUrl || 'https://eleveaagencia.netlify.app/client/dashboard?gmb=ok'}}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              },
+              {
                 "name": "Access-Control-Allow-Origin",
-                "value": "*"
+                "value": "https://eleveaagencia.netlify.app"
               }
             ]
           }
@@ -461,7 +470,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Code - Format Callback Response\nconst inputData = $input.all();\n\nif (inputData.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'Nenhum dado recebido'\n    }\n  }];\n}\n\nconst sqlResult = inputData[0].json || {};\n\nreturn [{\n  json: {\n    success: true,\n    connected: true,\n    customerId: sqlResult.customer_id || '',\n    siteSlug: sqlResult.site_slug || '',\n    expiresAt: sqlResult.expires_at ? new Date(sqlResult.expires_at).toISOString() : null,\n    hasRefreshToken: !!(sqlResult.refresh_token && sqlResult.refresh_token.trim())\n  }\n}];"
+        "jsCode": "// Code - Format Callback Response (COM REDIRECT PARA DASHBOARD)\nconst inputData = $input.all();\n\nif (inputData.length === 0) {\n  // Se erro, redirecionar para dashboard com erro\n  return [{\n    json: {\n      success: false,\n      error: 'Nenhum dado recebido',\n      redirectUrl: 'https://eleveaagencia.netlify.app/client/dashboard?gmb=error&msg=' + encodeURIComponent('Erro ao processar autenticação')\n    }\n  }];\n}\n\nconst sqlResult = inputData[0].json || {};\nconst siteSlug = sqlResult.site_slug || 'elevea';\n\n// Construir URL de redirect para o dashboard com sucesso\nconst redirectUrl = `https://eleveaagencia.netlify.app/client/dashboard?gmb=ok&site=${encodeURIComponent(siteSlug)}`;\n\nreturn [{\n  json: {\n    success: true,\n    connected: true,\n    customerId: sqlResult.customer_id || '',\n    siteSlug: siteSlug,\n    expiresAt: sqlResult.expires_at ? new Date(sqlResult.expires_at).toISOString() : null,\n    hasRefreshToken: !!(sqlResult.refresh_token && sqlResult.refresh_token.trim()),\n    redirectUrl: redirectUrl\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,

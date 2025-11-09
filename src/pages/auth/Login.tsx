@@ -208,11 +208,21 @@ export default function LoginPage() {
         console.error("❌ Erro ao salvar dados de autenticação:", e);
       }
       
-      // Aguardar um pequeno delay para garantir que o localStorage foi atualizado
-      // e que o useAuth em outras páginas tenha tempo de ler os dados
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Aguardar um delay maior para garantir que:
+      // 1. localStorage foi atualizado completamente
+      // 2. useAuth em outras páginas tenha tempo de ler os dados
+      // 3. Componentes do dashboard tenham tempo de inicializar
+      console.log("⏳ Login: Aguardando carregamento dos dados...");
+      await new Promise(resolve => setTimeout(resolve, 800));
       
-      console.log("🔄 Login: Redirecionando após delay...");
+      // Verificar novamente se os dados foram salvos corretamente
+      const verifyAuth = localStorage.getItem("auth");
+      if (!verifyAuth) {
+        console.warn("⚠️ Login: Dados não encontrados após delay, aguardando mais...");
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      console.log("🔄 Login: Redirecionando após carregamento...");
       redirectByRole(role, next);
     } catch (e: any) {
       setErr(e?.message || "Erro de rede");

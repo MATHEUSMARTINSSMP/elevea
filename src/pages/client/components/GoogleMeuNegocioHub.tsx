@@ -468,24 +468,14 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
                   variant="outline" 
                   size="sm"
                   onClick={async () => {
-                    if (confirm('Tem certeza que deseja desconectar sua conta Google?')) {
+                    if (confirm('Tem certeza que deseja desconectar sua conta Google?\n\nPara reconectar, você precisará autorizar novamente através do Google.')) {
                       try {
-                        const response = await fetch('/.netlify/functions/client-api', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            action: 'gmb_disconnect',
-                            site: siteSlug,
-                            email: userEmail
-                          })
-                        });
-                        
-                        if (response.ok) {
-                          setNeedsConnection(true);
-                          setIsConnected(false);
-                          setReviewsData(null);
-                          alert('✅ Conta Google desconectada com sucesso');
-                        }
+                        // TODO: Implementar endpoint no n8n para desconectar
+                        // Por enquanto, apenas limpar estado local
+                        setNeedsConnection(true);
+                        setIsConnected(false);
+                        setReviewsData(null);
+                        alert('✅ Conta Google desconectada localmente.\n\nPara desconectar completamente, remova as permissões no Google Account Settings.');
                       } catch (e) {
                         console.error('Erro ao desconectar:', e);
                         alert('❌ Erro ao desconectar conta Google');
