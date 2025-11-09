@@ -231,12 +231,18 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
       console.log('📊 GoogleMeuNegocioHub: Resultado da API:', result);
       
       if (result.ok || result.success) {
-        setReviewsData(result.data || result);
+        // Processar dados - pode vir em result.data ou diretamente em result
+        const data = result.data || result;
+        
+        // Normalizar dados se necessário (caso venham em formato da API bruta)
+        const normalizedData = normalizeGoogleData(data);
+        
+        setReviewsData(normalizedData);
         setError(null);
         setIsConnected(true);
         setNeedsConnection(false);
         setLastFetch(now);
-        console.log('✅ GoogleMeuNegocioHub: Reviews carregados com sucesso');
+        console.log('✅ GoogleMeuNegocioHub: Reviews carregados com sucesso', normalizedData);
       } else {
         console.log('❌ GoogleMeuNegocioHub: Erro na API:', result.error);
         const errorMsg = result.error || result.message || 'Erro desconhecido';
@@ -497,9 +503,16 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
       
       if (result.ok || result.success) {
         console.log("✅ GoogleMeuNegocioHub: Conectado e dados carregados");
+        
+        // Processar dados - pode vir em result.data ou diretamente em result
+        const data = result.data || result;
+        
+        // Normalizar dados se necessário (caso venham em formato da API bruta)
+        const normalizedData = normalizeGoogleData(data);
+        
         setIsConnected(true);
         setNeedsConnection(false);
-        setReviewsData(result.data || result);
+        setReviewsData(normalizedData);
         setLastFetch(Date.now());
       } else {
         const errorMsg = result.error || result.message || 'Erro desconhecido';
