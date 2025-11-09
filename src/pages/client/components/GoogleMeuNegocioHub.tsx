@@ -426,12 +426,18 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
       console.log('📊 GoogleMeuNegocioHub: Resultado da API:', result);
       
       if (result.ok || result.success) {
-        setReviewsData(result.data || result);
+        // Processar dados - pode vir em result.data ou diretamente em result
+        const data = result.data || result;
+        
+        // Normalizar dados se necessário (caso venham em formato da API bruta)
+        const normalizedData = normalizeGoogleData(data);
+        
+        setReviewsData(normalizedData);
         setError(null);
         setIsConnected(true);
         setNeedsConnection(false);
         setLastFetch(now);
-        console.log('✅ GoogleMeuNegocioHub: Reviews carregados com sucesso');
+        console.log('✅ GoogleMeuNegocioHub: Reviews carregados com sucesso', normalizedData);
       } else {
         const errorMsg = result.error || result.message || 'Erro desconhecido';
         console.log('❌ GoogleMeuNegocioHub: Erro na API:', errorMsg);
@@ -570,6 +576,164 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
       console.error('❌ Erro na requisição OAuth:', error);
       alert(`❌ Erro na requisição:\n\n${error.message || 'Erro desconhecido'}`);
     }
+  };
+
+  // Funções auxiliares de normalização de dados da API do Google
+  const formatAddress = (address: any): string => {
+    if (!address) return "";
+    const parts = [
+      address.addressLines?.join(", "),
+      address.locality,
+      address.administrativeArea,
+      address.postalCode
+    ].filter(Boolean);
+    return parts.join(", ");
+  };
+  
+  const extractCategories = (categories: any): string[] => {
+    if (!categories) return [];
+    const result: string[] = [];
+    if (categories.primaryCategory?.name) {
+      result.push(categories.primaryCategory.name);
+    }
+    if (categories.additionalCategories) {
+      categories.additionalCategories.forEach((cat: any) => {
+        if (cat.name) result.push(cat.name);
+      });
+    }
+    return result;
+  };
+  
+  const normalizeHours = (regularHours: any): { [key: string]: { open: string; close: string }[] } | undefined => {
+    if (!regularHours?.periods) return undefined;
+    const hours: { [key: string]: { open: string; close: string }[] } = {};
+    
+    regularHours.periods.forEach((period: any) => {
+      const day = period.openDay?.toLowerCase();
+      if (day && period.openTime && period.closeTime) {
+        if (!hours[day]) hours[day] = [];
+        hours[day].push({
+          open: period.openTime,
+          close: period.closeTime
+        });
+      }
+    });
+    
+    return Object.keys(hours).length > 0 ? hours : undefined;
+  };
+  
+  const normalizePhotos = (photos: any[]): Array<{ url: string; width: number; height: number }> | undefined => {
+    if (!photos || !Array.isArray(photos)) return undefined;
+    return photos.map((photo: any) => ({
+      url: photo.googleUrl || photo.photoUri || photo.url || "",
+      width: photo.widthPx || photo.width || 0,
+      height: photo.heightPx || photo.height || 0
+    })).filter(p => p.url);
+  };
+
+  // Função para normalizar dados da API do Google My Business
+  const normalizeGoogleData = (data: any): ReviewsData => {
+    // Se já está no formato normalizado, retornar como está
+    if (data.reviews && Array.isArray(data.reviews) && typeof data.averageRating === 'number' && data.businessInfo) {
+      return data as ReviewsData;
+    }
+    
+    // Normalizar reviews se vierem em formato bruto da API
+    let reviews: Review[] = [];
+    if (data.reviews && Array.isArray(data.reviews)) {
+      reviews = data.reviews.map((review: any) => {
+        // Converter starRating enum para number se necessário
+        let rating = review.rating;
+        if (!rating && review.starRating) {
+          const ratingMap: Record<string, number> = {
+            "ONE": 1, "TWO": 2, "THREE": 3, "FOUR": 4, "FIVE": 5
+          };
+          rating = typeof review.starRating === 'string' 
+            ? ratingMap[review.starRating] || 0
+            : review.starRating;
+        }
+        
+        return {
+          id: review.reviewId || review.id || `review_${Date.now()}_${Math.random()}`,
+          reviewId: review.reviewId,
+          author: review.reviewer?.displayName || review.author || review.name || "Anônimo",
+          name: review.reviewer?.displayName || review.name,
+          reviewer: review.reviewer,
+          rating: rating || 0,
+          starRating: review.starRating,
+          text: review.comment || review.text || "",
+          comment: review.comment,
+          createTime: review.createTime,
+          updateTime: review.updateTime,
+          date: review.createTime || review.date || new Date().toISOString(),
+          reply: review.reply,
+          response: review.reply?.comment || review.response,
+          responseDate: review.reply?.updateTime || review.responseDate,
+          reviewUrl: review.reviewUrl
+        };
+      });
+    }
+    
+    // Calcular média e distribuição se não vierem
+    let averageRating = data.averageRating || 0;
+    let totalReviews = data.totalReviews || data.totalReviewCount || reviews.length;
+    
+    if (!data.averageRating && reviews.length > 0) {
+      const sum = reviews.reduce((acc, r) => acc + (r.rating || 0), 0);
+      averageRating = sum / reviews.length;
+    }
+    
+    // Calcular distribuição se não vier
+    let ratingDistribution = data.ratingDistribution;
+    if (!ratingDistribution && reviews.length > 0) {
+      ratingDistribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+      reviews.forEach(r => {
+        const rating = Math.round(r.rating || 0);
+        if (rating >= 1 && rating <= 5) {
+          ratingDistribution![rating as keyof typeof ratingDistribution]++;
+        }
+      });
+    }
+    
+    // Normalizar businessInfo
+    let businessInfo = data.businessInfo;
+    if (data.location || data.business) {
+      const location = data.location || data.business;
+      businessInfo = {
+        ...businessInfo,
+        name: location.title || location.name || businessInfo?.name,
+        title: location.title,
+        locationId: location.locationId || location.name?.split('/').pop(),
+        placeId: location.placeId || businessInfo?.placeId,
+        storefrontAddress: location.storefrontAddress,
+        address: businessInfo?.address || formatAddress(location.storefrontAddress),
+        phoneNumbers: location.phoneNumbers,
+        phone: location.phoneNumbers?.primaryPhone || businessInfo?.phone,
+        websiteUri: location.websiteUri,
+        website: location.websiteUri || businessInfo?.website,
+        categories: location.categories,
+        categoryNames: extractCategories(location.categories) || businessInfo?.categoryNames,
+        regularHours: location.regularHours,
+        hours: normalizeHours(location.regularHours) || businessInfo?.hours,
+        photos: normalizePhotos(location.photos || data.photos) || businessInfo?.photos,
+        totalPhotos: location.photos?.length || data.photos?.length || businessInfo?.totalPhotos
+      };
+    }
+    
+    return {
+      reviews,
+      averageRating,
+      totalReviews,
+      ratingDistribution,
+      businessInfo,
+      insights: data.insights,
+      location: data.location,
+      lastUpdated: data.lastUpdated || new Date().toISOString(),
+      connectedAt: data.connectedAt,
+      accountEmail: data.accountEmail,
+      ok: true,
+      success: true
+    };
   };
 
   const renderStars = (rating: number) => {
