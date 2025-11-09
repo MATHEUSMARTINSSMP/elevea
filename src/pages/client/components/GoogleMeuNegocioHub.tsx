@@ -11,57 +11,140 @@ interface GoogleMeuNegocioHubProps {
   userEmail?: string;
 }
 
+// Interfaces baseadas na API oficial do Google My Business
+// Documentação: https://developers.google.com/my-business/reference/rest
+
 interface Review {
-  id: string;
-  author: string;
-  rating: number;
-  text: string;
-  date: string;
-  response?: string;
-  responseDate?: string;
-  reviewUrl?: string;
+  // Campos da API do Google My Business
+  reviewId?: string; // ID único da review na API do Google
+  id: string; // ID usado internamente (pode ser reviewId ou gerado)
+  name?: string; // Nome do revisor (API retorna como "reviewer.displayName")
+  author: string; // Nome do autor (normalizado)
+  reviewer?: {
+    displayName?: string;
+    profilePhotoUrl?: string;
+    isAnonymous?: boolean;
+  };
+  starRating?: "ONE" | "TWO" | "THREE" | "FOUR" | "FIVE" | number; // API retorna enum, normalizamos para number
+  rating: number; // Rating normalizado (1-5)
+  comment?: string; // Comentário da review
+  text: string; // Texto da review (normalizado de comment)
+  createTime?: string; // Timestamp ISO da criação
+  updateTime?: string; // Timestamp ISO da atualização
+  date: string; // Data normalizada para exibição
+  reply?: {
+    comment?: string; // Resposta do proprietário
+    updateTime?: string; // Data da resposta
+  };
+  response?: string; // Resposta normalizada
+  responseDate?: string; // Data da resposta normalizada
+  reviewUrl?: string; // URL para ver a review no Google
 }
 
 interface BusinessInfo {
-  name?: string;
-  address?: string;
-  phone?: string;
-  website?: string;
-  placeId?: string;
-  categories?: string[];
-  attributes?: Record<string, any>;
-  hours?: {
-    [key: string]: { open: string; close: string }[];
+  // Campos da API do Google Business Profile
+  name?: string; // Nome do negócio (location.title ou location.storefrontAddress.businessName)
+  title?: string; // Título do local
+  storefrontAddress?: {
+    addressLines?: string[];
+    locality?: string; // Cidade
+    administrativeArea?: string; // Estado
+    postalCode?: string; // CEP
+    regionCode?: string; // Código do país (ex: "BR")
+    businessName?: string;
   };
-  photos?: Array<{
-    url: string;
-    width: number;
-    height: number;
+  address?: string; // Endereço completo formatado
+  phoneNumbers?: {
+    primaryPhone?: string;
+    additionalPhones?: string[];
+  };
+  phone?: string; // Telefone principal normalizado
+  websiteUri?: string; // URI do website
+  website?: string; // Website normalizado
+  locationId?: string; // ID da localização no Google
+  placeId?: string; // Place ID do Google Maps
+  categories?: {
+    primaryCategory?: {
+      name?: string;
+      moreHours?: string;
+    };
+    additionalCategories?: Array<{
+      name?: string;
+    }>;
+  };
+  categoryNames?: string[]; // Categorias normalizadas
+  regularHours?: {
+    weekdayDescriptions?: string[]; // Ex: ["Monday: 9:00 AM – 5:00 PM"]
+    periods?: Array<{
+      openDay?: string; // "MONDAY", "TUESDAY", etc.
+      openTime?: string; // "09:00"
+      closeDay?: string;
+      closeTime?: string;
+    }>;
+  };
+  hours?: {
+    [key: string]: { open: string; close: string }[]; // Horários normalizados
+  };
+  attributes?: Array<{
+    attributeId?: string;
+    values?: string[];
   }>;
-  totalPhotos?: number;
+  photos?: Array<{
+    name?: string; // Nome do recurso da foto
+    photoUri?: string; // URI da foto
+    url?: string; // URL normalizada
+    widthPx?: number;
+    heightPx?: number;
+    width?: number; // Normalizado
+    height?: number; // Normalizado
+  }>;
+  totalPhotos?: number; // Total de fotos
+  metadata?: {
+    mapsUrl?: string; // URL do Google Maps
+    newReviewUrl?: string; // URL para criar nova review
+  };
 }
 
 interface Insights {
+  // Métricas e insights do Google My Business
+  locationMetrics?: {
+    locationName?: string;
+    timeZone?: string;
+    metricValues?: Array<{
+      metric?: string; // "QUERIES_DIRECT", "QUERIES_INDIRECT", etc.
+      metricOption?: string;
+      value?: string; // Valor como string
+      dimensionalValues?: Array<{
+        dimension?: string;
+        value?: string;
+      }>;
+    }>;
+  };
   views?: {
-    total?: number;
-    search?: number;
-    maps?: number;
+    total?: number; // Total de visualizações
+    search?: number; // Visualizações via busca
+    maps?: number; // Visualizações via Maps
+    direct?: number; // Visualizações diretas
+    discovery?: number; // Visualizações por descoberta
   };
   actions?: {
-    websiteClicks?: number;
-    directionRequests?: number;
-    phoneCalls?: number;
+    websiteClicks?: number; // Cliques no website
+    directionRequests?: number; // Solicitações de direções
+    phoneCalls?: number; // Ligações
+    bookingActions?: number; // Ações de reserva
   };
   photos?: {
-    views?: number;
-    uploads?: number;
+    views?: number; // Visualizações de fotos
+    uploads?: number; // Uploads de fotos
+    photoCount?: number; // Contagem de fotos
   };
 }
 
 interface ReviewsData {
+  // Estrutura completa de dados retornados pela API
   reviews: Review[];
-  averageRating: number;
-  totalReviews: number;
+  averageRating: number; // Média calculada
+  totalReviews: number; // Total de reviews
   ratingDistribution?: {
     5: number;
     4: number;
@@ -71,9 +154,19 @@ interface ReviewsData {
   };
   businessInfo?: BusinessInfo;
   insights?: Insights;
-  lastUpdated?: string;
-  connectedAt?: string;
-  accountEmail?: string;
+  location?: {
+    name?: string; // Nome do recurso (ex: "accounts/123/locations/456")
+    locationId?: string;
+    accountId?: string;
+  };
+  lastUpdated?: string; // Última atualização
+  connectedAt?: string; // Quando foi conectado
+  accountEmail?: string; // Email da conta conectada
+  // Campos adicionais que podem vir do n8n
+  ok?: boolean;
+  success?: boolean;
+  error?: string;
+  message?: string;
 }
 
 export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: GoogleMeuNegocioHubProps) {
@@ -198,65 +291,183 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
     // Verificar se veio do redirect do Google Auth
     const urlParams = new URLSearchParams(window.location.search);
     const gmbOk = urlParams.get("gmb");
+    const siteFromUrl = urlParams.get("site");
+    
+    // Tentar obter email do localStorage se não vier via props
+    let emailToUse = userEmail;
+    if (!emailToUse) {
+      try {
+        const authData = localStorage.getItem("auth");
+        if (authData) {
+          const parsed = JSON.parse(authData);
+          emailToUse = parsed.email;
+        }
+        if (!emailToUse) {
+          emailToUse = localStorage.getItem("elevea_last_email") || undefined;
+        }
+      } catch (e) {
+        console.error("Erro ao ler email do localStorage:", e);
+      }
+    }
+    
+    // Usar siteSlug da URL se disponível, senão usar da prop
+    const siteSlugToUse = siteFromUrl || siteSlug;
     
     console.log("🔍 GoogleMeuNegocioHub: useEffect executado", { 
       gmbOk, 
+      siteFromUrl,
       userEmail, 
+      emailToUse,
       siteSlug, 
-      hasUserEmail: !!userEmail, 
-      hasSiteSlug: !!siteSlug 
+      siteSlugToUse,
+      hasUserEmail: !!emailToUse, 
+      hasSiteSlug: !!siteSlugToUse 
     });
     
     // Se veio do redirect do Google Auth, assumir que está conectado e tentar buscar dados
     if (gmbOk === "ok") {
       console.log("✅ GoogleMeuNegocioHub: Detectado redirect do Google Auth (gmb=ok)");
       
-      // Se não tem userEmail ou siteSlug ainda, aguardar um pouco e tentar novamente
-      if (!userEmail || !siteSlug) {
-        console.log("⏳ GoogleMeuNegocioHub: Aguardando userEmail/siteSlug...", { userEmail, siteSlug });
-        // Tentar novamente após 500ms
-        const retryTimer = setTimeout(() => {
-          const retryParams = new URLSearchParams(window.location.search);
-          const retryGmbOk = retryParams.get("gmb");
-          if (retryGmbOk === "ok" && userEmail && siteSlug) {
-            console.log("🔄 GoogleMeuNegocioHub: Retry após delay - tentando buscar dados...");
+      // Se não tem email ou siteSlug ainda, aguardar e tentar novamente
+      if (!emailToUse || !siteSlugToUse) {
+        console.log("⏳ GoogleMeuNegocioHub: Aguardando email/siteSlug...", { emailToUse, siteSlugToUse });
+        
+        // Tentar múltiplas vezes com intervalos crescentes
+        let retryCount = 0;
+        const maxRetries = 5;
+        
+        const retryInterval = setInterval(() => {
+          retryCount++;
+          
+          // Tentar obter dados novamente
+          let retryEmail = userEmail;
+          if (!retryEmail) {
+            try {
+              const authData = localStorage.getItem("auth");
+              if (authData) {
+                const parsed = JSON.parse(authData);
+                retryEmail = parsed.email;
+              }
+              if (!retryEmail) {
+                retryEmail = localStorage.getItem("elevea_last_email") || undefined;
+              }
+            } catch (e) {}
+          }
+          
+          const retrySiteSlug = urlParams.get("site") || siteSlug;
+          
+          console.log(`🔄 GoogleMeuNegocioHub: Retry ${retryCount}/${maxRetries}...`, { retryEmail, retrySiteSlug });
+          
+          if (retryEmail && retrySiteSlug) {
+            console.log("✅ GoogleMeuNegocioHub: Dados obtidos no retry, tentando buscar...");
+            clearInterval(retryInterval);
             setIsConnected(true);
             setNeedsConnection(false);
             setCheckingConnection(false);
-            fetchReviews(false, true); // force = true para ignorar debounce
+            // Usar os dados obtidos para buscar
+            fetchReviewsWithData(retrySiteSlug, retryEmail, true);
+          } else if (retryCount >= maxRetries) {
+            console.log("⚠️ GoogleMeuNegocioHub: Máximo de tentativas atingido");
+            clearInterval(retryInterval);
+            setCheckingConnection(false);
+            setError("Não foi possível obter dados do usuário. Tente recarregar a página.");
           }
-        }, 500);
-        return () => clearTimeout(retryTimer);
+        }, 500); // Tentar a cada 500ms
+        
+        return () => clearInterval(retryInterval);
       }
       
-      // Tem userEmail e siteSlug, buscar dados imediatamente
-      console.log("🚀 GoogleMeuNegocioHub: Tentando buscar dados após redirect...", { siteSlug, userEmail });
+      // Tem email e siteSlug, buscar dados imediatamente
+      console.log("🚀 GoogleMeuNegocioHub: Tentando buscar dados após redirect...", { siteSlugToUse, emailToUse });
       setIsConnected(true);
       setNeedsConnection(false);
       setCheckingConnection(false);
       
       // Tentar buscar dados imediatamente (force = true para ignorar debounce)
-      // E também após um delay para garantir que credenciais foram salvas no banco
-      fetchReviews(false, true);
+      fetchReviewsWithData(siteSlugToUse, emailToUse, true);
       
       // Também tentar após 2 segundos como fallback
       const delayedFetch = setTimeout(() => {
         console.log("🔄 GoogleMeuNegocioHub: Tentativa adicional após delay...");
-        fetchReviews(false, true);
+        fetchReviewsWithData(siteSlugToUse, emailToUse, true);
       }, 2000);
       
       return () => clearTimeout(delayedFetch);
     }
     
     // Caso contrário, verificar status normalmente
-    if (userEmail && siteSlug) {
+    if (emailToUse && siteSlugToUse) {
       console.log("🔍 GoogleMeuNegocioHub: Verificando status normalmente...");
       checkConnectionStatus();
     } else {
-      console.log("⚠️ GoogleMeuNegocioHub: Sem userEmail ou siteSlug, não verificando conexão");
+      console.log("⚠️ GoogleMeuNegocioHub: Sem email ou siteSlug, não verificando conexão");
       setCheckingConnection(false);
     }
   }, [siteSlug, userEmail]);
+  
+  // Função auxiliar para buscar reviews com dados específicos
+  const fetchReviewsWithData = async (siteSlugParam: string, emailParam: string, force = false) => {
+    const now = Date.now();
+    if (!force && now - lastFetch < 5000) {
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      console.log('🔍 GoogleMeuNegocioHub: Buscando reviews com dados específicos:', { site: siteSlugParam, email: emailParam });
+      
+      const result = await n8n.getGoogleReviews({
+        siteSlug: siteSlugParam,
+        vipPin,
+        userEmail: emailParam
+      });
+      
+      console.log('📊 GoogleMeuNegocioHub: Resultado da API:', result);
+      
+      if (result.ok || result.success) {
+        setReviewsData(result.data || result);
+        setError(null);
+        setIsConnected(true);
+        setNeedsConnection(false);
+        setLastFetch(now);
+        console.log('✅ GoogleMeuNegocioHub: Reviews carregados com sucesso');
+      } else {
+        const errorMsg = result.error || result.message || 'Erro desconhecido';
+        console.log('❌ GoogleMeuNegocioHub: Erro na API:', errorMsg);
+        
+        if (errorMsg.includes('Credenciais não encontradas') || 
+            errorMsg.includes('Conecte sua conta Google') ||
+            errorMsg.includes('não encontradas') ||
+            errorMsg.includes('não conectado')) {
+          setNeedsConnection(true);
+          setIsConnected(false);
+          setError(null);
+        } else {
+          setError(errorMsg);
+        }
+      }
+    } catch (err: any) {
+      console.error('❌ GoogleMeuNegocioHub: Erro ao buscar reviews:', err);
+      const errorMsg = err?.message || String(err);
+      
+      if (errorMsg.includes('Credenciais não encontradas') || 
+          errorMsg.includes('não encontradas') ||
+          errorMsg.includes('404')) {
+        setNeedsConnection(true);
+        setIsConnected(false);
+        setError(null);
+      } else if (errorMsg.includes('Erro de rede') || errorMsg.includes('NetworkError') || errorMsg.includes('Failed to fetch')) {
+        setError(`Erro de conexão: Não foi possível conectar ao servidor. Verifique sua conexão com a internet e se o servidor n8n está acessível.`);
+        setNeedsConnection(true);
+        setIsConnected(false);
+      } else {
+        setError(errorMsg);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const checkConnectionStatus = async () => {
     if (!userEmail || !siteSlug) {
