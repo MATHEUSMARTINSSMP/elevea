@@ -275,6 +275,78 @@ function ClientDashboardContent() {
   // Aguardar um pouco mais se ainda estiver carregando ou se user ainda não estiver disponível
   const [ready, setReady] = useState(false);
   
+  // Processar site_slug da query string após redirect do Google Auth
+  // IMPORTANTE: Este useEffect roda ANTES do useAuth para garantir que dados estão salvos
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const siteFromUrl = urlParams.get("site");
+    const gmbOk = urlParams.get("gmb");
+    
+    // Se veio do redirect do Google Auth, garantir que dados estão salvos IMEDIATAMENTE
+    if (gmbOk === "ok" && siteFromUrl) {
+      console.log("🔍 Dashboard: Processando redirect do Google Auth", { siteFromUrl });
+      
+      try {
+        // Tentar extrair email do state (que vem na URL do Google Auth)
+        // O state tem formato: customerId|siteSlug|nonce
+        const stateParam = urlParams.get("state");
+        let emailFromState = null;
+        if (stateParam) {
+          const stateParts = stateParam.split("|");
+          if (stateParts.length >= 1) {
+            emailFromState = stateParts[0];
+          }
+        }
+        
+        // Garantir que temos email no localStorage (prioridade: user > state > localStorage existente)
+        const lastEmail = localStorage.getItem("elevea_last_email");
+        const emailToUse = user?.email || emailFromState || lastEmail;
+        
+        if (emailToUse && !lastEmail) {
+          localStorage.setItem("elevea_last_email", emailToUse);
+          console.log("✅ Dashboard: email salvo no localStorage:", emailToUse);
+        }
+        
+        // Atualizar ou criar auth no localStorage
+        const currentAuth = localStorage.getItem("auth");
+        let authData: any = {};
+        
+        if (currentAuth) {
+          try {
+            authData = JSON.parse(currentAuth);
+          } catch {
+            authData = {};
+          }
+        }
+        
+        // Garantir que temos os dados mínimos
+        if (!authData.email && emailToUse) {
+          authData.email = emailToUse;
+        }
+        if (!authData.role) {
+          authData.role = user?.role || "client";
+        }
+        
+        // Atualizar siteSlug sempre que vier da URL
+        authData.siteSlug = siteFromUrl;
+        
+        // Salvar no localStorage ANTES do useAuth tentar ler
+        localStorage.setItem("auth", JSON.stringify(authData));
+        console.log("✅ Dashboard: auth atualizado no localStorage ANTES do useAuth:", authData);
+        
+        // Forçar atualização do useAuth imediatamente
+        // Disparar evento customizado para o useAuth detectar
+        window.dispatchEvent(new Event("storage"));
+        
+        // Também atualizar sessionStorage para o useAuth detectar
+        sessionStorage.setItem("last_auth_check", JSON.stringify(authData));
+        
+      } catch (e) {
+        console.error("❌ Dashboard: Erro ao atualizar localStorage:", e);
+      }
+    }
+  }, [user]); // Re-executar quando user mudar também
+  
   useEffect(() => {
     if (!loading && user) {
       // Pequeno delay adicional para garantir que todos os dados estão prontos
@@ -289,7 +361,11 @@ function ClientDashboardContent() {
   
   // Permitir carregar dashboard mesmo sem siteSlug (usuários novos podem não ter site ainda)
   const canQuery = !!user?.email && user?.role === "client";
-  const siteSlug = user?.siteSlug || "";
+  
+  // Priorizar site da URL (após redirect do Google Auth), depois siteSlug do user
+  const urlParams = new URLSearchParams(window.location.search);
+  const siteFromUrl = urlParams.get("site");
+  const siteSlug = siteFromUrl || user?.siteSlug || "";
 
   // Debug logs
   console.log("🔍 Dashboard Debug:", { user, canQuery, loading, ready });
@@ -517,7 +593,7 @@ function ClientDashboardContent() {
         lastPayment: null,
       });
     }
-  }, [canQuery, siteSlug, user?.plan, cacheKey]);
+  }, [canQuery, siteSlug, user?.plan, user?.email, cacheKey]);
 
   // Função retryPlan removida - agora usa user.plan do n8n
 
@@ -528,31 +604,29 @@ function ClientDashboardContent() {
       // setLoadingStructure removido
       setLoadingFeedbacks(false);
       setFeaturesLoaded(true);
+      setLoadingStatus(false);
       return;
     }
 
     let alive = true;
 
-    // STATUS (atualiza se necessário)
+    // STATUS (sempre buscar quando siteSlug mudar)
     (async () => {
       if (DEV_FORCE_VIP) {
         setLoadingStatus(false);
         return;
       }
-      // Se já tem dados válidos da primeira chamada, não faz segunda chamada
-      if (status?.nextCharge || status?.lastPayment) {
-        setLoadingStatus(false);
-        return; // já tem dados do plano
-      }
 
       // Só buscar status se tiver siteSlug
       if (!siteSlug) {
+        console.log("⚠️ Dashboard: Sem siteSlug, não buscando status");
         setLoadingStatus(false);
         return;
       }
 
+      // Sempre buscar status quando siteSlug mudar (não confiar em cache)
       try {
-        console.log("📡 Fetching status from n8n...");
+        console.log("📡 Fetching status from n8n para siteSlug:", siteSlug);
         const { n8n } = await import('@/lib/n8n');
         const s = await n8n.getDashboardStatus({ siteSlug });
         if (!alive) return;
@@ -566,7 +640,8 @@ function ClientDashboardContent() {
           nextCharge: s.nextCharge || null,
           lastPayment: s.lastPayment || null
         };
-        setStatus(prev => ({ ...prev, ...statusResp }));
+        setStatus(statusResp); // Usar setStatus direto, não merge
+        console.log("✅ Status atualizado:", statusResp);
       } catch (error) {
         console.error("❌ Status fetch error:", error);
         // Fallback: tentar Netlify Function se n8n falhar
@@ -576,7 +651,7 @@ function ClientDashboardContent() {
             CARDS_TIMEOUT_MS * 2
           );
           if (!alive) return;
-          setStatus(prev => ({ ...prev, ...s }));
+          setStatus(s);
         } catch (fallbackError) {
           console.error("❌ Fallback status fetch error:", fallbackError);
         }
@@ -584,6 +659,20 @@ function ClientDashboardContent() {
         if (alive) setLoadingStatus(false);
       }
     })();
+    
+    return () => { alive = false; };
+  }, [canQuery, siteSlug, user?.email]); // Re-executar quando siteSlug ou user mudarem
+
+  /* 3) SETTINGS e outros cards */
+  useEffect(() => {
+    if (!canQuery || !siteSlug) {
+      setLoadingSettings(false);
+      setLoadingFeedbacks(false);
+      setFeaturesLoaded(true);
+      return;
+    }
+
+    let alive = true;
 
     // SETTINGS
     (async () => {
