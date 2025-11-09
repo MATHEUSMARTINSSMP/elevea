@@ -111,51 +111,6 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
     );
   }
 
-  // Verificar status da conexão ao montar o componente
-  useEffect(() => {
-    checkConnectionStatus();
-  }, [siteSlug, userEmail]);
-
-  const checkConnectionStatus = async () => {
-    if (!userEmail || !siteSlug) {
-      setCheckingConnection(false);
-      return;
-    }
-
-    setCheckingConnection(true);
-    try {
-      // Tentar buscar reviews para verificar se está conectado
-      const result = await n8n.getGoogleReviews({
-        siteSlug,
-        vipPin,
-        userEmail
-      });
-      
-      if (result.ok || result.success) {
-        setIsConnected(true);
-        setNeedsConnection(false);
-        setReviewsData(result.data);
-        setLastFetch(Date.now());
-      } else {
-        if (result.error?.includes('Credenciais não encontradas') || 
-            result.error?.includes('Conecte sua conta Google')) {
-          setIsConnected(false);
-          setNeedsConnection(true);
-        } else {
-          setIsConnected(false);
-          setNeedsConnection(true);
-          setError(result.error || 'Erro ao verificar conexão');
-        }
-      }
-    } catch (err: any) {
-      setIsConnected(false);
-      setNeedsConnection(true);
-      setError(null); // Não mostrar erro na verificação inicial
-    } finally {
-      setCheckingConnection(false);
-    }
-  };
-
   const fetchReviews = async (isRefresh = false) => {
     const now = Date.now();
     if (!isRefresh && now - lastFetch < 5000) { // 5 seconds debounce
@@ -166,7 +121,11 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
     else setLoading(true);
     
     try {
-      console.log('🔍 Buscando reviews para:', { site: siteSlug, email: userEmail });
+      console.log('🔍 GoogleMeuNegocioHub: Buscando reviews para:', { site: siteSlug, email: userEmail });
+      
+      if (!userEmail || !siteSlug) {
+        throw new Error('Email ou siteSlug não disponível');
+      }
       
       const result = await n8n.getGoogleReviews({
         siteSlug,
@@ -174,34 +133,137 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
         userEmail
       });
       
-      console.log('📊 Resultado da API:', result);
+      console.log('📊 GoogleMeuNegocioHub: Resultado da API:', result);
       
       if (result.ok || result.success) {
-        setReviewsData(result.data);
+        setReviewsData(result.data || result);
         setError(null);
         setIsConnected(true);
         setNeedsConnection(false);
         setLastFetch(now);
-        console.log('✅ Reviews carregados com sucesso');
+        console.log('✅ GoogleMeuNegocioHub: Reviews carregados com sucesso');
       } else {
-        console.log('❌ Erro na API:', result.error);
-        if (result.error?.includes('Credenciais não encontradas') || 
-            result.error?.includes('Conecte sua conta Google')) {
+        console.log('❌ GoogleMeuNegocioHub: Erro na API:', result.error);
+        const errorMsg = result.error || result.message || 'Erro desconhecido';
+        
+        if (errorMsg.includes('Credenciais não encontradas') || 
+            errorMsg.includes('Conecte sua conta Google') ||
+            errorMsg.includes('não encontradas') ||
+            errorMsg.includes('não conectado')) {
           setNeedsConnection(true);
+          setIsConnected(false);
           setError(null);
-          console.log('🔐 Credenciais não encontradas, pedindo conexão');
+          console.log('🔐 GoogleMeuNegocioHub: Credenciais não encontradas, pedindo conexão');
         } else {
-          const errorMsg = result.error || 'Erro desconhecido';
-          console.error('❌ Erro específico da API:', errorMsg);
           throw new Error(errorMsg);
         }
       }
     } catch (err: any) {
-      console.error('Erro ao buscar reviews:', err);
-      setError(err.message);
+      console.error('❌ GoogleMeuNegocioHub: Erro ao buscar reviews:', err);
+      const errorMsg = err?.message || String(err);
+      
+      // Se o erro indica que não está conectado, não mostrar erro
+      if (errorMsg.includes('Credenciais não encontradas') || 
+          errorMsg.includes('não encontradas') ||
+          errorMsg.includes('404')) {
+        setNeedsConnection(true);
+        setIsConnected(false);
+        setError(null);
+      } else {
+        setError(errorMsg);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  // Verificar status da conexão ao montar o componente e quando parâmetros mudarem
+  useEffect(() => {
+    // Verificar se veio do redirect do Google Auth
+    const urlParams = new URLSearchParams(window.location.search);
+    const gmbOk = urlParams.get("gmb");
+    
+    // Se veio do redirect do Google Auth, assumir que está conectado e tentar buscar dados
+    if (gmbOk === "ok" && userEmail && siteSlug) {
+      console.log("🔍 GoogleMeuNegocioHub: Detectado redirect do Google Auth, tentando buscar dados...", { siteSlug, userEmail });
+      setIsConnected(true);
+      setNeedsConnection(false);
+      setCheckingConnection(false);
+      // Tentar buscar dados imediatamente após um pequeno delay para garantir que credenciais foram salvas
+      setTimeout(() => {
+        fetchReviews(false);
+      }, 1000);
+      return;
+    }
+    
+    // Caso contrário, verificar status normalmente
+    if (userEmail && siteSlug) {
+      checkConnectionStatus();
+    } else {
+      setCheckingConnection(false);
+    }
+  }, [siteSlug, userEmail]);
+
+  const checkConnectionStatus = async () => {
+    if (!userEmail || !siteSlug) {
+      console.log("⚠️ GoogleMeuNegocioHub: Sem userEmail ou siteSlug", { userEmail, siteSlug });
+      setCheckingConnection(false);
+      return;
+    }
+
+    setCheckingConnection(true);
+    try {
+      console.log("🔍 GoogleMeuNegocioHub: Verificando conexão...", { siteSlug, userEmail });
+      
+      // Tentar buscar reviews para verificar se está conectado
+      const result = await n8n.getGoogleReviews({
+        siteSlug,
+        vipPin,
+        userEmail
+      });
+      
+      console.log("📊 GoogleMeuNegocioHub: Resultado da verificação:", result);
+      
+      if (result.ok || result.success) {
+        console.log("✅ GoogleMeuNegocioHub: Conectado e dados carregados");
+        setIsConnected(true);
+        setNeedsConnection(false);
+        setReviewsData(result.data || result);
+        setLastFetch(Date.now());
+      } else {
+        const errorMsg = result.error || result.message || 'Erro desconhecido';
+        console.log("❌ GoogleMeuNegocioHub: Erro na verificação:", errorMsg);
+        
+        if (errorMsg.includes('Credenciais não encontradas') || 
+            errorMsg.includes('Conecte sua conta Google') ||
+            errorMsg.includes('não encontradas') ||
+            errorMsg.includes('não conectado')) {
+          setIsConnected(false);
+          setNeedsConnection(true);
+          setError(null); // Não mostrar erro se apenas não está conectado
+        } else {
+          setIsConnected(false);
+          setNeedsConnection(true);
+          setError(errorMsg);
+        }
+      }
+    } catch (err: any) {
+      console.error("❌ GoogleMeuNegocioHub: Erro ao verificar conexão:", err);
+      setIsConnected(false);
+      setNeedsConnection(true);
+      
+      // Se o erro indica que não está conectado, não mostrar erro
+      const errorMsg = err?.message || String(err);
+      if (errorMsg.includes('Credenciais não encontradas') || 
+          errorMsg.includes('não encontradas') ||
+          errorMsg.includes('404')) {
+        setError(null);
+      } else {
+        setError(errorMsg);
+      }
+    } finally {
+      setCheckingConnection(false);
     }
   };
 
