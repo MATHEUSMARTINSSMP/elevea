@@ -10,9 +10,19 @@ function url(path: string) {
   const clean = path.startsWith("/") ? path : `/${path}`;
   const fullUrl = `${BASE}${PREFIX}${clean}`;
   
-  // Debug: log em desenvolvimento
-  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-    console.log(`[n8n] Calling: ${fullUrl}`);
+  // Debug: sempre logar para ajudar a identificar problemas
+  if (typeof window !== 'undefined') {
+    console.log(`[n8n] URL construída:`, {
+      path,
+      clean,
+      base: BASE,
+      prefix: PREFIX,
+      fullUrl,
+      env: {
+        VITE_N8N_BASE_URL: import.meta.env.VITE_N8N_BASE_URL,
+        VITE_N8N_MODE: import.meta.env.VITE_N8N_MODE
+      }
+    });
   }
   
   return fullUrl;
@@ -47,13 +57,31 @@ async function post<T = any>(path: string, body: Json): Promise<T> {
   
   let res: Response;
   try {
+    console.log(`[n8n] Tentando fazer POST para: ${finalUrl}`);
     res = await fetch(finalUrl, {
       method: "POST",
       headers,
       body: JSON.stringify(body ?? {}),
+      mode: 'cors', // Garantir que está usando CORS
+      credentials: 'omit', // Não enviar cookies
     });
+    console.log(`[n8n] Resposta recebida:`, { status: res.status, statusText: res.statusText, ok: res.ok });
   } catch (networkError: any) {
-    console.error(`[n8n] Erro de rede ao fazer requisição:`, networkError);
+    console.error(`[n8n] Erro de rede ao fazer requisição:`, {
+      error: networkError,
+      message: networkError.message,
+      name: networkError.name,
+      stack: networkError.stack,
+      url: finalUrl,
+      base: BASE,
+      prefix: PREFIX
+    });
+    
+    // Verificar tipo específico de erro
+    if (networkError.name === 'TypeError' && networkError.message.includes('Failed to fetch')) {
+      throw new Error(`Erro de rede: Não foi possível conectar ao servidor n8n (${BASE}). Verifique se o servidor está acessível e se há problemas de CORS.`);
+    }
+    
     throw new Error(`Erro de rede: ${networkError.message || 'Não foi possível conectar ao servidor'}`);
   }
   

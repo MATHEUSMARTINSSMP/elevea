@@ -159,7 +159,15 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
         }
       }
     } catch (err: any) {
-      console.error('❌ GoogleMeuNegocioHub: Erro ao buscar reviews:', err);
+      console.error('❌ GoogleMeuNegocioHub: Erro ao buscar reviews:', {
+        error: err,
+        message: err?.message,
+        name: err?.name,
+        stack: err?.stack,
+        siteSlug,
+        userEmail
+      });
+      
       const errorMsg = err?.message || String(err);
       
       // Se o erro indica que não está conectado, não mostrar erro
@@ -169,6 +177,11 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
         setNeedsConnection(true);
         setIsConnected(false);
         setError(null);
+      } else if (errorMsg.includes('Erro de rede') || errorMsg.includes('NetworkError') || errorMsg.includes('Failed to fetch')) {
+        // Erro de rede - mostrar mensagem mais útil
+        setError(`Erro de conexão: Não foi possível conectar ao servidor. Verifique sua conexão com a internet e se o servidor n8n está acessível.`);
+        setNeedsConnection(true);
+        setIsConnected(false);
       } else {
         setError(errorMsg);
       }
