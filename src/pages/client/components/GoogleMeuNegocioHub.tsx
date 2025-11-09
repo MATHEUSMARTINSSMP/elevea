@@ -170,13 +170,19 @@ interface ReviewsData {
 }
 
 export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: GoogleMeuNegocioHubProps) {
-  const [loading, setLoading] = useState(false);
+  // Verificar se veio do redirect do Google Auth IMEDIATAMENTE
+  const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const gmbOk = urlParams?.get("gmb");
+  const siteFromUrl = urlParams?.get("site");
+  
+  // Se veio do redirect do Google Auth, assumir que está conectado desde o início
+  const [isConnected, setIsConnected] = useState(gmbOk === "ok");
+  const [needsConnection, setNeedsConnection] = useState(gmbOk !== "ok"); // Só precisa conectar se NÃO veio do redirect
+  const [loading, setLoading] = useState(gmbOk === "ok"); // Começar carregando se veio do redirect
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reviewsData, setReviewsData] = useState<ReviewsData | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [needsConnection, setNeedsConnection] = useState(true); // Começar verificando conexão
-  const [checkingConnection, setCheckingConnection] = useState(true);
+  const [checkingConnection, setCheckingConnection] = useState(gmbOk !== "ok"); // Só verificar se NÃO veio do redirect
   const [lastFetch, setLastFetch] = useState<number>(0);
 
   // Verificar se é VIP
@@ -295,9 +301,9 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
   // Verificar status da conexão ao montar o componente e quando parâmetros mudarem
   useEffect(() => {
     // Verificar se veio do redirect do Google Auth
-    const urlParams = new URLSearchParams(window.location.search);
-    const gmbOk = urlParams.get("gmb");
-    const siteFromUrl = urlParams.get("site");
+    const currentUrlParams = new URLSearchParams(window.location.search);
+    const currentGmbOk = currentUrlParams.get("gmb");
+    const currentSiteFromUrl = currentUrlParams.get("site");
     
     // Tentar obter email do localStorage se não vier via props
     let emailToUse = userEmail;
@@ -317,30 +323,38 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
     }
     
     // Usar siteSlug da URL se disponível, senão usar da prop
-    const siteSlugToUse = siteFromUrl || siteSlug;
+    const siteSlugToUse = currentSiteFromUrl || siteSlug;
     
     console.log("🔍 GoogleMeuNegocioHub: useEffect executado", { 
-      gmbOk, 
-      siteFromUrl,
+      currentGmbOk, 
+      currentSiteFromUrl,
       userEmail, 
       emailToUse,
       siteSlug, 
       siteSlugToUse,
       hasUserEmail: !!emailToUse, 
-      hasSiteSlug: !!siteSlugToUse 
+      hasSiteSlug: !!siteSlugToUse,
+      isConnected,
+      needsConnection
     });
     
     // Se veio do redirect do Google Auth, assumir que está conectado e tentar buscar dados
-    if (gmbOk === "ok") {
-      console.log("✅ GoogleMeuNegocioHub: Detectado redirect do Google Auth (gmb=ok)");
+    if (currentGmbOk === "ok") {
+      console.log("✅ GoogleMeuNegocioHub: Detectado redirect do Google Auth (gmb=ok) - FORÇAR CONECTADO");
+      
+      // FORÇAR estado de conectado imediatamente
+      setIsConnected(true);
+      setNeedsConnection(false);
+      setCheckingConnection(false);
+      setLoading(true); // Mostrar loading enquanto busca dados
       
       // Se não tem email ou siteSlug ainda, aguardar e tentar novamente
       if (!emailToUse || !siteSlugToUse) {
         console.log("⏳ GoogleMeuNegocioHub: Aguardando email/siteSlug...", { emailToUse, siteSlugToUse });
         
-        // Tentar múltiplas vezes com intervalos crescentes
+        // Tentar múltiplas vezes com intervalos
         let retryCount = 0;
-        const maxRetries = 5;
+        const maxRetries = 10; // Aumentar tentativas
         
         const retryInterval = setInterval(() => {
           retryCount++;
@@ -360,54 +374,51 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
             } catch (e) {}
           }
           
-          const retrySiteSlug = urlParams.get("site") || siteSlug;
+          const retrySiteSlug = currentUrlParams.get("site") || siteSlug;
           
           console.log(`🔄 GoogleMeuNegocioHub: Retry ${retryCount}/${maxRetries}...`, { retryEmail, retrySiteSlug });
           
           if (retryEmail && retrySiteSlug) {
             console.log("✅ GoogleMeuNegocioHub: Dados obtidos no retry, tentando buscar...");
             clearInterval(retryInterval);
-            setIsConnected(true);
-            setNeedsConnection(false);
-            setCheckingConnection(false);
             // Usar os dados obtidos para buscar
             fetchReviewsWithData(retrySiteSlug, retryEmail, true);
           } else if (retryCount >= maxRetries) {
             console.log("⚠️ GoogleMeuNegocioHub: Máximo de tentativas atingido");
             clearInterval(retryInterval);
-            setCheckingConnection(false);
+            setLoading(false);
             setError("Não foi possível obter dados do usuário. Tente recarregar a página.");
           }
-        }, 500); // Tentar a cada 500ms
+        }, 300); // Tentar a cada 300ms (mais rápido)
         
         return () => clearInterval(retryInterval);
-      }
-      
-      // Tem email e siteSlug, buscar dados imediatamente
-      console.log("🚀 GoogleMeuNegocioHub: Tentando buscar dados após redirect...", { siteSlugToUse, emailToUse });
-      setIsConnected(true);
-      setNeedsConnection(false);
-      setCheckingConnection(false);
-      
-      // Tentar buscar dados imediatamente (force = true para ignorar debounce)
-      fetchReviewsWithData(siteSlugToUse, emailToUse, true);
-      
-      // Também tentar após 2 segundos como fallback
-      const delayedFetch = setTimeout(() => {
-        console.log("🔄 GoogleMeuNegocioHub: Tentativa adicional após delay...");
+      } else {
+        // Tem email e siteSlug, buscar dados imediatamente
+        console.log("🚀 GoogleMeuNegocioHub: Tentando buscar dados após redirect...", { siteSlugToUse, emailToUse });
+        
+        // Tentar buscar dados imediatamente (force = true para ignorar debounce)
         fetchReviewsWithData(siteSlugToUse, emailToUse, true);
-      }, 2000);
-      
-      return () => clearTimeout(delayedFetch);
-    }
-    
-    // Caso contrário, verificar status normalmente
-    if (emailToUse && siteSlugToUse) {
-      console.log("🔍 GoogleMeuNegocioHub: Verificando status normalmente...");
-      checkConnectionStatus();
+        
+        // Também tentar após 1s, 2s e 3s como fallback
+        const delays = [1000, 2000, 3000];
+        const timeouts = delays.map(delay => 
+          setTimeout(() => {
+            console.log(`🔄 GoogleMeuNegocioHub: Tentativa adicional após ${delay}ms...`);
+            fetchReviewsWithData(siteSlugToUse, emailToUse, true);
+          }, delay)
+        );
+        
+        return () => timeouts.forEach(clearTimeout);
+      }
     } else {
-      console.log("⚠️ GoogleMeuNegocioHub: Sem email ou siteSlug, não verificando conexão");
-      setCheckingConnection(false);
+      // Caso contrário, verificar status normalmente
+      if (emailToUse && siteSlugToUse) {
+        console.log("🔍 GoogleMeuNegocioHub: Verificando status normalmente...");
+        checkConnectionStatus();
+      } else {
+        console.log("⚠️ GoogleMeuNegocioHub: Sem email ou siteSlug, não verificando conexão");
+        setCheckingConnection(false);
+      }
     }
   }, [siteSlug, userEmail]);
   
@@ -768,8 +779,16 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
     }
   };
 
-  // Mostrar autenticação primeiro se não estiver conectado
-  if (checkingConnection || (loading && !isConnected)) {
+  // Verificar se veio do redirect do Google Auth (gmb=ok na URL)
+  const currentUrlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const isFromRedirect = currentUrlParams?.get("gmb") === "ok";
+  
+  // Se veio do redirect OU está conectado, mostrar interface conectada
+  // NUNCA mostrar tela de "Conectar" se gmb=ok está na URL
+  const shouldShowConnected = isFromRedirect || isConnected;
+  
+  // Mostrar loading apenas se está verificando conexão E NÃO veio do redirect
+  if (checkingConnection && !isFromRedirect) {
     return (
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader>
@@ -781,16 +800,79 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
         <CardContent>
           <div className="flex items-center justify-center py-8">
             <RefreshCw className="h-8 w-8 text-blue-500 animate-spin" />
-            <span className="ml-2 text-slate-300">
-              {loading ? 'Carregando dados do Google...' : 'Verificando conexão...'}
-            </span>
+            <span className="ml-2 text-slate-300">Verificando conexão...</span>
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  if (needsConnection || !isConnected) {
+  // Se veio do redirect OU está conectado, mostrar interface conectada (mesmo que ainda carregando)
+  if (shouldShowConnected) {
+    // Se está carregando dados e ainda não tem dados, mostrar loading dentro da interface conectada
+    if (loading && !reviewsData && !error) {
+      return (
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="text-center space-y-2 pb-2">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-500 via-blue-400 to-blue-600 bg-clip-text text-transparent">
+              Google Meu Negócio Hub
+            </h1>
+            <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+              Gerencie avaliações, responda clientes e acompanhe o desempenho do seu negócio no Google
+            </p>
+          </div>
+
+          {/* Card Principal com status conectado */}
+          <Card className="border-2 border-blue-500/20 bg-gradient-to-br from-background to-blue-500/5 shadow-lg">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                    <Building2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl font-bold text-foreground flex items-center gap-2">
+                      Conectado ao Google Meu Negócio
+                      <Badge className="bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30">
+                        <span className="w-2 h-2 bg-green-500 rounded-full mr-2 inline-block animate-pulse"></span>
+                        Conectado
+                      </Badge>
+                    </CardTitle>
+                    {userEmail && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Conectado como: <span className="font-medium">{userEmail}</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {/* Mensagem de carregamento */}
+                <div className="bg-blue-50/50 dark:bg-blue-950/20 rounded-lg p-6 border border-blue-200/50 dark:border-blue-800/50">
+                  <div className="flex items-center justify-center gap-4">
+                    <RefreshCw className="h-8 w-8 text-blue-500 animate-spin" />
+                    <div>
+                      <div className="text-lg font-semibold text-foreground">Carregando dados do Google...</div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Buscando informações do seu negócio, avaliações e métricas
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+    
+    // Se tem dados ou erro, continuar para mostrar interface completa abaixo
+    // (o código abaixo vai renderizar a interface completa com dados)
+  } else if (needsConnection || !isConnected) {
+    // Só mostrar tela de "Conectar" se REALMENTE não está conectado E não veio do redirect
     return (
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader>
