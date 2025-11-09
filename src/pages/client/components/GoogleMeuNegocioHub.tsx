@@ -111,9 +111,11 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
     );
   }
 
-  const fetchReviews = async (isRefresh = false) => {
+  const fetchReviews = async (isRefresh = false, force = false) => {
     const now = Date.now();
-    if (!isRefresh && now - lastFetch < 5000) { // 5 seconds debounce
+    // Não aplicar debounce se for forçado (ex: após redirect do Google Auth)
+    if (!isRefresh && !force && now - lastFetch < 5000) { // 5 seconds debounce
+      console.log('⏸️ GoogleMeuNegocioHub: Debounce ativo, aguardando...');
       return;
     }
 
@@ -197,23 +199,61 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
     const urlParams = new URLSearchParams(window.location.search);
     const gmbOk = urlParams.get("gmb");
     
+    console.log("🔍 GoogleMeuNegocioHub: useEffect executado", { 
+      gmbOk, 
+      userEmail, 
+      siteSlug, 
+      hasUserEmail: !!userEmail, 
+      hasSiteSlug: !!siteSlug 
+    });
+    
     // Se veio do redirect do Google Auth, assumir que está conectado e tentar buscar dados
-    if (gmbOk === "ok" && userEmail && siteSlug) {
-      console.log("🔍 GoogleMeuNegocioHub: Detectado redirect do Google Auth, tentando buscar dados...", { siteSlug, userEmail });
+    if (gmbOk === "ok") {
+      console.log("✅ GoogleMeuNegocioHub: Detectado redirect do Google Auth (gmb=ok)");
+      
+      // Se não tem userEmail ou siteSlug ainda, aguardar um pouco e tentar novamente
+      if (!userEmail || !siteSlug) {
+        console.log("⏳ GoogleMeuNegocioHub: Aguardando userEmail/siteSlug...", { userEmail, siteSlug });
+        // Tentar novamente após 500ms
+        const retryTimer = setTimeout(() => {
+          const retryParams = new URLSearchParams(window.location.search);
+          const retryGmbOk = retryParams.get("gmb");
+          if (retryGmbOk === "ok" && userEmail && siteSlug) {
+            console.log("🔄 GoogleMeuNegocioHub: Retry após delay - tentando buscar dados...");
+            setIsConnected(true);
+            setNeedsConnection(false);
+            setCheckingConnection(false);
+            fetchReviews(false, true); // force = true para ignorar debounce
+          }
+        }, 500);
+        return () => clearTimeout(retryTimer);
+      }
+      
+      // Tem userEmail e siteSlug, buscar dados imediatamente
+      console.log("🚀 GoogleMeuNegocioHub: Tentando buscar dados após redirect...", { siteSlug, userEmail });
       setIsConnected(true);
       setNeedsConnection(false);
       setCheckingConnection(false);
-      // Tentar buscar dados imediatamente após um pequeno delay para garantir que credenciais foram salvas
-      setTimeout(() => {
-        fetchReviews(false);
-      }, 1000);
-      return;
+      
+      // Tentar buscar dados imediatamente (force = true para ignorar debounce)
+      // E também após um delay para garantir que credenciais foram salvas no banco
+      fetchReviews(false, true);
+      
+      // Também tentar após 2 segundos como fallback
+      const delayedFetch = setTimeout(() => {
+        console.log("🔄 GoogleMeuNegocioHub: Tentativa adicional após delay...");
+        fetchReviews(false, true);
+      }, 2000);
+      
+      return () => clearTimeout(delayedFetch);
     }
     
     // Caso contrário, verificar status normalmente
     if (userEmail && siteSlug) {
+      console.log("🔍 GoogleMeuNegocioHub: Verificando status normalmente...");
       checkConnectionStatus();
     } else {
+      console.log("⚠️ GoogleMeuNegocioHub: Sem userEmail ou siteSlug, não verificando conexão");
       setCheckingConnection(false);
     }
   }, [siteSlug, userEmail]);
@@ -341,7 +381,7 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
   };
 
   // Mostrar autenticação primeiro se não estiver conectado
-  if (checkingConnection) {
+  if (checkingConnection || (loading && !isConnected)) {
     return (
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader>
@@ -353,7 +393,9 @@ export default function GoogleMeuNegocioHub({ siteSlug, vipPin, userEmail }: Goo
         <CardContent>
           <div className="flex items-center justify-center py-8">
             <RefreshCw className="h-8 w-8 text-blue-500 animate-spin" />
-            <span className="ml-2 text-slate-300">Verificando conexão...</span>
+            <span className="ml-2 text-slate-300">
+              {loading ? 'Carregando dados do Google...' : 'Verificando conexão...'}
+            </span>
           </div>
         </CardContent>
       </Card>
