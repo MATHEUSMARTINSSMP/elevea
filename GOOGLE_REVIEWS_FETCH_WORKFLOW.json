@@ -65,7 +65,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Code - Token Check\nconst inputData = $input.all();\n\nif (inputData.length === 0 || !inputData[0].json.rows || inputData[0].json.rows.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'Credenciais não encontradas. Conecte sua conta Google primeiro.',\n      needRefresh: false,\n      needsReauth: true\n    }\n  }];\n}\n\nconst row = inputData[0].json.rows[0];\nconst access_token = row.access_token || '';\nconst refresh_token = (row.refresh_token || '').trim();\nconst expires_at = row.expires_at ? new Date(row.expires_at).getTime() : null;\nconst now = Date.now();\n\nconst hasRefreshToken = refresh_token.length > 0;\nconst isExpired = expires_at ? now > (expires_at - 300000) : false; // 5 min antes\nconst needRefresh = hasRefreshToken && (!access_token || isExpired);\nconst needsReauth = !hasRefreshToken && (!access_token || isExpired);\n\nreturn [{\n  json: {\n    customer_id: row.customer_id,\n    site_slug: row.site_slug,\n    access_token: access_token,\n    refresh_token: refresh_token,\n    expires_at: expires_at ? new Date(expires_at).toISOString() : null,\n    scopes: row.scopes || '',\n    status: row.status || 'active',\n    token_type: row.token_type || 'Bearer',\n    needRefresh: needRefresh,\n    needsReauth: needsReauth\n  }\n}];"
+        "jsCode": "// Code - Token Check\nconst inputData = $input.all();\n\nif (inputData.length === 0 || !inputData[0].json.rows || inputData[0].json.rows.length === 0) {\n  // Retornar erro que será capturado pelo Respond Error\n  return [{\n    json: {\n      success: false,\n      ok: false,\n      error: 'Credenciais não encontradas. Conecte sua conta Google primeiro.',\n      needRefresh: false,\n      needsReauth: true\n    }\n  }];\n}\n\nconst row = inputData[0].json.rows[0];\nconst access_token = row.access_token || '';\nconst refresh_token = (row.refresh_token || '').trim();\nconst expires_at = row.expires_at ? new Date(row.expires_at).getTime() : null;\nconst now = Date.now();\n\nconst hasRefreshToken = refresh_token.length > 0;\nconst isExpired = expires_at ? now > (expires_at - 300000) : false; // 5 min antes\nconst needRefresh = hasRefreshToken && (!access_token || isExpired);\nconst needsReauth = !hasRefreshToken && (!access_token || isExpired);\n\n// Se precisa re-autenticar, retornar erro\nif (needsReauth) {\n  return [{\n    json: {\n      success: false,\n      ok: false,\n      error: 'Token expirado e sem refresh_token. É necessário re-autenticar com o Google.',\n      needRefresh: false,\n      needsReauth: true\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    customer_id: row.customer_id,\n    site_slug: row.site_slug,\n    access_token: access_token,\n    refresh_token: refresh_token,\n    expires_at: expires_at ? new Date(expires_at).toISOString() : null,\n    scopes: row.scopes || '',\n    status: row.status || 'active',\n    token_type: row.token_type || 'Bearer',\n    needRefresh: needRefresh,\n    needsReauth: false\n  }\n}];"
       },
       "id": "code-token-check",
       "name": "🧪 Code - Token Check",
@@ -223,7 +223,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Code - Process Google Data\nconst inputData = $input.all();\n\nif (inputData.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'Nenhuma resposta do Google'\n    }\n  }];\n}\n\nconst httpResponse = inputData[0].json || {};\nconst accounts = httpResponse.body?.accounts || [];\n\nif (accounts.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'Nenhuma conta Google My Business encontrada'\n    }\n  }];\n}\n\n// Pegar primeira conta\nconst account = accounts[0];\nconst accountName = account.name || '';\n\n// Por enquanto, retornar estrutura básica\n// TODO: Buscar locations, reviews, insights\nreturn [{\n  json: {\n    ok: true,\n    success: true,\n    account: {\n      name: accountName,\n      accountName: accountName\n    },\n    reviews: [],\n    averageRating: 0,\n    totalReviews: 0,\n    businessInfo: {\n      name: 'Negócio conectado',\n      accountEmail: $('🔧 Code - Merge Token').item.json.customer_id || ''\n    },\n    connectedAt: new Date().toISOString(),\n    lastUpdated: new Date().toISOString()\n  }\n}];"
+        "jsCode": "// Code - Process Google Data\nconst inputData = $input.all();\n\nif (inputData.length === 0) {\n  return [{\n    json: {\n      success: false,\n      ok: false,\n      error: 'Nenhuma resposta do Google'\n    }\n  }];\n}\n\nconst httpResponse = inputData[0].json || {};\n\n// Verificar se há erro na resposta HTTP\nif (httpResponse.statusCode && httpResponse.statusCode >= 400) {\n  return [{\n    json: {\n      success: false,\n      ok: false,\n      error: `Erro ao buscar dados do Google: ${httpResponse.statusCode} - ${httpResponse.body?.error?.message || httpResponse.statusMessage || 'Erro desconhecido'}`\n    }\n  }];\n}\n\nconst accounts = httpResponse.body?.accounts || [];\n\nif (accounts.length === 0) {\n  return [{\n    json: {\n      success: false,\n      ok: false,\n      error: 'Nenhuma conta Google My Business encontrada'\n    }\n  }];\n}\n\n// Pegar primeira conta\nconst account = accounts[0];\nconst accountName = account.name || '';\n\n// Obter customer_id do Merge Token\nlet customerId = '';\ntry {\n  const mergeTokenData = $('🔧 Code - Merge Token').all();\n  if (mergeTokenData && mergeTokenData.length > 0) {\n    customerId = mergeTokenData[0].json.customer_id || '';\n  }\n} catch (e) {\n  console.error('Erro ao obter customer_id:', e);\n}\n\n// Por enquanto, retornar estrutura básica\n// TODO: Buscar locations, reviews, insights\nreturn [{\n  json: {\n    ok: true,\n    success: true,\n    account: {\n      name: accountName,\n      accountName: accountName\n    },\n    reviews: [],\n    averageRating: 0,\n    totalReviews: 0,\n    businessInfo: {\n      name: 'Negócio conectado',\n      accountEmail: customerId\n    },\n    connectedAt: new Date().toISOString(),\n    lastUpdated: new Date().toISOString()\n  }\n}];"
       },
       "id": "code-process-google",
       "name": "📊 Code - Process Google Data",
@@ -293,6 +293,11 @@
             "node": "🔑 PostgreSQL - Get Credentials",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "❌ Respond - Error",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -313,6 +318,11 @@
         [
           {
             "node": "🔀 IF - Need Refresh?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "❌ Respond - Error",
             "type": "main",
             "index": 0
           }
@@ -410,6 +420,11 @@
             "node": "📊 Code - Process Google Data",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "❌ Respond - Error",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -421,13 +436,71 @@
             "node": "✅ Respond - Success",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "❌ Respond - Error",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
     },
-    "🧪 Code - Token Check": {
+    "🔄 Code - Prepare Refresh": {
       "main": [
         [
+          {
+            "node": "🌐 HTTP - Refresh Token",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "❌ Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🌐 HTTP - Refresh Token": {
+      "main": [
+        [
+          {
+            "node": "📦 Code - Process Refresh",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "❌ Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📦 Code - Process Refresh": {
+      "main": [
+        [
+          {
+            "node": "💾 PostgreSQL - Update Token",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "❌ Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔧 Code - Merge Token": {
+      "main": [
+        [
+          {
+            "node": "🌐 HTTP - List Accounts",
+            "type": "main",
+            "index": 0
+          },
           {
             "node": "❌ Respond - Error",
             "type": "main",
