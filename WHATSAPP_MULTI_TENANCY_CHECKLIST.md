@@ -697,3 +697,56 @@ Antes de considerar completo, verificar:
 - ✅ Biblioteca frontend atualizada para garantir prefixo `data:image/png;base64,`
 - ✅ Componente WhatsAppConnection simplificado para exibir QR code corretamente
 
+---
+
+## ⚠️ NOTAS IMPORTANTES
+
+### Google Business Profile API - Acesso Recusado
+
+**Status:** ❌ **ACESSO RECUSADO PELO GOOGLE**
+
+**Data:** Novembro 2024
+
+**Motivo:** O Google recusou o acesso à API do Google Business Profile após análise interna. O email de resposta indicou:
+
+> "We will not be able to move forward with your application to use the GBP API as your account did not pass our internal quality checks. We recommend reviewing our eligibility criteria and ensuring that your Business Profile and your company's official website are fully up to date before reapplying in the future if you choose to do so."
+
+**Impacto:**
+- ❌ Não é possível usar a API oficial do Google Business Profile
+- ⚠️ O componente `GoogleMeuNegocioHub.tsx` está implementado mas não funcionará sem acesso à API
+- ⚠️ Workflows n8n relacionados ao Google Reviews não podem usar a API oficial
+
+**Alternativas Possíveis:**
+
+1. **Google Places API (Places API)**
+   - ✅ Não requer aprovação especial
+   - ✅ Permite buscar informações básicas de negócios
+   - ⚠️ Limitado em funcionalidades (não permite gerenciar reviews)
+   - 📖 Documentação: https://developers.google.com/maps/documentation/places/web-service
+
+2. **Google My Business Scraping (NÃO RECOMENDADO)**
+   - ⚠️ Viola termos de serviço do Google
+   - ⚠️ Pode resultar em bloqueio de IP
+   - ❌ Não é uma solução viável
+
+3. **Reaplicar no Futuro**
+   - ✅ Melhorar perfil do Google Business Profile
+   - ✅ Atualizar website oficial da empresa
+   - ✅ Garantir que todos os dados estão completos e atualizados
+   - ✅ Reaplicar após 3-6 meses
+
+4. **Usar Outras Fontes de Reviews**
+   - ✅ Integrar com outras plataformas (Facebook, Yelp, etc.)
+   - ✅ Coletar reviews diretamente no site
+   - ✅ Usar widgets de terceiros
+
+**Próximos Passos Recomendados:**
+1. Desabilitar temporariamente o componente `GoogleMeuNegocioHub` no frontend
+2. Remover workflows n8n relacionados ao Google Business Profile API
+3. Considerar implementar integração com Google Places API para dados básicos
+4. Preparar reaplicação no futuro após melhorar perfil e website
+
+**Referências:**
+- [Pré-requisitos Google Business Profile API](https://developers.google.com/my-business/content/prereqs?hl=pt-br#request-access)
+- [Google Places API](https://developers.google.com/maps/documentation/places/web-service)
+
