@@ -114,7 +114,7 @@
           }
         }
       },
-      "id": "NEW_QR_CODE_NODE_ID",
+      "id": "4ab1301b-2467-4f7d-a497-49c81c54708b",
       "name": "🌐 HTTP - Get QR Code",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -125,7 +125,7 @@
       "parameters": {
         "jsCode": "// Code - Extract QR Code\nconst inputData = $input.all();\nconst previousData = $('📦 Code - Extract Instance Data').all()[0]?.json || {};\n\nif (inputData.length === 0) {\n  return [{\n    json: {\n      ...previousData,\n      success: false,\n      ok: false,\n      error: 'Nenhuma resposta recebida do /instance/connect'\n    }\n  }];\n}\n\nconst httpNodeRaw = inputData[0].json || {};\nconst statusCode = inputData[0].statusCode || httpNodeRaw.statusCode || 0;\n\n// Extrair resposta HTTP\nlet httpResponse = null;\n\nif (httpNodeRaw.instance || httpNodeRaw.qrcode) {\n  httpResponse = httpNodeRaw;\n}\nelse if (httpNodeRaw.json && typeof httpNodeRaw.json === 'object') {\n  httpResponse = httpNodeRaw.json;\n}\nelse if (httpNodeRaw.data && typeof httpNodeRaw.data === 'object') {\n  httpResponse = httpNodeRaw.data;\n}\nelse if (httpNodeRaw.body && typeof httpNodeRaw.body === 'object') {\n  httpResponse = httpNodeRaw.body;\n}\nelse {\n  httpResponse = httpNodeRaw;\n}\n\nif (typeof httpResponse === 'string') {\n  try {\n    httpResponse = JSON.parse(httpResponse);\n  } catch (e) {\n    httpResponse = {};\n  }\n}\n\nif (!httpResponse || typeof httpResponse !== 'object' || Array.isArray(httpResponse)) {\n  httpResponse = {};\n}\n\nif (statusCode >= 400) {\n  return [{\n    json: {\n      ...previousData,\n      success: false,\n      ok: false,\n      error: httpResponse.error || httpResponse.message || `HTTP ${statusCode}: Erro ao obter QR code`,\n      statusCode: statusCode\n    }\n  }];\n}\n\n// Extrair QR code da resposta\nconst instanceData = httpResponse.instance || httpResponse;\nconst qrCode = instanceData.qrcode || instanceData.qrCode || instanceData.qr_code || httpResponse.qrcode || '';\n\n// Se o QR code já vem como data URI, usar diretamente\n// Se vier como base64 puro, adicionar prefixo\nlet finalQrCode = null;\nif (qrCode && qrCode.trim() !== '' && qrCode !== 'null') {\n  if (qrCode.startsWith('data:')) {\n    finalQrCode = qrCode;\n  } else {\n    finalQrCode = `data:image/png;base64,${qrCode}`;\n  }\n}\n\nif (!finalQrCode) {\n  return [{\n    json: {\n      ...previousData,\n      success: false,\n      ok: false,\n      error: 'QR code não retornado pela API. Resposta: ' + JSON.stringify(httpResponse).substring(0, 500)\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    ...previousData,\n    uazapi_qr_code: finalQrCode,\n    uazapi_status: 'connecting'\n  }\n}];"
       },
-      "id": "NEW_EXTRACT_QR_NODE_ID",
+      "id": "b141d6fa-0139-46fd-a546-9af86216346b",
       "name": "📦 Code - Extract QR Code",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
