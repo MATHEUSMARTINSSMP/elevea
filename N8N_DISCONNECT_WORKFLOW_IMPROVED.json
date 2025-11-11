@@ -1,0 +1,370 @@
+{
+  "name": "WhatsApp - Auth Disconnect",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "api/whatsapp/auth/disconnect",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://eleveaagencia.netlify.app"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, X-APP-KEY"
+              }
+            ]
+          }
+        }
+      },
+      "id": "webhook-disconnect",
+      "name": "🔌 Webhook - Disconnect",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "whatsapp-disconnect"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Code - Normalize Disconnect Input\nconst trim = v => typeof v === 'string' ? v.trim() : v;\nconst low = v => typeof v === 'string' ? v.toLowerCase() : v;\n\nconst out = [];\nfor (const {json} of items) {\n  const headers = Object.fromEntries(Object.entries(json.headers || {}).map(([k, v]) => [k.toLowerCase(), v]));\n  const method = (json.req?.method || json.method || '').toUpperCase();\n  \n  if (method === 'OPTIONS' || headers['access-control-request-method']) {\n    out.push({json: {_preflight: true}});\n    continue;\n  }\n  \n  let b = json.body || {};\n  if (typeof b === 'string') {\n    try { b = JSON.parse(b); } catch { b = {}; }\n  }\n  \n  const siteSlug = low(trim(b.siteSlug || b.site_slug || ''));\n  const customerId = trim(b.customerId || b.customer_id || b.userEmail || '');\n  \n  if (!siteSlug || !customerId) {\n    out.push({\n      json: {\n        success: false,\n        ok: false,\n        error: 'siteSlug e customerId são obrigatórios',\n        _preflight: false\n      }\n    });\n    continue;\n  }\n  \n  out.push({\n    json: {\n      customer_id: customerId,\n      site_slug: siteSlug,\n      _preflight: false\n    }\n  });\n}\nreturn out;"
+      },
+      "id": "code-normalize-disconnect",
+      "name": "📝 Code - Normalize Disconnect Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  customer_id,\n  site_slug,\n  uazapi_instance_id,\n  uazapi_token\nFROM elevea.whatsapp_credentials\nWHERE customer_id = $1 AND site_slug = $2 AND status = 'active'\nLIMIT 1",
+        "options": {
+          "queryReplacement": "$1 → {{$json.customer_id}}\n$2 → {{$json.site_slug}}"
+        }
+      },
+      "id": "postgres-get-credentials",
+      "name": "🗄️ PostgreSQL - Get Credentials Disconnect",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [650, 300],
+      "credentials": {
+        "postgres": {
+          "id": "S2Hp22T5AgilJMEy",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-instance",
+              "leftValue": "={{ $json.uazapi_instance_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-instance",
+      "name": "❓ IF - Has Instance",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "https://elevea.uazapi.com/instance",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $json.uazapi_token }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": false,
+        "options": {
+          "continueOnFail": true,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "http-delete-instance",
+      "name": "🌐 HTTP - Delete Instance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1050, 200],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE elevea.whatsapp_credentials\nSET\n  uazapi_status = 'disconnected',\n  uazapi_qr_code = NULL,\n  uazapi_instance_id = NULL,\n  uazapi_token = NULL,\n  updated_at = NOW()\nWHERE customer_id = $1 AND site_slug = $2 AND status = 'active'\nRETURNING customer_id, site_slug, uazapi_status;",
+        "options": {
+          "queryReplacement": "$1 → {{$json.customer_id}}\n$2 → {{$json.site_slug}}"
+        }
+      },
+      "id": "postgres-update-status",
+      "name": "🗄️ PostgreSQL - Update Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1250, 200],
+      "credentials": {
+        "postgres": {
+          "id": "S2Hp22T5AgilJMEy",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, ok: true, message: 'WhatsApp desconectado com sucesso', disconnected: true } }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://eleveaagencia.netlify.app"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, X-APP-KEY"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-disconnect",
+      "name": "📤 Respond - Disconnect",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, ok: false, error: 'Instância não encontrada ou já desconectada', disconnected: false } }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://eleveaagencia.netlify.app"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, X-APP-KEY"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-disconnect-error",
+      "name": "📤 Respond - Disconnect Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, ok: false, error: $json.error || 'Erro ao desconectar WhatsApp', disconnected: false } }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://eleveaagencia.netlify.app"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, X-APP-KEY"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-preflight",
+      "name": "📤 Respond - Preflight",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-preflight",
+              "leftValue": "={{ $json._preflight }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-preflight",
+      "name": "❓ IF - Preflight",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [650, 500]
+    }
+  ],
+  "connections": {
+    "🔌 Webhook - Disconnect": {
+      "main": [
+        [
+          {
+            "node": "📝 Code - Normalize Disconnect Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Code - Normalize Disconnect Input": {
+      "main": [
+        [
+          {
+            "node": "❓ IF - Preflight",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "❓ IF - Preflight": {
+      "main": [
+        [
+          {
+            "node": "📤 Respond - Preflight",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🗄️ PostgreSQL - Get Credentials Disconnect",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗄️ PostgreSQL - Get Credentials Disconnect": {
+      "main": [
+        [
+          {
+            "node": "❓ IF - Has Instance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "❓ IF - Has Instance": {
+      "main": [
+        [
+          {
+            "node": "🌐 HTTP - Delete Instance",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📤 Respond - Disconnect Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🌐 HTTP - Delete Instance": {
+      "main": [
+        [
+          {
+            "node": "🗄️ PostgreSQL - Update Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗄️ PostgreSQL - Update Status": {
+      "main": [
+        [
+          {
+            "node": "📤 Respond - Disconnect",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-11-11T05:30:00.000Z",
+  "versionId": "1"
+}
+

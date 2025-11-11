@@ -1,6 +1,6 @@
 /**
  * Biblioteca de API WhatsApp Multi-Tenancy via n8n
- * Substitui Netlify Functions e Google Apps Script
+ * Integração completa com UAZAPI e Chatwoot para gestão WhatsApp
  */
 
 import { post, get } from './n8n';
@@ -233,6 +233,109 @@ export async function sendMessage(
     return {
       success: false,
       error: error.message || 'Erro ao enviar mensagem',
+    };
+  }
+}
+
+/**
+ * Interface para configuração do assistente WhatsApp
+ */
+export interface WhatsAppAgentConfig {
+  siteSlug: string;
+  customerId: string;
+  businessName?: string;
+  businessType?: string;
+  generatedPrompt?: string;
+  active?: boolean;
+  toolsEnabled?: Record<string, boolean>;
+  specialities?: string[];
+}
+
+/**
+ * Buscar configuração do agente
+ */
+export async function getAgentConfig(
+  siteSlug: string,
+  customerId: string
+): Promise<WhatsAppAgentConfig | null> {
+  try {
+    const data = await get(
+      `/api/whatsapp/agent/config?siteSlug=${encodeURIComponent(siteSlug)}&customerId=${encodeURIComponent(customerId)}`
+    );
+    
+    return data.config || null;
+  } catch (error: any) {
+    console.error('Erro ao buscar configuração do agente:', error);
+    return null;
+  }
+}
+
+/**
+ * Verificar status do assistente WhatsApp (workflow ativo/inativo)
+ */
+export async function getAgentStatus(
+  siteSlug: string,
+  customerId: string
+): Promise<{ active: boolean; error?: string }> {
+  try {
+    // Por enquanto, verificar via configuração do agente
+    // Futuramente pode verificar diretamente o status do workflow no n8n
+    const config = await getAgentConfig(siteSlug, customerId);
+    return {
+      active: config?.active === true,
+    };
+  } catch (error: any) {
+    return {
+      active: false,
+      error: error.message || 'Erro ao verificar status do assistente',
+    };
+  }
+}
+
+/**
+ * Ativar/Desativar assistente WhatsApp
+ */
+export async function toggleAgent(
+  siteSlug: string,
+  customerId: string,
+  active: boolean
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const data = await post('/api/whatsapp/agent/toggle', {
+      siteSlug,
+      customerId,
+      active,
+    });
+    
+    return {
+      success: data.ok === true || data.success === true,
+      error: data.error,
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.message || 'Erro ao alterar status do assistente',
+    };
+  }
+}
+
+/**
+ * Salvar configuração do agente
+ */
+export async function saveAgentConfig(
+  config: WhatsAppAgentConfig
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const data = await post('/api/whatsapp/agent/config', config);
+    
+    return {
+      success: data.ok === true || data.success === true,
+      error: data.error,
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.message || 'Erro ao salvar configuração',
     };
   }
 }
