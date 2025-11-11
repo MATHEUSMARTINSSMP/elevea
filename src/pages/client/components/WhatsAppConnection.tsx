@@ -29,7 +29,6 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
   const { user } = useAuth();
   const customerId = user?.email || "";
 
-  const [uazapiToken, setUazapiToken] = useState("");
   const [loadingToken, setLoadingToken] = useState(true);
   const [status, setStatus] = useState<whatsappAPI.WhatsAppCredentials>({
     connected: false,
@@ -38,13 +37,6 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
   const [loading, setLoading] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Chatwoot config
-  const [chatwootBaseUrl, setChatwootBaseUrl] = useState("http://31.97.129.229:3000");
-  const [chatwootAccessToken, setChatwootAccessToken] = useState("");
-  const [chatwootAccountId, setChatwootAccountId] = useState(1);
-  const [chatwootInboxId, setChatwootInboxId] = useState(1);
-  const [connectingChatwoot, setConnectingChatwoot] = useState(false);
 
   // Buscar token e status ao carregar
   useEffect(() => {
@@ -135,11 +127,9 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
     setError(null);
 
     try {
-      // Usar token do estado ou string vazia (backend buscará do banco)
-      const tokenToUse = uazapiToken.trim() || '';
-      
       console.log('[WhatsAppConnection] Iniciando conexão...');
-      const result = await whatsappAPI.connectUAZAPI(siteSlug, customerId, tokenToUse);
+      // Backend buscará o token automaticamente do banco de dados
+      const result = await whatsappAPI.connectUAZAPI(siteSlug, customerId, '');
       console.log('[WhatsAppConnection] Resultado do connect:', result);
       
       // Sempre atualizar o status com a resposta
@@ -209,30 +199,6 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
     }
   }
 
-  async function handleConnectChatwoot() {
-    if (!chatwootBaseUrl.trim() || !chatwootAccessToken.trim()) {
-      setError("URL e Token do Chatwoot são obrigatórios");
-      return;
-    }
-
-    setConnectingChatwoot(true);
-    setError(null);
-
-    try {
-      await whatsappAPI.connectChatwoot(siteSlug, customerId, {
-        chatwootBaseUrl: chatwootBaseUrl.trim(),
-        chatwootAccessToken: chatwootAccessToken.trim(),
-        chatwootAccountId,
-        chatwootInboxId,
-      });
-
-      alert("Chatwoot conectado com sucesso!");
-    } catch (err: any) {
-      setError(err.message || "Erro ao conectar Chatwoot");
-    } finally {
-      setConnectingChatwoot(false);
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -246,7 +212,7 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
                 Status da Conexão WhatsApp
               </CardTitle>
               <CardDescription>
-                Gerencie sua conexão WhatsApp multi-tenancy
+                Status da sua conexão WhatsApp
               </CardDescription>
             </div>
             <Badge
@@ -296,11 +262,6 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
             </div>
           )}
 
-          {status.instanceId && (
-            <div className="text-sm text-muted-foreground">
-              <strong>Instance ID:</strong> {status.instanceId}
-            </div>
-          )}
 
           {error && (
             <Alert variant="destructive">
@@ -344,189 +305,87 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
         </CardContent>
       </Card>
 
-      {/* UAZAPI Connection Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <LinkIcon className="w-5 h-5" />
-            Conectar UAZAPI
-          </CardTitle>
-          <CardDescription>
-            Conecte seu WhatsApp usando o token UAZAPI
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {loadingToken ? (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 className="w-5 h-5 animate-spin mr-2" />
-              <span className="text-sm text-muted-foreground">Carregando configurações...</span>
-            </div>
-          ) : (
-            <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800">
-              <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <AlertDescription className="text-blue-800 dark:text-blue-200 text-sm">
-                O token será buscado automaticamente do banco de dados. Clique em "Conectar WhatsApp" para iniciar.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {(status.status === "connecting" || connecting) && status.qrCode && (
-            <div className="space-y-4 p-4 bg-muted rounded-lg border-2 border-green-500">
-              <div className="text-center">
-                <h3 className="font-semibold mb-2 text-green-700 dark:text-green-300">
-                  ✅ QR Code Gerado! Escaneie com seu WhatsApp
-                </h3>
-                <div className="flex justify-center">
-                  <img
-                    src={status.qrCode}
-                    alt="QR Code WhatsApp"
-                    className="border-2 border-primary rounded-lg p-2 bg-white max-w-xs w-full h-auto"
-                    onLoad={() => {
-                      console.log('[WhatsAppConnection] QR Code carregado com sucesso');
-                      setConnecting(false);
-                    }}
-                    onError={(e) => {
-                      console.error('[WhatsAppConnection] Erro ao carregar QR Code:', e);
-                      setError('Erro ao exibir QR Code. Tente atualizar.');
-                    }}
-                  />
-                </div>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Abra o WhatsApp no seu celular → Menu → Dispositivos conectados → Conectar dispositivo
-                </p>
-              </div>
-              <Button
-                onClick={handleRefreshQR}
-                disabled={loading}
-                variant="outline"
-                size="sm"
-                className="w-full"
-              >
-                <QrCode className="w-4 h-4 mr-2" />
-                Atualizar QR Code
-              </Button>
-            </div>
-          )}
-          
-          {(status.status === "connecting" || connecting) && !status.qrCode && (
-            <Alert className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-800">
-              <Loader2 className="h-4 w-4 text-yellow-600 dark:text-yellow-400 animate-spin" />
-              <AlertTitle className="text-yellow-900 dark:text-yellow-100">Aguardando QR Code</AlertTitle>
-              <AlertDescription className="text-yellow-800 dark:text-yellow-200">
-                Aguardando geração do QR Code. Isso pode levar alguns segundos...
-                <br />
-                <span className="text-xs">Status: {status.status || 'processando...'}</span>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <Button
-            onClick={handleConnect}
-            disabled={connecting || loadingToken || status.status === "connected"}
-            className="w-full"
-            size="lg"
-          >
-            {connecting ? (
-              <>
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                Conectando e gerando QR Code...
-              </>
-            ) : (
-              <>
-                <QrCode className="w-5 h-5 mr-2" />
-                Conectar WhatsApp
-              </>
-            )}
-          </Button>
-          
-          {connecting && (
-            <Alert className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-800">
-              <Loader2 className="h-4 w-4 text-yellow-600 dark:text-yellow-400 animate-spin" />
-              <AlertDescription className="text-yellow-800 dark:text-yellow-200 text-sm">
-                Aguarde enquanto o QR Code está sendo gerado...
-              </AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Chatwoot Connection Card */}
-      {status.status === "connected" && (
+      {/* Conectar WhatsApp Card - Simplificado para cliente final */}
+      {status.status !== "connected" && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <MessageCircle className="w-5 h-5" />
-              Conectar Chatwoot
+              <QrCode className="w-5 h-5" />
+              Conectar WhatsApp
             </CardTitle>
             <CardDescription>
-              Configure o Chatwoot para receber e enviar mensagens
+              Conecte seu WhatsApp pessoal para começar a receber e enviar mensagens automaticamente
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="chatwoot-url">URL Base do Chatwoot</Label>
-              <Input
-                id="chatwoot-url"
-                placeholder="http://31.97.129.229:3000"
-                value={chatwootBaseUrl}
-                onChange={(e) => setChatwootBaseUrl(e.target.value)}
-                disabled={connectingChatwoot}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="chatwoot-token">Access Token</Label>
-              <Input
-                id="chatwoot-token"
-                type="password"
-                placeholder="Cole seu Access Token aqui"
-                value={chatwootAccessToken}
-                onChange={(e) => setChatwootAccessToken(e.target.value)}
-                disabled={connectingChatwoot}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="chatwoot-account-id">Account ID</Label>
-                <Input
-                  id="chatwoot-account-id"
-                  type="number"
-                  value={chatwootAccountId}
-                  onChange={(e) => setChatwootAccountId(Number(e.target.value))}
-                  disabled={connectingChatwoot}
-                />
+            {(status.status === "connecting" || connecting) && status.qrCode && (
+              <div className="space-y-4 p-4 bg-muted rounded-lg border-2 border-green-500">
+                <div className="text-center">
+                  <h3 className="font-semibold mb-2 text-green-700 dark:text-green-300">
+                    ✅ QR Code Gerado! Escaneie com seu WhatsApp
+                  </h3>
+                  <div className="flex justify-center">
+                    <img
+                      src={status.qrCode}
+                      alt="QR Code WhatsApp"
+                      className="border-2 border-primary rounded-lg p-2 bg-white max-w-xs w-full h-auto"
+                      onLoad={() => {
+                        console.log('[WhatsAppConnection] QR Code carregado com sucesso');
+                        setConnecting(false);
+                      }}
+                      onError={(e) => {
+                        console.error('[WhatsAppConnection] Erro ao carregar QR Code:', e);
+                        setError('Erro ao exibir QR Code. Tente atualizar.');
+                      }}
+                    />
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Abra o WhatsApp no seu celular → Menu → Dispositivos conectados → Conectar dispositivo
+                  </p>
+                </div>
+                <Button
+                  onClick={handleRefreshQR}
+                  disabled={loading}
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                >
+                  <QrCode className="w-4 h-4 mr-2" />
+                  Atualizar QR Code
+                </Button>
               </div>
+            )}
+            
+            {(status.status === "connecting" || connecting) && !status.qrCode && (
+              <Alert className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-800">
+                <Loader2 className="h-4 w-4 text-yellow-600 dark:text-yellow-400 animate-spin" />
+                <AlertTitle className="text-yellow-900 dark:text-yellow-100">Aguardando QR Code</AlertTitle>
+                <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+                  Aguardando geração do QR Code. Isso pode levar alguns segundos...
+                </AlertDescription>
+              </Alert>
+            )}
 
-              <div className="space-y-2">
-                <Label htmlFor="chatwoot-inbox-id">Inbox ID</Label>
-                <Input
-                  id="chatwoot-inbox-id"
-                  type="number"
-                  value={chatwootInboxId}
-                  onChange={(e) => setChatwootInboxId(Number(e.target.value))}
-                  disabled={connectingChatwoot}
-                />
-              </div>
-            </div>
-
-            <Button
-              onClick={handleConnectChatwoot}
-              disabled={connectingChatwoot || !chatwootBaseUrl.trim() || !chatwootAccessToken.trim()}
-              className="w-full"
-            >
-              {connectingChatwoot ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Conectando...
-                </>
-              ) : (
-                <>
-                  <LinkIcon className="w-4 h-4 mr-2" />
-                  Conectar Chatwoot
-                </>
-              )}
-            </Button>
+            {!connecting && status.status !== "connecting" && (
+              <Button
+                onClick={handleConnect}
+                disabled={loadingToken}
+                className="w-full"
+                size="lg"
+              >
+                <QrCode className="w-5 h-5 mr-2" />
+                Conectar WhatsApp
+              </Button>
+            )}
+            
+            {connecting && !status.qrCode && (
+              <Alert className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-800">
+                <Loader2 className="h-4 w-4 text-yellow-600 dark:text-yellow-400 animate-spin" />
+                <AlertDescription className="text-yellow-800 dark:text-yellow-200 text-sm">
+                  Aguarde enquanto o QR Code está sendo gerado...
+                </AlertDescription>
+              </Alert>
+            )}
           </CardContent>
         </Card>
       )}

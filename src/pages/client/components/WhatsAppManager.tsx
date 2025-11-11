@@ -9,7 +9,7 @@ import {
   Send,
   Upload,
   Bot,
-  Clock,
+  Info,
   RefreshCw,
   Search,
   Phone,
@@ -854,16 +854,16 @@ export default function WhatsAppManager({ siteSlug, vipPin }: WhatsAppManagerPro
           </div>
         </div>
 
-        {/* Aviso importante */}
-        <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-          <h4 className="font-medium text-yellow-300 mb-2 flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            Importante: Janela de 24 Horas do WhatsApp Business
+        {/* Aviso importante - Apenas para WhatsApp API Oficial */}
+        <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+          <h4 className="font-medium text-blue-300 mb-2 flex items-center gap-2">
+            <Info className="h-4 w-4" />
+            Informação: Envio de Mensagens
           </h4>
-          <div className="text-sm text-yellow-200 space-y-1">
-            <p>• <strong>Primeira mensagem:</strong> Só pode ser enviada usando templates pré-aprovados pela Meta.</p>
-            <p>• <strong>Após resposta do cliente:</strong> Você tem 24 horas para enviar mensagens livres (qualquer texto).</p>
-            <p>• <strong>Fora da janela:</strong> Volta a ser necessário usar templates aprovados.</p>
+          <div className="text-sm text-blue-200 space-y-1">
+            <p>• Você pode enviar mensagens livremente para seus clientes.</p>
+            <p>• As mensagens serão entregues automaticamente através do WhatsApp.</p>
+            <p>• <strong>Nota:</strong> Se você usar WhatsApp Business API oficial, há regras específicas sobre templates e janela de 24 horas.</p>
           </div>
         </div>
       </CardContent>
