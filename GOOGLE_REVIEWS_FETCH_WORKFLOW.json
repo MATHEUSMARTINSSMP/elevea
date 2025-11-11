@@ -30,7 +30,10 @@
       "name": "🔍 Webhook - Reviews Fetch",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 300],
+      "position": [
+        240,
+        300
+      ],
       "webhookId": "google-reviews-fetch"
     },
     {
@@ -41,12 +44,15 @@
       "name": "📝 Code - Normalize Input",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [
+        460,
+        300
+      ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT customer_id, site_slug, access_token, refresh_token, expires_at, scopes, status, token_type\nFROM elevea.google_credentials\nWHERE customer_id = $1 AND site_slug = $2 AND status = 'active'\nLIMIT 1",
+        "query": "SELECT customer_id, site_slug, access_token, refresh_token, expires_at, scopes, status, token_type, oauth_client_id, oauth_client_secret\nFROM elevea.google_credentials\nWHERE customer_id = $1 AND site_slug = $2 AND status = 'active'\nLIMIT 1",
         "options": {
           "queryReplacement": "=$1 → {{$json.customer_id}}\n$2 → {{$json.site_slug}}"
         }
@@ -55,7 +61,10 @@
       "name": "🔑 PostgreSQL - Get Credentials",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [680, 300],
+      "position": [
+        680,
+        300
+      ],
       "credentials": {
         "postgres": {
           "id": "S2Hp22T5AgilJMEy",
@@ -65,13 +74,29 @@
     },
     {
       "parameters": {
-        "jsCode": "// Code - Token Check\nconst inputData = $input.all();\n\nif (inputData.length === 0 || !inputData[0].json.rows || inputData[0].json.rows.length === 0) {\n  // Retornar erro que será capturado pelo Respond Error\n  return [{\n    json: {\n      success: false,\n      ok: false,\n      error: 'Credenciais não encontradas. Conecte sua conta Google primeiro.',\n      needRefresh: false,\n      needsReauth: true\n    }\n  }];\n}\n\nconst row = inputData[0].json.rows[0];\nconst access_token = row.access_token || '';\nconst refresh_token = (row.refresh_token || '').trim();\nconst expires_at = row.expires_at ? new Date(row.expires_at).getTime() : null;\nconst now = Date.now();\n\nconst hasRefreshToken = refresh_token.length > 0;\nconst isExpired = expires_at ? now > (expires_at - 300000) : false; // 5 min antes\nconst needRefresh = hasRefreshToken && (!access_token || isExpired);\nconst needsReauth = !hasRefreshToken && (!access_token || isExpired);\n\n// Se precisa re-autenticar, retornar erro\nif (needsReauth) {\n  return [{\n    json: {\n      success: false,\n      ok: false,\n      error: 'Token expirado e sem refresh_token. É necessário re-autenticar com o Google.',\n      needRefresh: false,\n      needsReauth: true\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    customer_id: row.customer_id,\n    site_slug: row.site_slug,\n    access_token: access_token,\n    refresh_token: refresh_token,\n    expires_at: expires_at ? new Date(expires_at).toISOString() : null,\n    scopes: row.scopes || '',\n    status: row.status || 'active',\n    token_type: row.token_type || 'Bearer',\n    needRefresh: needRefresh,\n    needsReauth: false\n  }\n}];"
+        "jsCode": "// Code - Token Check\nconst inputData = $input.all();\n\nif (inputData.length === 0) {\n  return [{\n    json: {\n      success: false,\n      ok: false,\n      error: 'Credenciais não encontradas. Conecte sua conta Google primeiro.',\n      needRefresh: false,\n      needsReauth: true\n    }\n  }];\n}\n\n// PostgreSQL retorna dados diretamente em json, não em json.rows\nconst row = inputData[0].json || {};\n\n// Verificar se tem os campos essenciais\nif (!row.access_token && !row.refresh_token) {\n  return [{\n    json: {\n      success: false,\n      ok: false,\n      error: 'Credenciais não encontradas. Conecte sua conta Google primeiro.',\n      needRefresh: false,\n      needsReauth: true\n    }\n  }];\n}\n\nconst access_token = row.access_token || '';\nconst refresh_token = (row.refresh_token || '').trim();\nconst expires_at = row.expires_at ? new Date(row.expires_at).getTime() : null;\nconst now = Date.now();\n\nconst hasRefreshToken = refresh_token.length > 0;\nconst isExpired = expires_at ? now > (expires_at - 300000) : false; // 5 min antes\nconst needRefresh = hasRefreshToken && (!access_token || isExpired);\nconst needsReauth = !hasRefreshToken && (!access_token || isExpired);\n\n// Se precisa re-autenticar, retornar erro\nif (needsReauth) {\n  return [{\n    json: {\n      success: false,\n      ok: false,\n      error: 'Token expirado e sem refresh_token. É necessário re-autenticar com o Google.',\n      needRefresh: false,\n      needsReauth: true\n    }\n  }];\n}\n\n// Extrair oauth_client_id e oauth_client_secret da linha do banco\nconst oauth_client_id = row.oauth_client_id || '';\nconst oauth_client_secret = row.oauth_client_secret || '';\n\nreturn [{\n  json: {\n    customer_id: row.customer_id,\n    site_slug: row.site_slug,\n    access_token: access_token,\n    refresh_token: refresh_token,\n    expires_at: expires_at ? new Date(expires_at).toISOString() : null,\n    scopes: row.scopes || '',\n    status: row.status || 'active',\n    token_type: row.token_type || 'Bearer',\n    needRefresh: needRefresh,\n    needsReauth: false,\n    oauth_client_id: oauth_client_id,\n    oauth_client_secret: oauth_client_secret\n  }\n}];"
       },
       "id": "code-token-check",
       "name": "🧪 Code - Token Check",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [900, 300]
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ⚙️ Code - OAuth Config\n// Multi-tenancy: Usar oauth_client_id e oauth_client_secret da tabela google_credentials\n// Busca diretamente da mesma linha que tem os tokens do usuário\n\nconst inputData = $input.all();\nconst tokenData = inputData.length > 0 ? inputData[0].json : {};\n\n// Buscar oauth_client_id e oauth_client_secret do Token Check (que já buscou do PostgreSQL)\nconst oauth = {\n  client_id: tokenData.oauth_client_id || '',\n  client_secret: tokenData.oauth_client_secret || '',\n  token_url: 'https://oauth2.googleapis.com/token',\n  redirect_uri: 'https://eleveaagencia.netlify.app/auth/google/callback'\n};\n\n// Validar se as credenciais estão configuradas\nif (!oauth.client_id || !oauth.client_secret) {\n  return [{\n    json: {\n      success: false,\n      ok: false,\n      error: 'Credenciais OAuth não configuradas na tabela google_credentials. Adicione oauth_client_id e oauth_client_secret na linha correspondente ao customer_id e site_slug.',\n      needsReauth: true,\n      customer_id: tokenData.customer_id || '',\n      site_slug: tokenData.site_slug || ''\n    }\n  }];\n}\n\n// Retornar dados do Token Check + credenciais OAuth\nreturn [{\n  json: {\n    customer_id: tokenData.customer_id || '',\n    site_slug: tokenData.site_slug || '',\n    access_token: tokenData.access_token || '',\n    refresh_token: tokenData.refresh_token || '',\n    expires_at: tokenData.expires_at || null,\n    scopes: tokenData.scopes || '',\n    status: tokenData.status || 'active',\n    token_type: tokenData.token_type || 'Bearer',\n    needRefresh: tokenData.needRefresh || false,\n    needsReauth: tokenData.needsReauth || false,\n    oauth: oauth   // Adicionar credenciais OAuth\n  }\n}];"
+      },
+      "id": "code-oauth-config",
+      "name": "⚙️ Code - OAuth Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        180
+      ]
     },
     {
       "parameters": {
@@ -100,22 +125,29 @@
       "name": "🔀 IF - Need Refresh?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1120, 300]
+      "position": [
+        1120,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Code - Prepare Refresh\nconst inputData = $input.all();\n\nif (inputData.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'Dados de token não encontrados',\n      needsReauth: true\n    }\n  }];\n}\n\nconst tokenData = inputData[0].json || {};\nconst refresh_token = (tokenData.refresh_token || '').trim();\n\nif (!refresh_token || refresh_token.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'refresh_token não disponível. É necessário re-autenticar com o Google.',\n      needsReauth: true,\n      customer_id: tokenData.customer_id,\n      site_slug: tokenData.site_slug\n    }\n  }];\n}\n\nconst oauth = {\n  token_url: 'https://oauth2.googleapis.com/token',\n  client_id: process.env.GOOGLE_OAUTH_CLIENT_ID || 'CONFIGURE_NO_N8N',\n  client_secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || 'CONFIGURE_NO_N8N'\n};\n\nreturn [{\n  json: {\n    url: oauth.token_url,\n    body: {\n      client_id: oauth.client_id,\n      client_secret: oauth.client_secret,\n      refresh_token: refresh_token,\n      grant_type: 'refresh_token'\n    },\n    customer_id: tokenData.customer_id,\n    site_slug: tokenData.site_slug,\n    refresh_token: refresh_token,\n    needsReauth: false\n  }\n}];"
+        "jsCode": "// Code - Prepare Refresh\nconst inputData = $input.all();\n\nif (inputData.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'Dados de token não encontrados',\n      needsReauth: true\n    }\n  }];\n}\n\nconst tokenData = inputData[0].json || {};\nconst refresh_token = (tokenData.refresh_token || '').trim();\n\nif (!refresh_token || refresh_token.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'refresh_token não disponível. É necessário re-autenticar com o Google.',\n      needsReauth: true,\n      customer_id: tokenData.customer_id,\n      site_slug: tokenData.site_slug\n    }\n  }];\n}\n\n// Buscar credenciais OAuth do input (que já vem do OAuth Config)\nconst oauthConfig = tokenData.oauth || {};\n\nif (!oauthConfig.client_id || !oauthConfig.client_secret) {\n  return [{\n    json: {\n      success: false,\n      error: 'Credenciais OAuth não encontradas no input.',\n      needsReauth: true,\n      customer_id: tokenData.customer_id,\n      site_slug: tokenData.site_slug\n    }\n  }];\n}\n\nconst oauth = {\n  token_url: oauthConfig.token_url || 'https://oauth2.googleapis.com/token',\n  client_id: oauthConfig.client_id,\n  client_secret: oauthConfig.client_secret\n};\n\nreturn [{\n  json: {\n    url: oauth.token_url,\n    body: {\n      client_id: oauth.client_id,\n      client_secret: oauth.client_secret,\n      refresh_token: refresh_token,\n      grant_type: 'refresh_token'\n    },\n    customer_id: tokenData.customer_id,\n    site_slug: tokenData.site_slug,\n    refresh_token: refresh_token,\n    needsReauth: false\n  }\n}];"
       },
       "id": "code-prepare-refresh",
       "name": "🔄 Code - Prepare Refresh",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 180]
+      "position": [
+        1120,
+        180
+      ]
     },
     {
       "parameters": {
         "url": "={{$json.url}}",
         "authentication": "none",
+        "method": "POST",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -129,11 +161,11 @@
             },
             {
               "name": "refresh_token",
-              "value": "={{$json.body.refresh_token}}"
+              "value": "={{String($json.body.refresh_token)}}"
             },
             {
               "name": "grant_type",
-              "value": "={{$json.body.grant_type}}"
+              "value": "refresh_token"
             }
           ]
         },
@@ -145,17 +177,23 @@
       "name": "🌐 HTTP - Refresh Token",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1340, 180]
+      "position": [
+        1340,
+        180
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Code - Process Refresh Response\nconst inputData = $input.all();\n\nif (inputData.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'Resposta de refresh não encontrada'\n    }\n  }];\n}\n\nconst httpResponse = inputData[0].json || {};\nconst body = httpResponse.body || httpResponse;\n\nconst access_token = body.access_token || '';\nconst expires_in = body.expires_in || 3600;\nconst expires_at = Date.now() + (expires_in * 1000);\n\n// Obter dados originais do token check\nconst tokenCheck = $('🧪 Code - Token Check').all();\nconst originalData = tokenCheck && tokenCheck.length > 0 ? tokenCheck[0].json : {};\n\nif (!access_token) {\n  return [{\n    json: {\n      success: false,\n      error: 'access_token não encontrado na resposta de refresh'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    customer_id: originalData.customer_id || '',\n    site_slug: originalData.site_slug || '',\n    access_token: access_token,\n    refresh_token: originalData.refresh_token || '',\n    expires_at: expires_at,\n    token_type: body.token_type || 'Bearer',\n    scopes: originalData.scopes || '',\n    status: 'active'\n  }\n}];"
+        "jsCode": "// Code - Process Refresh Response\nconst inputData = $input.all();\n\nif (inputData.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'Resposta de refresh não encontrada'\n    }\n  }];\n}\n\nconst httpResponse = inputData[0].json || {};\nconst body = httpResponse.body || httpResponse;\n\nconst access_token = body.access_token || '';\nconst expires_in = body.expires_in || 3600;\nconst expires_at = Date.now() + (expires_in * 1000);\n\n// Obter dados originais do Prepare Refresh (que tem customer_id e site_slug)\nconst prepareRefresh = $('🔄 Code - Prepare Refresh').all();\nconst originalData = prepareRefresh && prepareRefresh.length > 0 ? prepareRefresh[0].json : {};\n\nif (!access_token) {\n  return [{\n    json: {\n      success: false,\n      error: 'access_token não encontrado na resposta de refresh'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    customer_id: originalData.customer_id || '',\n    site_slug: originalData.site_slug || '',\n    access_token: access_token,\n    refresh_token: originalData.refresh_token || '', // Preservar refresh_token original\n    expires_at: expires_at,\n    token_type: body.token_type || 'Bearer',\n    scopes: originalData.scopes || '',\n    status: 'active'\n  }\n}];"
       },
       "id": "code-process-refresh",
       "name": "📦 Code - Process Refresh",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1560, 180]
+      "position": [
+        1560,
+        180
+      ]
     },
     {
       "parameters": {
@@ -169,7 +207,10 @@
       "name": "💾 PostgreSQL - Update Token",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [1780, 180],
+      "position": [
+        1780,
+        180
+      ],
       "credentials": {
         "postgres": {
           "id": "S2Hp22T5AgilJMEy",
@@ -187,17 +228,23 @@
       "name": "🔀 Merge - Token",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
-      "position": [2000, 300]
+      "position": [
+        2000,
+        300
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// Code - Merge Token\nconst inputData = $input.all();\n\nif (inputData.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'Nenhum dado recebido'\n    }\n  }];\n}\n\nconst firstItem = inputData[0].json || {};\nif (firstItem.success === false || firstItem.error) {\n  return [{\n    json: {\n      success: false,\n      error: firstItem.error || 'Erro ao processar token',\n      needsReauth: firstItem.needsReauth || false\n    }\n  }];\n}\n\n// Se veio do IF False (não precisa refresh), usar dados originais\nconst tokenCheck = $('🧪 Code - Token Check').all();\nif (tokenCheck && tokenCheck.length > 0 && !tokenCheck[0].json?.needRefresh) {\n  const tokenData = tokenCheck[0].json || {};\n  return [{\n    json: {\n      access_token: tokenData.access_token || '',\n      expires_at: tokenData.expires_at,\n      refresh_token: tokenData.refresh_token || '',\n      customer_id: tokenData.customer_id || '',\n      site_slug: tokenData.site_slug || ''\n    }\n  }];\n}\n\n// Se veio do PostgreSQL Update (refresh feito), usar dados atualizados\nconst updatedData = inputData[0].json || {};\nif (updatedData.access_token) {\n  return [{\n    json: {\n      access_token: updatedData.access_token,\n      expires_at: updatedData.expires_at ? new Date(updatedData.expires_at).getTime() : null,\n      refresh_token: updatedData.refresh_token || tokenCheck?.[0]?.json?.refresh_token || '',\n      customer_id: updatedData.customer_id || '',\n      site_slug: updatedData.site_slug || ''\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    success: false,\n    error: 'Não foi possível obter access_token'\n  }\n}];"
+        "jsCode": "// Code - Merge Token\nconst inputData = $input.all();\n\nif (inputData.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'Nenhum dado recebido'\n    }\n  }];\n}\n\nconst firstItem = inputData[0].json || {};\nif (firstItem.success === false || firstItem.error) {\n  return [{\n    json: {\n      success: false,\n      error: firstItem.error || 'Erro ao processar token',\n      needsReauth: firstItem.needsReauth || false\n    }\n  }];\n}\n\n// Se veio do IF False (não precisa refresh), usar dados do OAuth Config\n// Se veio do PostgreSQL Update (refresh feito), usar dados atualizados\nconst tokenData = firstItem;\n\n// Se tem access_token atualizado (veio do refresh), usar ele\n// Senão, usar access_token original do OAuth Config\nconst access_token = tokenData.access_token || '';\nconst refresh_token = tokenData.refresh_token || '';\nconst expires_at = tokenData.expires_at || null;\n\n// Preservar customer_id e site_slug\nconst customer_id = tokenData.customer_id || '';\nconst site_slug = tokenData.site_slug || '';\n\nif (!access_token) {\n  return [{\n    json: {\n      success: false,\n      error: 'Não foi possível obter access_token'\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    access_token: access_token,\n    expires_at: expires_at,\n    refresh_token: refresh_token,\n    customer_id: customer_id,\n    site_slug: site_slug,\n    token_type: tokenData.token_type || 'Bearer'\n  }\n}];"
       },
       "id": "code-merge-token",
       "name": "🔧 Code - Merge Token",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2220, 300]
+      "position": [
+        2220,
+        300
+      ]
     },
     {
       "parameters": {
@@ -219,7 +266,10 @@
       "name": "🌐 HTTP - List Accounts",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2440, 300]
+      "position": [
+        2440,
+        300
+      ]
     },
     {
       "parameters": {
@@ -229,7 +279,10 @@
       "name": "📊 Code - Process Google Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2660, 300]
+      "position": [
+        2660,
+        300
+      ]
     },
     {
       "parameters": {
@@ -250,7 +303,10 @@
       "name": "✅ Respond - Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2880, 300]
+      "position": [
+        2880,
+        300
+      ]
     },
     {
       "parameters": {
@@ -271,7 +327,10 @@
       "name": "❌ Respond - Error",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [2000, 500]
+      "position": [
+        2000,
+        500
+      ]
     }
   ],
   "connections": {
@@ -317,7 +376,7 @@
       "main": [
         [
           {
-            "node": "🔀 IF - Need Refresh?",
+            "node": "⚙️ Code - OAuth Config",
             "type": "main",
             "index": 0
           },
@@ -354,6 +413,11 @@
             "node": "🌐 HTTP - Refresh Token",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "❌ Respond - Error",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -365,6 +429,11 @@
             "node": "📦 Code - Process Refresh",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "❌ Respond - Error",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -374,6 +443,11 @@
         [
           {
             "node": "💾 PostgreSQL - Update Token",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "❌ Respond - Error",
             "type": "main",
             "index": 0
           }
@@ -407,6 +481,11 @@
         [
           {
             "node": "🌐 HTTP - List Accounts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "❌ Respond - Error",
             "type": "main",
             "index": 0
           }
@@ -445,59 +524,11 @@
         ]
       ]
     },
-    "🔄 Code - Prepare Refresh": {
+    "⚙️ Code - OAuth Config": {
       "main": [
         [
           {
-            "node": "🌐 HTTP - Refresh Token",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "❌ Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "🌐 HTTP - Refresh Token": {
-      "main": [
-        [
-          {
-            "node": "📦 Code - Process Refresh",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "❌ Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "📦 Code - Process Refresh": {
-      "main": [
-        [
-          {
-            "node": "💾 PostgreSQL - Update Token",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "❌ Respond - Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "🔧 Code - Merge Token": {
-      "main": [
-        [
-          {
-            "node": "🌐 HTTP - List Accounts",
+            "node": "🔀 IF - Need Refresh?",
             "type": "main",
             "index": 0
           },
@@ -520,4 +551,3 @@
   "updatedAt": "2024-11-09T03:20:00.000Z",
   "versionId": "1"
 }
-

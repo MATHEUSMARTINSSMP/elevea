@@ -15,6 +15,7 @@ import {
 import WhatsAppAgentManager from "./WhatsAppAgentManager";
 import WhatsAppCampaignManager from "./WhatsAppCampaignManager";
 import WhatsAppAgentConfigurator from "./WhatsAppAgentConfigurator";
+import WhatsAppConnection from "./WhatsAppConnection";
 
 export interface WhatsAppHubProps {
   siteSlug: string;
@@ -225,11 +226,16 @@ export default function WhatsAppHub({ siteSlug, vipPin }: WhatsAppHubProps) {
               </AlertDescription>
             </Alert>
             
-            <Tabs defaultValue="manager" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+            <Tabs defaultValue="connection" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="connection">🔗 Conexão</TabsTrigger>
                 <TabsTrigger value="manager">💬 Gerenciar Chat</TabsTrigger>
                 <TabsTrigger value="config">⚙️ Configurar Agente</TabsTrigger>
               </TabsList>
+              
+              <TabsContent value="connection" className="mt-4">
+                <WhatsAppConnection siteSlug={siteSlug} vipPin={vipPin} />
+              </TabsContent>
               
               <TabsContent value="manager" className="mt-4">
                 <WhatsAppAgentManager siteSlug={siteSlug} vipPin={vipPin} />

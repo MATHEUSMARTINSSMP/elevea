@@ -16,6 +16,8 @@ import {
   User
 } from "lucide-react";
 import { DashboardCardSkeleton } from "@/components/ui/loading-skeletons";
+import { useAuth } from "@/hooks/useAuth";
+import * as whatsappAPI from "@/lib/n8n-whatsapp";
 
 /* CSS de overrides para visual dark/WhatsApp */
 import "@/styles/chat-overrides.css";
@@ -159,6 +161,9 @@ const AVAILABLE_VARS = [
 
 /* ================== Componente ================== */
 export default function WhatsAppManager({ siteSlug, vipPin }: WhatsAppManagerProps) {
+  const { user } = useAuth();
+  const customerId = user?.email || "";
+  
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [bulkSending, setBulkSending] = useState(false);
@@ -212,55 +217,27 @@ export default function WhatsAppManager({ siteSlug, vipPin }: WhatsAppManagerPro
     }
     
     try {
-      const r = await fetch("/.netlify/functions/client-api", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "wa_list_messages",
-          site: siteSlug,
-          page: 1,
-          pageSize: 50,
-          pin: vipPin || undefined,
-        }),
-      });
-      
-      if (!r.ok) {
-        const errorText = await r.text();
-        throw new Error(`HTTP ${r.status}: ${errorText}`);
-      }
-      
-      const data = await r.json();
-      if (!data?.ok) {
-        throw new Error(data?.error || "Erro ao listar mensagens");
-      }
+      const messages = await whatsappAPI.listMessages(siteSlug, customerId, 50, 0);
 
-      const mapped: WaItem[] = (data.items || []).map((m: any) => {
-        // LÓGICA CORRIGIDA: Usar os campos do GAS
-        const isReceived = m.isReceived === true || m.direction === 'in';
-        const isSent = m.isReceived === false || m.direction === 'out';
-        const isAuto = m.type === "auto_response" || m.auto === true;
+      const mapped: WaItem[] = messages.map((m) => {
+        const isReceived = m.direction === 'inbound';
+        const isSent = m.direction === 'outbound';
         
         let messageType: MsgType = "sent";
         if (isReceived) {
           messageType = "received";
-        } else if (isAuto) {
-          messageType = "auto_response";
         } else if (isSent) {
           messageType = "sent";
         }
         
-        // Usar os campos já processados pelo GAS
-        const phoneNumber = String(m.phoneNumber || m.contactPhone || "");
-        const contactName = m.contactName || m.name || (phoneNumber ? fmtPhoneBR(phoneNumber) : "Contato");
-        
         return {
-          id: String(m.id ?? m.msg_id ?? Math.random()),
-          phoneNumber: phoneNumber,
-          contactName: contactName,
-          message: String(m.text || m.message || ""),
-          timestamp: String(m.timestamp || m.ts || new Date().toISOString()),
+          id: String(m.id || Math.random()),
+          phoneNumber: m.phoneNumber,
+          contactName: m.contactName || fmtPhoneBR(m.phoneNumber),
+          message: m.message,
+          timestamp: m.timestamp,
           type: messageType,
-          status: m.status as MsgStatus,
+          status: undefined as MsgStatus,
         };
       });
 
@@ -361,48 +338,27 @@ export default function WhatsAppManager({ siteSlug, vipPin }: WhatsAppManagerPro
   /* --------- auto-refresh das mensagens --------- */
   async function autoRefreshMessages() {
     try {
-      const r = await fetch("/.netlify/functions/client-api", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "wa_list_messages",
-          site: siteSlug,
-          page: 1,
-          pageSize: 50,
-          pin: vipPin || undefined,
-        }),
-      });
-      if (!r.ok) return;
-      const data = await r.json();
-      if (!data?.ok) return;
+      const messages = await whatsappAPI.listMessages(siteSlug, customerId, 50, 0);
 
-      const mapped: WaItem[] = (data.items || []).map((m: any) => {
-        // LÓGICA CORRIGIDA: Usar os campos do GAS
-        const isReceived = m.isReceived === true || m.direction === 'in';
-        const isSent = m.isReceived === false || m.direction === 'out';
-        const isAuto = m.type === "auto_response" || m.auto === true;
+      const mapped: WaItem[] = messages.map((m) => {
+        const isReceived = m.direction === 'inbound';
+        const isSent = m.direction === 'outbound';
         
         let messageType: MsgType = "sent";
         if (isReceived) {
           messageType = "received";
-        } else if (isAuto) {
-          messageType = "auto_response";
         } else if (isSent) {
           messageType = "sent";
         }
         
-        // Usar os campos já processados pelo GAS
-        const phoneNumber = String(m.phoneNumber || m.contactPhone || "");
-        const contactName = m.contactName || m.name || (phoneNumber ? fmtPhoneBR(phoneNumber) : "Contato");
-        
         return {
-          id: String(m.id ?? m.msg_id ?? Math.random()),
-          phoneNumber: phoneNumber,
-          contactName: contactName,
-          message: String(m.text || m.message || ""),
-          timestamp: String(m.timestamp || m.ts || new Date().toISOString()),
+          id: String(m.id || Math.random()),
+          phoneNumber: m.phoneNumber,
+          contactName: m.contactName || fmtPhoneBR(m.phoneNumber),
+          message: m.message,
+          timestamp: m.timestamp,
           type: messageType,
-          status: m.status as MsgStatus,
+          status: undefined as MsgStatus,
         };
       });
 
@@ -455,19 +411,16 @@ export default function WhatsAppManager({ siteSlug, vipPin }: WhatsAppManagerPro
         hora: nowTime(),
       });
 
-      const r = await fetch("/.netlify/functions/client-api", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "wa_send_text",
-          site: siteSlug,
-          to: toE164CellBR(phone),
-          text: msg,
-          pin: vipPin || undefined,
-        }),
-      });
-      const data = await r.json();
-      if (!r.ok || !data?.ok) throw new Error(data?.error || "Erro ao enviar");
+      const result = await whatsappAPI.sendMessage(
+        siteSlug,
+        customerId,
+        toE164CellBR(phone),
+        msg
+      );
+      
+      if (!result.success) {
+        throw new Error(result.error || "Erro ao enviar");
+      }
 
       // Criar mensagem enviada
       const sentMessage = {
@@ -516,25 +469,14 @@ export default function WhatsAppManager({ siteSlug, vipPin }: WhatsAppManagerPro
   /* --------- carregar contatos --------- */
   async function loadContacts() {
     try {
-      const r = await fetch("/.netlify/functions/client-api", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "wa_list_contacts",
-          site: siteSlug,
-          pin: vipPin || undefined,
-        }),
-      });
-      if (!r.ok) {
-        console.error("Erro ao carregar contatos:", r.status);
-        return;
-      }
-      const data = await r.json();
-      console.log("Dados dos contatos:", data);
+      const contactsData = await whatsappAPI.listContacts(siteSlug, customerId);
       
-      if (data?.ok && data.contacts && data.contacts.length > 0) {
-        console.log('Contatos carregados da API:', data.contacts);
-        setContacts(data.contacts);
+      if (contactsData && contactsData.length > 0) {
+        const formattedContacts = contactsData.map(c => ({
+          phone: c.phoneNumber,
+          name: c.name || fmtPhoneBR(c.phoneNumber)
+        }));
+        setContacts(formattedContacts);
       } else {
         // Fallback: criar contatos baseados nas mensagens
         console.log('Criando contatos baseados nas mensagens...');
@@ -609,20 +551,8 @@ export default function WhatsAppManager({ siteSlug, vipPin }: WhatsAppManagerPro
   /* --------- carregar templates --------- */
   async function loadTemplates() {
     try {
-      const r = await fetch("/.netlify/functions/client-api", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "wa_get_templates",
-          site: siteSlug,
-          pin: vipPin || undefined,
-        }),
-      });
-      if (!r.ok) return;
-      const data = await r.json();
-      if (data?.ok && data.templates) {
-        // Implementar uso de templates se necessário
-      }
+      // Templates ainda não implementados na nova API
+      console.warn("Templates não implementados na nova API n8n");
     } catch (e) {
       console.error("Erro ao carregar templates:", e);
     }

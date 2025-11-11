@@ -59,9 +59,9 @@ async function post<T = any>(path: string, body: Json): Promise<T> {
   try {
     console.log(`[n8n] Tentando fazer POST para: ${finalUrl}`);
     res = await fetch(finalUrl, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body ?? {}),
+    method: "POST",
+    headers,
+    body: JSON.stringify(body ?? {}),
       mode: 'cors', // Garantir que está usando CORS
       credentials: 'omit', // Não enviar cookies
     });

@@ -45,16 +45,16 @@ export default function GoogleCallback() {
           const { n8n } = await import('@/lib/n8n');
           
           const result = await n8n.googleAuthCallback({
-            code,
-            state,
+              code,
+              state,
             redirect_uri: window.location.origin + '/auth/google/callback',
-            siteSlug,
-            userEmail
+              siteSlug,
+              userEmail
           });
           
           if (result.success || result.connected) {
-            // Sucesso - redirecionar para dashboard
-            window.location.replace(`/client/dashboard?gmb=ok&site=${encodeURIComponent(siteSlug)}`);
+          // Sucesso - redirecionar para dashboard
+          window.location.replace(`/client/dashboard?gmb=ok&site=${encodeURIComponent(siteSlug)}`);
           } else {
             throw new Error(result.error || 'Erro desconhecido na autenticação');
           }

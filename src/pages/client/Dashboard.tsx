@@ -31,7 +31,7 @@ import * as n8nSites from "@/lib/n8n-sites";
 import { Card as UICard, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Search, Info, Instagram } from "lucide-react";
+import { Search, Info, Instagram, MessageCircle } from "lucide-react";
 
 // === Extras / UI ===
 import { AICopywriter } from "@/components/ui/ai-copywriter";
@@ -1058,7 +1058,76 @@ useEffect(() => {
               </section>
             )}
 
-            {/* Instagram Hub - Logo abaixo de Analytics */}
+            {/* WhatsApp Hub - Logo abaixo de Analytics */}
+            {isFeatureEnabled("whatsapp-chatbot") && (
+              <section className="space-y-8">
+                {/* Header Geral */}
+                <div className="text-center space-y-2 pb-2">
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-green-500 via-green-600 to-green-500 bg-clip-text text-transparent">
+                    WhatsApp Business
+                  </h1>
+                  <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+                    Gestão completa do WhatsApp com multi-tenancy: conecte, gerencie mensagens e automatize atendimento
+                  </p>
+                </div>
+
+                {/* Separador Visual */}
+                <div className="relative">
+                  <Separator className="my-8" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="bg-background px-4">
+                      <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+                        Comunicação e Atendimento
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card Principal */}
+                <UICard className="border-2 border-green-500/20 bg-gradient-to-br from-background to-green-500/5 shadow-lg">
+                  <CardContent className="p-6">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h2 className="text-xl font-bold text-foreground">WhatsApp Manager</h2>
+                          <Badge variant="outline" className="text-xs">Multi-tenant</Badge>
+                          <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/50">
+                            UAZAPI + Chatwoot
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Conecte seu WhatsApp via QR Code, gerencie mensagens e automatize atendimento com IA
+                        </p>
+                      </div>
+                      <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
+                        <MessageCircle className="h-5 w-5 text-white" />
+                      </div>
+                    </div>
+                    
+                    <div className="bg-green-50/50 dark:bg-green-950/20 rounded-lg p-3 mb-4 border border-green-200/50 dark:border-green-800/50">
+                      <div className="flex items-start gap-2">
+                        <Info className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                        <div className="text-xs text-green-900 dark:text-green-100 space-y-1">
+                          <p className="font-medium">O que é este sistema?</p>
+                          <p>
+                            Sistema completo de gestão WhatsApp multi-tenancy. Conecte seu WhatsApp via QR Code,
+                            gerencie todas as mensagens em um só lugar, integre com Chatwoot para atendimento profissional,
+                            e automatize respostas com IA. Cada cliente tem sua própria conexão isolada.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <WhatsAppHub
+                      siteSlug={user?.siteSlug || ""}
+                      vipPin={vipPin || "FORCED"}
+                    />
+                  </CardContent>
+                </UICard>
+              </section>
+            )}
+
+            {/* Instagram Hub - Logo abaixo de WhatsApp */}
             {isFeatureEnabled("instagram-hub") && (
               <section className="space-y-8">
                 {/* Header Geral */}
@@ -1320,12 +1389,6 @@ useEffect(() => {
               </section>
             )}
 
-            {/* WhatsApp Hub - Logo acima de Em Desenvolvimento */}
-            {isFeatureEnabled("whatsapp-chatbot") && (
-              <section className="space-y-6">
-                <WhatsAppHub siteSlug={user?.siteSlug || ""} vipPin={vipPin || "FORCED"} />
-              </section>
-            )}
 
             <div className="mt-12 mb-8">
               <h2 className="text-2xl font-bold dashboard-text mb-2">🔧 Em Desenvolvimento</h2>
