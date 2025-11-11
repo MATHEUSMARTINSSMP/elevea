@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Link as LinkIcon,
   Phone,
+  Info,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import * as whatsappAPI from "@/lib/n8n-whatsapp";
@@ -29,6 +30,7 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
   const customerId = user?.email || "";
 
   const [uazapiToken, setUazapiToken] = useState("");
+  const [loadingToken, setLoadingToken] = useState(true);
   const [status, setStatus] = useState<whatsappAPI.WhatsAppCredentials>({
     connected: false,
     status: "disconnected",
@@ -44,12 +46,29 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
   const [chatwootInboxId, setChatwootInboxId] = useState(1);
   const [connectingChatwoot, setConnectingChatwoot] = useState(false);
 
-  // Verificar status ao carregar
+  // Buscar token e status ao carregar
   useEffect(() => {
     if (siteSlug && customerId) {
-      checkStatus();
+      loadTokenAndStatus();
     }
   }, [siteSlug, customerId]);
+
+  async function loadTokenAndStatus() {
+    setLoadingToken(true);
+    try {
+      // Buscar status primeiro (que pode conter o token)
+      const statusResult = await whatsappAPI.checkStatus(siteSlug, customerId);
+      setStatus(statusResult);
+      
+      // Se não tiver token, tentar buscar do banco via API
+      // Por enquanto, vamos tentar conectar sem token explícito
+      // O backend deve buscar do banco de dados
+    } catch (err: any) {
+      console.error('[WhatsAppConnection] Erro ao carregar:', err);
+    } finally {
+      setLoadingToken(false);
+    }
+  }
 
   // Polling para verificar status quando está conectando
   useEffect(() => {
@@ -84,16 +103,15 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
   }
 
   async function handleConnect() {
-    if (!uazapiToken.trim()) {
-      setError("Token UAZAPI é obrigatório");
-      return;
-    }
-
     setConnecting(true);
     setError(null);
 
     try {
-      const result = await whatsappAPI.connectUAZAPI(siteSlug, customerId, uazapiToken);
+      // Usar token do estado ou string vazia (backend buscará do banco)
+      const tokenToUse = uazapiToken.trim() || '';
+      
+      console.log('[WhatsAppConnection] Iniciando conexão...');
+      const result = await whatsappAPI.connectUAZAPI(siteSlug, customerId, tokenToUse);
       console.log('[WhatsAppConnection] Resultado do connect:', result);
       
       setStatus(result);
@@ -103,6 +121,16 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
       } else if (result.qrCode) {
         // QR Code recebido com sucesso
         console.log('[WhatsAppConnection] QR Code recebido, tamanho:', result.qrCode.length);
+        // Forçar atualização do status para garantir que o QR code apareça
+        setTimeout(() => {
+          checkStatus();
+        }, 1000);
+      } else if (result.status === 'connecting') {
+        // Se está conectando mas não tem QR code ainda, aguardar um pouco e verificar novamente
+        console.log('[WhatsAppConnection] Status connecting, aguardando QR code...');
+        setTimeout(() => {
+          checkStatus();
+        }, 2000);
       }
     } catch (err: any) {
       console.error('[WhatsAppConnection] Erro ao conectar:', err);
@@ -297,28 +325,19 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="uazapi-token">Token UAZAPI (Admin Token)</Label>
-            <Input
-              id="uazapi-token"
-              type="password"
-              placeholder="Cole seu Admin Token aqui"
-              value={uazapiToken}
-              onChange={(e) => setUazapiToken(e.target.value)}
-              disabled={connecting || status.status === "connected"}
-            />
-            <p className="text-xs text-muted-foreground">
-              Obtenha o token em:{" "}
-              <a
-                href="https://uazapi.dev/interno"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                https://uazapi.dev/interno
-              </a>
-            </p>
-          </div>
+          {loadingToken ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="w-5 h-5 animate-spin mr-2" />
+              <span className="text-sm text-muted-foreground">Carregando configurações...</span>
+            </div>
+          ) : (
+            <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800">
+              <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <AlertDescription className="text-blue-800 dark:text-blue-200 text-sm">
+                O token será buscado automaticamente do banco de dados. Clique em "Conectar WhatsApp" para iniciar.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {status.status === "connecting" && status.qrCode && (
             <div className="space-y-4 p-4 bg-muted rounded-lg">
@@ -386,21 +405,31 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
 
           <Button
             onClick={handleConnect}
-            disabled={connecting || !uazapiToken.trim() || status.status === "connected"}
+            disabled={connecting || loadingToken || status.status === "connected"}
             className="w-full"
+            size="lg"
           >
             {connecting ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Conectando...
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Conectando e gerando QR Code...
               </>
             ) : (
               <>
-                <QrCode className="w-4 h-4 mr-2" />
+                <QrCode className="w-5 h-5 mr-2" />
                 Conectar WhatsApp
               </>
             )}
           </Button>
+          
+          {connecting && (
+            <Alert className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-800">
+              <Loader2 className="h-4 w-4 text-yellow-600 dark:text-yellow-400 animate-spin" />
+              <AlertDescription className="text-yellow-800 dark:text-yellow-200 text-sm">
+                Aguarde enquanto o QR Code está sendo gerado...
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
 
