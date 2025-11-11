@@ -377,50 +377,19 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
                   ✅ QR Code Gerado! Escaneie com seu WhatsApp
                 </h3>
                 <div className="flex justify-center">
-                  {status.qrCode.startsWith('data:') ? (
-                    <img
-                      src={status.qrCode}
-                      alt="QR Code WhatsApp"
-                      className="border-2 border-primary rounded-lg p-2 bg-white max-w-xs"
-                      onLoad={() => {
-                        console.log('[WhatsAppConnection] QR Code carregado com sucesso (data URI)');
-                        setConnecting(false); // Fechar loading quando QR code carregar
-                      }}
-                      onError={(e) => {
-                        console.error('[WhatsAppConnection] Erro ao carregar QR Code (data URI):', e);
-                        setError('Erro ao exibir QR Code. Tente atualizar.');
-                      }}
-                    />
-                  ) : status.qrCode.startsWith('http') ? (
-                    <img
-                      src={status.qrCode}
-                      alt="QR Code WhatsApp"
-                      className="border-2 border-primary rounded-lg p-2 bg-white max-w-xs"
-                      onLoad={() => {
-                        console.log('[WhatsAppConnection] QR Code carregado com sucesso (URL)');
-                        setConnecting(false); // Fechar loading quando QR code carregar
-                      }}
-                      onError={(e) => {
-                        console.error('[WhatsAppConnection] Erro ao carregar QR Code (URL):', e);
-                        setError('Erro ao exibir QR Code. Tente atualizar.');
-                      }}
-                    />
-                  ) : (
-                    <img
-                      src={`data:image/png;base64,${status.qrCode}`}
-                      alt="QR Code WhatsApp"
-                      className="border-2 border-primary rounded-lg p-2 bg-white max-w-xs"
-                      onLoad={() => {
-                        console.log('[WhatsAppConnection] QR Code carregado com sucesso (base64)');
-                        setConnecting(false); // Fechar loading quando QR code carregar
-                      }}
-                      onError={(e) => {
-                        console.error('[WhatsAppConnection] Erro ao carregar QR Code (base64):', e);
-                        console.error('[WhatsAppConnection] QR Code preview:', status.qrCode.substring(0, 100));
-                        setError('Erro ao exibir QR Code. Tente atualizar.');
-                      }}
-                    />
-                  )}
+                  <img
+                    src={status.qrCode}
+                    alt="QR Code WhatsApp"
+                    className="border-2 border-primary rounded-lg p-2 bg-white max-w-xs w-full h-auto"
+                    onLoad={() => {
+                      console.log('[WhatsAppConnection] QR Code carregado com sucesso');
+                      setConnecting(false);
+                    }}
+                    onError={(e) => {
+                      console.error('[WhatsAppConnection] Erro ao carregar QR Code:', e);
+                      setError('Erro ao exibir QR Code. Tente atualizar.');
+                    }}
+                  />
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">
                   Abra o WhatsApp no seu celular → Menu → Dispositivos conectados → Conectar dispositivo

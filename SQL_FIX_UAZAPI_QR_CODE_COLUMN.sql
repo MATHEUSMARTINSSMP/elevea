@@ -28,3 +28,4 @@ WHERE table_schema = 'elevea'
 -- Comentário na coluna
 COMMENT ON COLUMN elevea.whatsapp_credentials.uazapi_qr_code IS 'QR Code em formato data URI (data:image/png;base64,...) - pode ser muito grande';
 
+

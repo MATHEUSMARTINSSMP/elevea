@@ -57,10 +57,18 @@ export async function connectUAZAPI(
     console.log('[WhatsApp] Resposta do connect:', data);
     
     // Verificar diferentes formatos de resposta
-    const qrCode = data.qrCode || data.qr_code || data.qrcode || null;
+    let qrCode = data.qrCode || data.qr_code || data.qrcode || null;
     const instanceId = data.instanceId || data.instance_id || null;
     const phoneNumber = data.phoneNumber || data.phone_number || null;
     const status = data.status || (qrCode ? 'connecting' : (phoneNumber ? 'connected' : 'disconnected'));
+    
+    // Garantir que o QR code tenha o prefixo data:image/png;base64, se necessário
+    if (qrCode && typeof qrCode === 'string') {
+      // Se não começa com "data:" e não é uma URL, adicionar prefixo
+      if (!qrCode.startsWith('data:') && !qrCode.startsWith('http')) {
+        qrCode = `data:image/png;base64,${qrCode}`;
+      }
+    }
     
     return {
       connected: data.ok === true || data.success === true || (status === 'connected'),
@@ -94,10 +102,18 @@ export async function checkStatus(
     console.log('[WhatsApp] Resposta do status:', data);
     
     // Verificar diferentes formatos de resposta
-    const qrCode = data.qrCode || data.qr_code || data.qrcode || null;
+    let qrCode = data.qrCode || data.qr_code || data.qrcode || null;
     const instanceId = data.instanceId || data.instance_id || null;
     const phoneNumber = data.phoneNumber || data.phone_number || null;
     const status = data.status || (qrCode ? 'connecting' : (phoneNumber ? 'connected' : 'disconnected'));
+    
+    // Garantir que o QR code tenha o prefixo data:image/png;base64, se necessário
+    if (qrCode && typeof qrCode === 'string') {
+      // Se não começa com "data:" e não é uma URL, adicionar prefixo
+      if (!qrCode.startsWith('data:') && !qrCode.startsWith('http')) {
+        qrCode = `data:image/png;base64,${qrCode}`;
+      }
+    }
     
     return {
       connected: data.connected === true || status === 'connected',
