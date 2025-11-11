@@ -10,7 +10,6 @@ import {
   Megaphone,
   Info,
   CheckCircle,
-  ArrowLeft,
 } from "lucide-react";
 import WhatsAppAgentManager from "./WhatsAppAgentManager";
 import WhatsAppCampaignManager from "./WhatsAppCampaignManager";
