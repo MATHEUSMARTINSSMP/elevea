@@ -54,14 +54,23 @@ export async function connectUAZAPI(
       uazapiToken,
     });
     
+    console.log('[WhatsApp] Resposta do connect:', data);
+    
+    // Verificar diferentes formatos de resposta
+    const qrCode = data.qrCode || data.qr_code || data.qrcode || null;
+    const instanceId = data.instanceId || data.instance_id || null;
+    const phoneNumber = data.phoneNumber || data.phone_number || null;
+    const status = data.status || (qrCode ? 'connecting' : (phoneNumber ? 'connected' : 'disconnected'));
+    
     return {
-      connected: data.ok === true,
-      status: data.status || (data.qrCode ? 'connecting' : 'connected'),
-      qrCode: data.qrCode || null,
-      instanceId: data.instanceId || null,
-      phoneNumber: data.phoneNumber || null,
+      connected: data.ok === true || data.success === true || (status === 'connected'),
+      status: status,
+      qrCode: qrCode,
+      instanceId: instanceId,
+      phoneNumber: phoneNumber,
     };
   } catch (error: any) {
+    console.error('[WhatsApp] Erro ao conectar UAZAPI:', error);
     return {
       connected: false,
       status: 'error',
@@ -82,14 +91,23 @@ export async function checkStatus(
       `/api/whatsapp/auth/status?siteSlug=${encodeURIComponent(siteSlug)}&customerId=${encodeURIComponent(customerId)}`
     );
     
+    console.log('[WhatsApp] Resposta do status:', data);
+    
+    // Verificar diferentes formatos de resposta
+    const qrCode = data.qrCode || data.qr_code || data.qrcode || null;
+    const instanceId = data.instanceId || data.instance_id || null;
+    const phoneNumber = data.phoneNumber || data.phone_number || null;
+    const status = data.status || (qrCode ? 'connecting' : (phoneNumber ? 'connected' : 'disconnected'));
+    
     return {
-      connected: data.connected === true,
-      status: data.status || 'disconnected',
-      qrCode: data.qrCode || null,
-      instanceId: data.instanceId || null,
-      phoneNumber: data.phoneNumber || null,
+      connected: data.connected === true || status === 'connected',
+      status: status,
+      qrCode: qrCode,
+      instanceId: instanceId,
+      phoneNumber: phoneNumber,
     };
   } catch (error: any) {
+    console.error('[WhatsApp] Erro ao verificar status:', error);
     return {
       connected: false,
       status: 'error',

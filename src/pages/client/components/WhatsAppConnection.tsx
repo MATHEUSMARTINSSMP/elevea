@@ -94,12 +94,18 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
 
     try {
       const result = await whatsappAPI.connectUAZAPI(siteSlug, customerId, uazapiToken);
+      console.log('[WhatsAppConnection] Resultado do connect:', result);
+      
       setStatus(result);
 
       if (result.error) {
         setError(result.error);
+      } else if (result.qrCode) {
+        // QR Code recebido com sucesso
+        console.log('[WhatsAppConnection] QR Code recebido, tamanho:', result.qrCode.length);
       }
     } catch (err: any) {
+      console.error('[WhatsAppConnection] Erro ao conectar:', err);
       setError(err.message || "Erro ao conectar UAZAPI");
       setStatus({
         connected: false,
@@ -319,11 +325,37 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
               <div className="text-center">
                 <h3 className="font-semibold mb-2">Escaneie o QR Code com seu WhatsApp</h3>
                 <div className="flex justify-center">
-                  <img
-                    src={`data:image/png;base64,${status.qrCode}`}
-                    alt="QR Code WhatsApp"
-                    className="border-2 border-primary rounded-lg p-2 bg-white max-w-xs"
-                  />
+                  {status.qrCode.startsWith('data:') ? (
+                    <img
+                      src={status.qrCode}
+                      alt="QR Code WhatsApp"
+                      className="border-2 border-primary rounded-lg p-2 bg-white max-w-xs"
+                      onError={(e) => {
+                        console.error('[WhatsAppConnection] Erro ao carregar QR Code:', e);
+                        setError('Erro ao exibir QR Code. Tente atualizar.');
+                      }}
+                    />
+                  ) : status.qrCode.startsWith('http') ? (
+                    <img
+                      src={status.qrCode}
+                      alt="QR Code WhatsApp"
+                      className="border-2 border-primary rounded-lg p-2 bg-white max-w-xs"
+                      onError={(e) => {
+                        console.error('[WhatsAppConnection] Erro ao carregar QR Code:', e);
+                        setError('Erro ao exibir QR Code. Tente atualizar.');
+                      }}
+                    />
+                  ) : (
+                    <img
+                      src={`data:image/png;base64,${status.qrCode}`}
+                      alt="QR Code WhatsApp"
+                      className="border-2 border-primary rounded-lg p-2 bg-white max-w-xs"
+                      onError={(e) => {
+                        console.error('[WhatsAppConnection] Erro ao carregar QR Code:', e);
+                        setError('Erro ao exibir QR Code. Tente atualizar.');
+                      }}
+                    />
+                  )}
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">
                   Abra o WhatsApp no seu celular → Menu → Dispositivos conectados → Conectar dispositivo
@@ -340,6 +372,16 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
                 Atualizar QR Code
               </Button>
             </div>
+          )}
+          
+          {status.status === "connecting" && !status.qrCode && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Aguardando QR Code</AlertTitle>
+              <AlertDescription>
+                Aguardando geração do QR Code. Isso pode levar alguns segundos...
+              </AlertDescription>
+            </Alert>
           )}
 
           <Button

@@ -92,18 +92,46 @@ export async function post<T = any>(path: string, body: Json): Promise<T> {
   
   if (isJson) {
     try {
-      data = await res.json();
-    } catch (parseError) {
+      const text = await res.text();
+      if (!text || text.trim() === '') {
+        console.warn(`[n8n] Resposta vazia do servidor (HTTP ${res.status})`);
+        data = {};
+      } else {
+        data = JSON.parse(text);
+      }
+    } catch (parseError: any) {
       console.error(`[n8n] Erro ao fazer parse do JSON:`, parseError);
-      const text = await res.text().catch(() => '');
-      console.error(`[n8n] Resposta em texto:`, text);
-      throw new Error(`Erro ao processar resposta do servidor (HTTP ${res.status}): ${text.substring(0, 100)}`);
+      
+      // Não podemos ler o texto novamente, então usar o erro
+      const errorText = parseError.message || 'Resposta inválida';
+      
+      // Se a resposta não for JSON válido mas o status for OK, tentar retornar objeto vazio
+      if (res.ok) {
+        console.warn(`[n8n] Resposta não-JSON válida mas status OK, retornando objeto vazio`);
+        return {} as T;
+      }
+      
+      throw new Error(`Erro ao processar resposta do servidor (HTTP ${res.status}): ${errorText}`);
     }
   } else {
     // Se não for JSON, tentar ler como texto
     const text = await res.text().catch(() => '');
+    
+    // Se o status for OK mas não for JSON, pode ser uma resposta vazia válida
+    if (res.ok && text.trim() === '') {
+      console.warn(`[n8n] Resposta não-JSON vazia mas status OK, retornando objeto vazio`);
+      return {} as T;
+    }
+    
     console.error(`[n8n] Resposta não é JSON. Status: ${res.status}, Content-Type: ${contentType}, Texto: ${text.substring(0, 200)}`);
-    data = { error: `Resposta inválida do servidor (HTTP ${res.status})`, raw: text.substring(0, 200) };
+    
+    // Se não for OK, lançar erro
+    if (!res.ok) {
+      throw new Error(`Resposta inválida do servidor (HTTP ${res.status}): ${text.substring(0, 200)}`);
+    }
+    
+    // Se for OK mas não JSON, retornar objeto vazio
+    data = {};
   }
   
   if (!res.ok) {
