@@ -28,7 +28,7 @@ function url(path: string) {
   return fullUrl;
 }
 
-async function post<T = any>(path: string, body: Json): Promise<T> {
+export async function post<T = any>(path: string, body: Json): Promise<T> {
   const finalUrl = url(path);
   
   // Verificar se temos uma URL válida
@@ -127,7 +127,7 @@ async function post<T = any>(path: string, body: Json): Promise<T> {
   return data as T;
 }
 
-async function get<T = any>(path: string): Promise<T> {
+export async function get<T = any>(path: string): Promise<T> {
   const finalUrl = url(path);
   
   // Verificar se temos uma URL válida
