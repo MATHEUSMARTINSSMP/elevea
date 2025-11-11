@@ -89,14 +89,42 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
 
     try {
       const result = await whatsappAPI.checkStatus(siteSlug, customerId);
-      setStatus(result);
+      console.log('[WhatsAppConnection] Status verificado:', result);
+      
+      // Preservar QR code se já existir e não vier na nova resposta
+      setStatus((prevStatus) => {
+        const newStatus = { ...result };
+        
+        // Se tinha QR code antes e não veio na resposta, preservar
+        if (prevStatus.qrCode && !newStatus.qrCode && newStatus.status === 'connecting') {
+          console.log('[WhatsAppConnection] Preservando QR code anterior');
+          newStatus.qrCode = prevStatus.qrCode;
+        }
+        
+        // Se recebeu QR code, NÃO fechar connecting ainda - deixar o QR code aparecer
+        if (newStatus.qrCode) {
+          console.log('[WhatsAppConnection] QR code encontrado no status, mantendo connecting para exibir');
+          // NÃO fechar connecting aqui - o onLoad da imagem vai fechar
+        }
+        
+        // Se conectou completamente, aí sim fechar connecting
+        if (newStatus.status === 'connected') {
+          console.log('[WhatsAppConnection] Conectado! Fechando connecting');
+          setConnecting(false);
+        }
+        
+        return newStatus;
+      });
     } catch (err: any) {
+      console.error('[WhatsAppConnection] Erro ao verificar status:', err);
       setError(err.message || "Erro ao verificar status");
-      setStatus({
+      setStatus((prevStatus) => ({
+        ...prevStatus,
         connected: false,
         status: "error",
         error: err.message,
-      });
+      }));
+      setConnecting(false);
     } finally {
       setLoading(false);
     }
@@ -114,23 +142,26 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
       const result = await whatsappAPI.connectUAZAPI(siteSlug, customerId, tokenToUse);
       console.log('[WhatsAppConnection] Resultado do connect:', result);
       
+      // Sempre atualizar o status com a resposta
       setStatus(result);
 
       if (result.error) {
         setError(result.error);
+        setConnecting(false);
       } else if (result.qrCode) {
         // QR Code recebido com sucesso
         console.log('[WhatsAppConnection] QR Code recebido, tamanho:', result.qrCode.length);
-        // Forçar atualização do status para garantir que o QR code apareça
-        setTimeout(() => {
-          checkStatus();
-        }, 1000);
+        // Manter connecting = true para mostrar o QR code
+        // O estado será atualizado pelo polling quando conectar
       } else if (result.status === 'connecting') {
-        // Se está conectando mas não tem QR code ainda, aguardar um pouco e verificar novamente
+        // Se está conectando mas não tem QR code ainda, aguardar e verificar
         console.log('[WhatsAppConnection] Status connecting, aguardando QR code...');
-        setTimeout(() => {
-          checkStatus();
-        }, 2000);
+        // Manter connecting = true e aguardar polling buscar o QR code
+        // O polling já está configurado para verificar quando status === "connecting"
+      } else {
+        // Se não está connecting e não tem QR code, pode ter dado erro silencioso
+        console.warn('[WhatsAppConnection] Resposta sem QR code e sem status connecting:', result);
+        setConnecting(false);
       }
     } catch (err: any) {
       console.error('[WhatsAppConnection] Erro ao conectar:', err);
@@ -140,9 +171,9 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
         status: "error",
         error: err.message,
       });
-    } finally {
       setConnecting(false);
     }
+    // Não fechar connecting no finally - deixar o polling gerenciar
   }
 
   async function handleDisconnect() {
@@ -339,18 +370,24 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
             </Alert>
           )}
 
-          {status.status === "connecting" && status.qrCode && (
-            <div className="space-y-4 p-4 bg-muted rounded-lg">
+          {(status.status === "connecting" || connecting) && status.qrCode && (
+            <div className="space-y-4 p-4 bg-muted rounded-lg border-2 border-green-500">
               <div className="text-center">
-                <h3 className="font-semibold mb-2">Escaneie o QR Code com seu WhatsApp</h3>
+                <h3 className="font-semibold mb-2 text-green-700 dark:text-green-300">
+                  ✅ QR Code Gerado! Escaneie com seu WhatsApp
+                </h3>
                 <div className="flex justify-center">
                   {status.qrCode.startsWith('data:') ? (
                     <img
                       src={status.qrCode}
                       alt="QR Code WhatsApp"
                       className="border-2 border-primary rounded-lg p-2 bg-white max-w-xs"
+                      onLoad={() => {
+                        console.log('[WhatsAppConnection] QR Code carregado com sucesso (data URI)');
+                        setConnecting(false); // Fechar loading quando QR code carregar
+                      }}
                       onError={(e) => {
-                        console.error('[WhatsAppConnection] Erro ao carregar QR Code:', e);
+                        console.error('[WhatsAppConnection] Erro ao carregar QR Code (data URI):', e);
                         setError('Erro ao exibir QR Code. Tente atualizar.');
                       }}
                     />
@@ -359,8 +396,12 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
                       src={status.qrCode}
                       alt="QR Code WhatsApp"
                       className="border-2 border-primary rounded-lg p-2 bg-white max-w-xs"
+                      onLoad={() => {
+                        console.log('[WhatsAppConnection] QR Code carregado com sucesso (URL)');
+                        setConnecting(false); // Fechar loading quando QR code carregar
+                      }}
                       onError={(e) => {
-                        console.error('[WhatsAppConnection] Erro ao carregar QR Code:', e);
+                        console.error('[WhatsAppConnection] Erro ao carregar QR Code (URL):', e);
                         setError('Erro ao exibir QR Code. Tente atualizar.');
                       }}
                     />
@@ -369,8 +410,13 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
                       src={`data:image/png;base64,${status.qrCode}`}
                       alt="QR Code WhatsApp"
                       className="border-2 border-primary rounded-lg p-2 bg-white max-w-xs"
+                      onLoad={() => {
+                        console.log('[WhatsAppConnection] QR Code carregado com sucesso (base64)');
+                        setConnecting(false); // Fechar loading quando QR code carregar
+                      }}
                       onError={(e) => {
-                        console.error('[WhatsAppConnection] Erro ao carregar QR Code:', e);
+                        console.error('[WhatsAppConnection] Erro ao carregar QR Code (base64):', e);
+                        console.error('[WhatsAppConnection] QR Code preview:', status.qrCode.substring(0, 100));
                         setError('Erro ao exibir QR Code. Tente atualizar.');
                       }}
                     />
@@ -393,12 +439,14 @@ export default function WhatsAppConnection({ siteSlug, vipPin }: WhatsAppConnect
             </div>
           )}
           
-          {status.status === "connecting" && !status.qrCode && (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Aguardando QR Code</AlertTitle>
-              <AlertDescription>
+          {(status.status === "connecting" || connecting) && !status.qrCode && (
+            <Alert className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20 dark:border-yellow-800">
+              <Loader2 className="h-4 w-4 text-yellow-600 dark:text-yellow-400 animate-spin" />
+              <AlertTitle className="text-yellow-900 dark:text-yellow-100">Aguardando QR Code</AlertTitle>
+              <AlertDescription className="text-yellow-800 dark:text-yellow-200">
                 Aguardando geração do QR Code. Isso pode levar alguns segundos...
+                <br />
+                <span className="text-xs">Status: {status.status || 'processando...'}</span>
               </AlertDescription>
             </Alert>
           )}
