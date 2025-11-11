@@ -17,10 +17,15 @@ ORDER BY ordinal_position;
 -- ============================================
 -- 2. CORRIGIR COLUNA uazapi_qr_code
 -- ============================================
--- Alterar de VARCHAR(50) para TEXT (suporta QR codes grandes)
+-- Alterar de VARCHAR(50) para TEXT (sem limite) ou VARCHAR(9999)
+-- TEXT é recomendado pois não tem limite de tamanho
 
 ALTER TABLE elevea.whatsapp_credentials
 ALTER COLUMN uazapi_qr_code TYPE TEXT;
+
+-- OU se preferir limite explícito (não recomendado):
+-- ALTER TABLE elevea.whatsapp_credentials
+-- ALTER COLUMN uazapi_qr_code TYPE VARCHAR(9999);
 
 -- Comentário na coluna
 COMMENT ON COLUMN elevea.whatsapp_credentials.uazapi_qr_code IS 'QR Code em formato data URI (data:image/png;base64,...) - pode ser muito grande';
