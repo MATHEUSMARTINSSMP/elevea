@@ -29,12 +29,14 @@ export interface WhatsAppMessage {
   timestamp: string;
   messageType?: string;
   contactName?: string;
+  profilePicUrl?: string | null;
 }
 
 export interface WhatsAppContact {
   id?: string;
   phoneNumber: string;
   name: string;
+  profilePicUrl?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -210,6 +212,7 @@ export async function listMessages(
       timestamp: m.timestamp || m.created_at,
       messageType: m.message_type || 'text',
       contactName: m.contact_name || m.name,
+      profilePicUrl: m.profile_pic_url || m.profilePicUrl || m.avatar_url || null,
     }));
   } catch (error: any) {
     console.error('Erro ao listar mensagens:', error);
@@ -233,6 +236,7 @@ export async function listContacts(
       id: c.id,
       phoneNumber: c.phone_number || c.phoneNumber,
       name: c.name || c.contact_name || c.phone_number || c.phoneNumber,
+      profilePicUrl: c.profile_pic_url || c.profilePicUrl || c.avatar_url || null,
       createdAt: c.created_at,
       updatedAt: c.updated_at,
     }));

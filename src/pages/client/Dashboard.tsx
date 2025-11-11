@@ -1067,7 +1067,7 @@ useEffect(() => {
                     WhatsApp Business
                   </h1>
                   <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
-                    Gestão completa do WhatsApp com multi-tenancy: conecte, gerencie mensagens e automatize atendimento
+                    Conecte seu WhatsApp, gerencie mensagens e automatize atendimento com IA
                   </p>
                 </div>
 
@@ -1090,10 +1090,6 @@ useEffect(() => {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <h2 className="text-xl font-bold text-foreground">WhatsApp Manager</h2>
-                          <Badge variant="outline" className="text-xs">Multi-tenant</Badge>
-                          <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/50">
-                            UAZAPI + Chatwoot
-                          </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
                           Conecte seu WhatsApp via QR Code, gerencie mensagens e automatize atendimento com IA
@@ -1108,11 +1104,10 @@ useEffect(() => {
                       <div className="flex items-start gap-2">
                         <Info className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
                         <div className="text-xs text-green-900 dark:text-green-100 space-y-1">
-                          <p className="font-medium">O que é este sistema?</p>
+                          <p className="font-medium">O que você pode fazer?</p>
                           <p>
-                            Sistema completo de gestão WhatsApp multi-tenancy. Conecte seu WhatsApp via QR Code,
-                            gerencie todas as mensagens em um só lugar, integre com Chatwoot para atendimento profissional,
-                            e automatize respostas com IA. Cada cliente tem sua própria conexão isolada.
+                            Conecte seu WhatsApp via QR Code, gerencie todas as mensagens em um só lugar,
+                            e automatize respostas com IA. Sistema completo de gestão WhatsApp profissional.
                           </p>
                         </div>
                       </div>

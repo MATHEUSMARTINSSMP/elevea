@@ -24,6 +24,7 @@ export interface WhatsAppHubProps {
 
 export default function WhatsAppHub({ siteSlug, vipPin }: WhatsAppHubProps) {
   const [apiType, setApiType] = useState<'unofficial' | 'official'>('unofficial'); // Começar na API não oficial
+  const [internalTab, setInternalTab] = useState<string>('assistant'); // Estado para controlar tabs internas
 
   return (
     <Card className="dashboard-card border dashboard-border dashboard-shadow">
@@ -104,7 +105,7 @@ export default function WhatsAppHub({ siteSlug, vipPin }: WhatsAppHubProps) {
             </Alert>
 
             {/* Tabs internas da API Não Oficial */}
-            <Tabs defaultValue="assistant" className="w-full">
+            <Tabs value={internalTab} onValueChange={setInternalTab} className="w-full">
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="assistant">🤖 Assistente</TabsTrigger>
                 <TabsTrigger value="connection">🔗 Conexão</TabsTrigger>
@@ -113,7 +114,11 @@ export default function WhatsAppHub({ siteSlug, vipPin }: WhatsAppHubProps) {
               </TabsList>
               
               <TabsContent value="assistant" className="mt-4">
-                <WhatsAppAssistantControl siteSlug={siteSlug} vipPin={vipPin} />
+                <WhatsAppAssistantControl 
+                  siteSlug={siteSlug} 
+                  vipPin={vipPin}
+                  onNavigateToConfig={() => setInternalTab('config')}
+                />
               </TabsContent>
               
               <TabsContent value="connection" className="mt-4">

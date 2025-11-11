@@ -20,11 +20,13 @@ import * as whatsappAPI from "@/lib/n8n-whatsapp";
 export interface WhatsAppAssistantControlProps {
   siteSlug: string;
   vipPin: string;
+  onNavigateToConfig?: () => void;
 }
 
 export default function WhatsAppAssistantControl({
   siteSlug,
   vipPin,
+  onNavigateToConfig,
 }: WhatsAppAssistantControlProps) {
   const { user } = useAuth();
   const customerId = user?.email || "";
@@ -200,10 +202,22 @@ export default function WhatsAppAssistantControl({
             variant="outline"
             className="w-full"
             onClick={() => {
-              // Scroll para a aba de configuração
-              const configTab = document.querySelector('[value="config"]') as HTMLElement;
-              if (configTab) {
-                configTab.click();
+              if (onNavigateToConfig) {
+                // Usar callback se disponível (melhor solução)
+                onNavigateToConfig();
+              } else {
+                // Fallback: procurar pela aba de configuração
+                const configTab = document.querySelector('[role="tab"][value="config"]') as HTMLElement;
+                if (configTab) {
+                  configTab.click();
+                } else {
+                  // Último fallback: procurar pelo texto
+                  const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+                  const configTabByText = tabs.find(tab => tab.textContent?.includes('Configurar'));
+                  if (configTabByText) {
+                    (configTabByText as HTMLElement).click();
+                  }
+                }
               }
             }}
           >

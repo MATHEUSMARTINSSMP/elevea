@@ -7,17 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import {
   MessageCircle,
   Send,
-  Upload,
   Bot,
   Info,
   RefreshCw,
-  Search,
-  Phone,
   User
 } from "lucide-react";
 import { DashboardCardSkeleton } from "@/components/ui/loading-skeletons";
 import { useAuth } from "@/hooks/useAuth";
 import * as whatsappAPI from "@/lib/n8n-whatsapp";
+import { supabase } from "@/integrations/supabase/client";
 
 /* CSS de overrides para visual dark/WhatsApp */
 import "@/styles/chat-overrides.css";
@@ -34,6 +32,7 @@ type WaItem = {
   timestamp: string;
   type: MsgType;
   status?: MsgStatus;
+  profilePicUrl?: string | null;
 };
 
 type Stats = {
@@ -100,9 +99,9 @@ const fmtPhoneBR = (p: string) => {
   // Manter compatibilidade
   const normalizePhone = toE164CellBR;
 
-  type Contact = { phone: string; name?: string; [k: string]: any };
+type Contact = { phone: string; name?: string; profilePicUrl?: string | null; [k: string]: any };
 
-  const consolidateContacts = (contacts: Contact[]) => {
+const consolidateContacts = (contacts: Contact[]) => {
     const byPhone = new Map<string, Contact>();
 
     for (const c of contacts) {
@@ -110,8 +109,8 @@ const fmtPhoneBR = (p: string) => {
       if (!key) continue;
 
       const prev = byPhone.get(key);
-      if (!prev) {
-        byPhone.set(key, { ...c, phone: key });
+    if (!prev) {
+      byPhone.set(key, { ...c, phone: key });
         continue;
       }
 
@@ -124,16 +123,56 @@ const fmtPhoneBR = (p: string) => {
         return s && s !== "Contato" && !s.match(/^\(\d{2}\)\s\d{4,5}-\d{4}$/) && s.length >= 3;
       };
 
-      if (isRealName(currName) && (!isRealName(prevName) || currName.length > prevName.length)) {
-        prev.name = currName;
-      }
+    if (isRealName(currName) && (!isRealName(prevName) || currName.length > prevName.length)) {
+      prev.name = currName;
+    }
+    if (!prev.profilePicUrl && c.profilePicUrl) {
+      prev.profilePicUrl = c.profilePicUrl;
+    }
 
       // pode mesclar outros campos conforme sua regra
-      byPhone.set(key, { ...prev, ...c, phone: key });
+    byPhone.set(key, { ...prev, ...c, phone: key });
     }
 
     return Array.from(byPhone.values());
   };
+
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || "";
+const SUPABASE_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || "";
+const SUPABASE_ENABLED = Boolean(SUPABASE_URL && SUPABASE_KEY && !SUPABASE_URL.includes("placeholder.supabase.co"));
+
+const avatarSizeMap: Record<'sm' | 'md' | 'lg', string> = {
+  sm: "w-9 h-9",
+  md: "w-11 h-11",
+  lg: "w-14 h-14",
+};
+
+const ContactAvatar: React.FC<{ contact?: { name?: string; profilePicUrl?: string | null }; size?: 'sm' | 'md' | 'lg' }> = ({
+  contact,
+  size = "sm",
+}) => {
+  const classes = avatarSizeMap[size];
+  const name = contact?.name?.trim();
+  if (contact?.profilePicUrl) {
+    return (
+      <img
+        src={contact.profilePicUrl}
+        alt={name || "Contato"}
+        className={`${classes} rounded-full object-cover border border-green-500/30 shadow-sm`}
+        loading="lazy"
+      />
+    );
+  }
+
+  const initial = name && name.length > 0 ? name.charAt(0).toUpperCase() : "?";
+  return (
+    <div
+      className={`${classes} rounded-full bg-green-500/20 text-green-700 dark:text-green-300 flex items-center justify-center font-semibold border border-green-500/20`}
+    >
+      {initial}
+    </div>
+  );
+};
 
 const saudacao = () => {
   const h = new Date().getHours();
@@ -173,16 +212,94 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
 
   const [items, setItems] = useState<WaItem[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
-  const [contacts, setContacts] = useState<Array<{ phone: string; name: string }>>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
 
   const [phone, setPhone] = useState("");
   const [text, setText] = useState("");
   const [preview, setPreview] = useState("");
-  const [selectedContact, setSelectedContact] = useState<{ phone: string; name: string } | null>(null);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [conversationItems, setConversationItems] = useState<WaItem[]>([]);
 
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedPhones, setSelectedPhones] = useState<Set<string>>(new Set());
+  const [bulkMessage, setBulkMessage] = useState("");
+  const [bulkPreview, setBulkPreview] = useState("");
+  const [bulkProgress, setBulkProgress] = useState<{ sent: number; total: number; success: number; failed: number } | null>(null);
+  const [bulkStatus, setBulkStatus] = useState<string | null>(null);
+
   const listRef = useRef<HTMLDivElement>(null);
+
+  const normalizeKey = (value: string) => toE164CellBR(value) || value;
+
+  const toggleContactSelection = (contact: Contact) => {
+    const key = normalizeKey(contact.phone);
+    setBulkStatus(null);
+    setBulkProgress(null);
+    setSelectedPhones((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const appendSentMessage = (normalizedPhone: string, displayName: string, messageContent: string) => {
+    const sentMessage: WaItem = {
+      id: (crypto as any).randomUUID?.() ?? String(Math.random()),
+      phoneNumber: normalizedPhone,
+      contactName: displayName,
+      message: messageContent,
+      timestamp: new Date().toISOString(),
+      type: "sent",
+      status: "sent",
+    };
+
+    setItems((prev) => [...prev, sentMessage]);
+
+    if (selectedContact && normalizeKey(selectedContact.phone) === normalizedPhone) {
+      setConversationItems((prev) => {
+        const updated = [...prev, sentMessage].sort(
+          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+        return updated;
+      });
+    }
+  };
+
+  async function syncContactsWithSupabase(contactsToSync: Contact[]) {
+    if (!SUPABASE_ENABLED) return;
+    if (!siteSlug || !customerId) return;
+    if (!contactsToSync.length) return;
+
+    try {
+      const payload = contactsToSync.map((contact) => {
+        const normalized = normalizeKey(contact.phone);
+        return {
+          contact_id: `${siteSlug}:${customerId}:${normalized}`,
+          name: contact.name || fmtPhoneBR(contact.phone),
+          phone_number: normalized,
+        };
+      });
+
+      const { error } = await supabase.from("whatsapp_contacts").upsert(payload, {
+        onConflict: "contact_id",
+      });
+
+      if (error) {
+        console.error("Erro ao sincronizar contatos no Supabase:", error);
+      } else {
+        console.log(`Supabase: ${payload.length} contato(s) sincronizados.`);
+      }
+    } catch (err) {
+      console.error("Erro ao sincronizar contatos no Supabase:", err);
+    }
+  }
 
   // Guarda de segurança - verificar se props VIP estão presentes
   if (!siteSlug || !vipPin) {
@@ -238,6 +355,7 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
           timestamp: m.timestamp,
           type: messageType,
           status: undefined as MsgStatus,
+          profilePicUrl: m.profilePicUrl || null,
         };
       });
 
@@ -281,8 +399,8 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
           listRef.current.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
         }
       }, 150);
-    } catch (e: any) {
-      const errorMsg = e?.message || "Falha ao carregar histórico";
+    } catch (err: any) {
+      const errorMsg = err?.message || String(err) || "Falha ao carregar histórico";
       setError(errorMsg);
       setLastError(errorMsg);
       
@@ -302,7 +420,7 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
   }
 
   /* --------- carregar conversa específica --------- */
-  async function loadConversation(contact: { phone: string; name: string }) {
+  async function loadConversation(contact: Contact) {
     setSelectedContact(contact);
     setPhone(contact.phone);
     
@@ -392,8 +510,8 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
           }
         }, 100);
       }
-    } catch (e) {
-      console.error("Erro no auto-refresh:", e);
+    } catch (err: any) {
+      console.error("Erro no auto-refresh:", err);
     }
   }
 
@@ -422,29 +540,8 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
         throw new Error(result.error || "Erro ao enviar");
       }
 
-      // Criar mensagem enviada
-      const sentMessage = {
-        id: (crypto as any).randomUUID?.() ?? String(Math.random()),
-        phoneNumber: toE164CellBR(phone),
-        contactName: selectedContact?.name || fmtPhoneBR(phone),
-        message: msg,
-        timestamp: new Date().toISOString(),
-        type: "sent" as MsgType,
-        status: "sent" as MsgStatus,
-      };
-
-      // Atualizar lista geral
-      setItems((prev) => [...prev, sentMessage]);
-
-      // Se estiver em uma conversa específica, atualizar também
-      if (selectedContact) {
-        const updatedConversation = [...conversationItems, sentMessage];
-        // Ordenar por timestamp (mais antiga primeiro para chat)
-        const sortedConversation = updatedConversation.sort((a, b) => 
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-        );
-        setConversationItems(sortedConversation);
-      }
+      const normalizedPhone = toE164CellBR(phone);
+      appendSentMessage(normalizedPhone, selectedContact?.name || fmtPhoneBR(phone), msg);
 
       setText("");
       
@@ -459,11 +556,74 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
           listRef.current.scrollTop = listRef.current.scrollHeight;
         }
       }, 100);
-    } catch (e: any) {
-      setError(e?.message || "Falha ao enviar");
+    } catch (err: any) {
+      setError(err?.message || String(err) || "Falha ao enviar");
     } finally {
       setSending(false);
     }
+  }
+
+  /* --------- envio em lote --------- */
+  async function handleBulkSend() {
+    if (!bulkMessage.trim()) return;
+    if (selectedPhones.size === 0) return;
+
+    const contactsArray = Array.from(selectedPhones).map((key) => {
+      const contact = contacts.find((c) => normalizeKey(c.phone) === key);
+      if (contact) return contact;
+      return {
+        phone: key,
+        name: fmtPhoneBR(key),
+      };
+    });
+
+    if (contactsArray.length === 0) return;
+
+    setBulkSending(true);
+    setBulkStatus(null);
+    setBulkProgress({ sent: 0, total: contactsArray.length, success: 0, failed: 0 });
+
+    let successCount = 0;
+    let failedCount = 0;
+
+    for (let i = 0; i < contactsArray.length; i++) {
+      const contact = contactsArray[i];
+      const normalizedPhone = normalizeKey(contact.phone);
+      const personalizedMessage = applyVars(bulkMessage, {
+        saudacao: saudacao(),
+        nome: contact.name || fmtPhoneBR(contact.phone),
+        data: nowDate(),
+        hora: nowTime(),
+      });
+
+      try {
+        const result = await whatsappAPI.sendMessage(siteSlug, customerId, normalizedPhone, personalizedMessage);
+        if (!result.success) {
+          throw new Error(result.error || "Erro ao enviar");
+        }
+        successCount++;
+        appendSentMessage(normalizedPhone, contact.name || fmtPhoneBR(contact.phone), personalizedMessage);
+      } catch (err) {
+        console.error("Erro ao enviar em lote:", err);
+        failedCount++;
+      }
+
+      setBulkProgress({
+        sent: i + 1,
+        total: contactsArray.length,
+        success: successCount,
+        failed: failedCount,
+      });
+
+      const isBatchBoundary = (i + 1) % 10 === 0 && i < contactsArray.length - 1;
+      await delay(isBatchBoundary ? 2000 : 400);
+    }
+
+    setBulkStatus(`Envio concluído: ${successCount} sucesso(s), ${failedCount} falha(s).`);
+    setBulkSending(false);
+    setBulkMessage("");
+    setBulkPreview("");
+    setSelectedPhones(new Set());
   }
 
   /* --------- carregar contatos --------- */
@@ -474,9 +634,11 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
       if (contactsData && contactsData.length > 0) {
         const formattedContacts = contactsData.map(c => ({
           phone: c.phoneNumber,
-          name: c.name || fmtPhoneBR(c.phoneNumber)
+          name: c.name || fmtPhoneBR(c.phoneNumber),
+          profilePicUrl: c.profilePicUrl || null,
         }));
         setContacts(formattedContacts);
+        await syncContactsWithSupabase(formattedContacts);
       } else {
         // Fallback: criar contatos baseados nas mensagens
         console.log('Criando contatos baseados nas mensagens...');
@@ -499,7 +661,8 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
               
               uniqueContacts.set(normalizedPhone, {
                 phone: normalizedPhone,
-                name: displayName
+                name: displayName,
+                profilePicUrl: item.profilePicUrl || null,
               });
             } else {
               // Se já existe, atualizar o nome se for melhor
@@ -522,9 +685,10 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
         const consolidatedContacts = consolidateContacts(contactsArray);
         console.log('Contatos consolidados:', consolidatedContacts);
         setContacts(consolidatedContacts);
+        await syncContactsWithSupabase(consolidatedContacts);
       }
-    } catch (e) {
-      console.error("Erro ao carregar contatos:", e);
+    } catch (err: any) {
+      console.error("Erro ao carregar contatos:", err);
       // Fallback: criar contatos baseados nas mensagens
       const uniqueContacts = new Map();
       items.forEach(item => {
@@ -539,12 +703,15 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
             
             uniqueContacts.set(normalizedPhone, {
               phone: normalizedPhone,
-              name: displayName
+              name: displayName,
+              profilePicUrl: item.profilePicUrl || null,
             });
           }
         }
       });
-      setContacts(Array.from(uniqueContacts.values()));
+      const fallbackContacts = Array.from(uniqueContacts.values());
+      setContacts(fallbackContacts);
+      await syncContactsWithSupabase(fallbackContacts);
     }
   }
 
@@ -553,8 +720,8 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
     try {
       // Templates ainda não implementados na nova API
       console.warn("Templates não implementados na nova API n8n");
-    } catch (e) {
-      console.error("Erro ao carregar templates:", e);
+    } catch (err: any) {
+      console.error("Erro ao carregar templates:", err);
     }
   }
 
@@ -568,6 +735,26 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
     });
     setPreview(preview);
   }, [text]);
+
+  useEffect(() => {
+    if (!bulkMode || selectedPhones.size === 0) {
+      setBulkPreview(bulkMessage ? bulkMessage : "");
+      return;
+    }
+
+    const firstKey = selectedPhones.values().next().value;
+    const contact =
+      (firstKey && contacts.find((c) => normalizeKey(c.phone) === firstKey)) ||
+      (selectedContact ? selectedContact : undefined);
+
+    const preview = applyVars(bulkMessage || "", {
+      saudacao: saudacao(),
+      nome: contact?.name || "Cliente",
+      data: nowDate(),
+      hora: nowTime(),
+    });
+    setBulkPreview(preview);
+  }, [bulkMessage, selectedPhones, contacts, bulkMode, selectedContact]);
 
   /* --------- carregar dados iniciais --------- */
   useEffect(() => {
@@ -637,7 +824,7 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
               Ativo
             </Badge>
             <Button 
-              onClick={loadHistory} 
+              onClick={() => loadHistory()} 
               variant="outline" 
               size="sm"
               disabled={loading}
@@ -690,13 +877,35 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Conversas */}
           <div className="lg:col-span-1">
-            <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
               <h3 className="font-medium text-sm">Conversas</h3>
               <RefreshCw 
                 className="h-4 w-4 cursor-pointer hover:text-blue-400" 
-                onClick={loadContacts}
+                onClick={() => loadContacts()}
               />
             </div>
+            <Button
+              variant={bulkMode ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setBulkMode((prev) => {
+                  const next = !prev;
+                  if (!next) {
+                    setSelectedPhones(new Set());
+                    setBulkMessage("");
+                    setBulkPreview("");
+                    setBulkProgress(null);
+                    setBulkStatus(null);
+                  }
+                  return next;
+                });
+              }}
+              className="text-xs"
+            >
+              {bulkMode ? "Sair do modo Lote" : "Modo Lote"}
+            </Button>
+          </div>
             
             <div className="space-y-2">
               <Input
@@ -713,19 +922,38 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
                     <p className="text-xs">Nenhum contato encontrado</p>
                   </div>
                 ) : (
-                  filteredContacts.map((contact, idx) => (
+                  filteredContacts.map((contact, idx) => {
+                    const key = normalizeKey(contact.phone);
+                    const isSelected = selectedPhones.has(key);
+                    const isActiveConversation = !bulkMode && selectedContact?.phone === contact.phone;
+                    return (
                     <div
                       key={idx}
                       className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
-                        selectedContact?.phone === contact.phone 
+                        isSelected || isActiveConversation
                           ? 'bg-green-500/20 border border-green-500/30' 
                           : 'hover:bg-muted/50'
                       }`}
-                      onClick={() => loadConversation(contact)}
+                      onClick={() => {
+                        if (bulkMode) {
+                          toggleContactSelection(contact);
+                        } else {
+                          loadConversation(contact);
+                        }
+                      }}
                     >
-                    <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-medium">
-                      {contact.name && contact.name.length > 0 ? contact.name.charAt(0).toUpperCase() : '?'}
-                    </div>
+                      {bulkMode && (
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(event) => {
+                            event.stopPropagation();
+                            toggleContactSelection(contact);
+                          }}
+                          className="h-4 w-4 accent-green-500"
+                        />
+                      )}
+                      <ContactAvatar contact={contact} size="sm" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium dashboard-text truncate">
                           {contact.name || fmtPhoneBR(contact.phone)}
@@ -734,25 +962,89 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
                           {contact.phone}
                         </p>
                       </div>
-                      {selectedContact?.phone === contact.phone && (
+                      {(isSelected || isActiveConversation) && (
                         <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                       )}
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
+
+              {bulkMode && (
+                <div className="mt-4 space-y-3 p-3 border border-green-500/20 rounded-lg bg-green-500/5">
+                  <div className="flex items-center justify-between text-xs text-green-700 dark:text-green-300">
+                    <span>
+                      Selecionados: <strong>{selectedPhones.size}</strong>
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => {
+                        setSelectedPhones(new Set());
+                        setBulkPreview("");
+                      }}
+                    >
+                      Limpar
+                    </Button>
+                  </div>
+
+                  <Textarea
+                    placeholder="Mensagem em lote (use {{nome}}, {{saudacao}}, {{data}}, {{hora}})"
+                    value={bulkMessage}
+                    onChange={(e) => setBulkMessage(e.target.value)}
+                    className="dashboard-input border dashboard-border dashboard-text placeholder:dashboard-text-muted text-sm min-h-[90px]"
+                    disabled={bulkSending}
+                  />
+
+                  {bulkPreview && (
+                    <div className="text-xs text-green-700 dark:text-green-300 bg-white/10 dark:bg-green-900/20 border border-green-500/20 rounded-md p-2">
+                      <strong className="block mb-1">Pré-visualização:</strong>
+                      <span>{bulkPreview}</span>
+                    </div>
+                  )}
+
+                  {bulkProgress && (
+                    <div className="text-xs text-green-700 dark:text-green-300">
+                      Progresso: {bulkProgress.sent}/{bulkProgress.total} • Sucesso {bulkProgress.success} • Falhas {bulkProgress.failed}
+                    </div>
+                  )}
+
+                  {bulkStatus && (
+                    <div className="text-xs text-green-700 dark:text-green-300">
+                      {bulkStatus}
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={handleBulkSend}
+                    disabled={bulkSending || !bulkMessage.trim() || selectedPhones.size === 0}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {bulkSending ? "Enviando..." : `Enviar em lote (${selectedPhones.size})`}
+                  </Button>
+
+                  <p className="text-[11px] text-green-700 dark:text-green-300">
+                    As mensagens são enviadas em lotes de até 10 contatos por vez, com intervalos automáticos para evitar bloqueios.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Chat */}
           <div className="lg:col-span-2">
-            <div className="flex items-center gap-2 mb-3">
-              <h3 className="font-medium text-sm">
-                {selectedContact ? `Conversa com ${selectedContact.name}` : 'WhatsApp Business'}
-              </h3>
-              <Badge className="px-2 py-1 text-xs bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30">
-                • Online
-              </Badge>
+            <div className="flex items-center gap-3 mb-3">
+              {selectedContact && <ContactAvatar contact={selectedContact} size="sm" />}
+              <div className="flex items-center gap-2">
+                <h3 className="font-medium text-sm">
+                  {selectedContact ? `Conversa com ${selectedContact.name || fmtPhoneBR(selectedContact.phone)}` : 'WhatsApp Business'}
+                </h3>
+                <Badge className="px-2 py-1 text-xs bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30">
+                  • Online
+                </Badge>
+              </div>
             </div>
             
             {/* Mensagens */}
@@ -760,35 +1052,43 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
               ref={listRef}
               className="h-64 overflow-y-auto space-y-3 p-4 dashboard-card rounded-lg border dashboard-border mb-4"
             >
-              {(selectedContact ? conversationItems : items).map((item) => (
-                <div
-                  key={item.id}
-                  className={`flex ${item.type === 'sent' ? 'justify-end' : 'justify-start'}`}
-                >
+              {(selectedContact ? conversationItems : items).map((item) => {
+                const isSent = item.type === 'sent';
+                const normalizedPhone = normalizeKey(item.phoneNumber);
+                const messageContact =
+                  contacts.find((contact) => normalizeKey(contact.phone) === normalizedPhone) || selectedContact;
+
+                return (
                   <div
-                    className={`max-w-xs px-3 py-2 rounded-2xl text-sm ${
-                      item.type === 'sent'
-                        ? 'bg-green-500 text-white'
-                        : item.type === 'auto_response'
-                        ? 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border border-yellow-500/30'
-                        : 'bg-muted dashboard-text border dashboard-border'
-                    }`}
+                    key={item.id}
+                    className={`flex items-start gap-2 ${isSent ? 'justify-end' : 'justify-start'}`}
                   >
-                    <p className="break-words">{item.message}</p>
-                    <div className="flex items-center justify-between mt-1 text-xs opacity-70">
-                      <span>
-                        {new Date(item.timestamp).toLocaleTimeString('pt-BR', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </span>
-                      {item.type === 'sent' && (
-                        <span>✓</span>
-                      )}
+                    {!isSent && (
+                      <ContactAvatar contact={messageContact ?? { name: item.contactName }} size="sm" />
+                    )}
+                    <div
+                      className={`max-w-xs px-3 py-2 rounded-2xl text-sm ${
+                        isSent
+                          ? 'bg-green-500 text-white'
+                          : item.type === 'auto_response'
+                          ? 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border border-yellow-500/30'
+                          : 'bg-muted dashboard-text border dashboard-border'
+                      }`}
+                    >
+                      <p className="break-words">{item.message}</p>
+                      <div className="flex items-center justify-between mt-1 text-xs opacity-70">
+                        <span>
+                          {new Date(item.timestamp).toLocaleTimeString('pt-BR', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                        {isSent && <span>✓</span>}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               
               {selectedContact && conversationItems.length === 0 && (
                 <div className="text-center py-8 dashboard-text-muted">
