@@ -147,13 +147,16 @@ GET https://fluxos.eleveaagencia.com.br/webhook/api/whatsapp/auth/status?siteSlu
 - [ ] Testar workflow manualmente
 
 ### ✅ 2.4 - Workflow: WhatsApp Disconnect
-- [ ] Criar workflow "WhatsApp - Disconnect"
-- [ ] Configurar Webhook: `POST /api/whatsapp/auth/disconnect`
-- [ ] Adicionar node "PostgreSQL - Get Credentials"
-- [ ] Adicionar node "HTTP - Delete Instance"
-  - URL: `https://api.uazapi.com.br/instance/delete/{{ $json.uazapi_instance_id }}`
-- [ ] Adicionar node "PostgreSQL - Update Status" (status = 'disconnected')
-- [ ] Adicionar node "Respond - Disconnect"
+- [x] Criar workflow "WhatsApp - Disconnect" ✅ **JÁ EXISTE NO N8N**
+- [x] Configurar Webhook: `POST /api/whatsapp/auth/disconnect` ✅
+- [x] Adicionar node "PostgreSQL - Get Credentials" ✅
+- [x] Adicionar node "HTTP - Delete Instance" ✅
+  - URL: `https://elevea.uazapi.com/instance` (DELETE method)
+  - ⚠️ **NOTA:** Verificar se precisa passar `instance_id` no body ou na URL
+- [x] Adicionar node "PostgreSQL - Update Status" (status = 'disconnected') ✅
+- [x] Adicionar node "Respond - Disconnect" ✅
+- [x] Tratamento de Preflight (OPTIONS) ✅
+- [x] Tratamento de erro quando não há instância ✅
 - [ ] Testar workflow manualmente
 
 ---
