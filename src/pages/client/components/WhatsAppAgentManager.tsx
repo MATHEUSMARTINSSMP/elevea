@@ -299,21 +299,47 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
   // Testa a conectividade com o n8n usando os endpoints de WhatsApp
   async function testN8nConnectivity() {
     // Limpa status anterior
-    setTestStatus(null);
+    setTestStatus("Testando conectividade com n8n...");
     try {
-      const testToken = (import.meta.env.VITE_N8N_TEST_TOKEN as string) || "test"; // opcional: token de teste em env
-      const result = await whatsappAPI.connectUAZAPI(siteSlug, customerId, testToken);
-      if (result?.connected) {
-        setTestStatus("Conexão OK: QR code disponível" + (result.qrCode ? "" : ", QR code não retornado"));
-      } else if (result?.status) {
-        setTestStatus("Status: " + result.status);
-      } else if (result?.error) {
-        setTestStatus("Erro: " + result.error);
-      } else {
-        setTestStatus("Conexão verificada (resultado desconhecido)");
+      // Testar múltiplos endpoints para verificar conectividade
+      const tests = [];
+      
+      // Teste 1: Verificar configuração do agente
+      try {
+        const configTest = await whatsappAPI.getAgentConfig(siteSlug, customerId);
+        tests.push({ name: "Config do Agente", success: true, result: configTest ? "OK" : "Sem configuração" });
+      } catch (e: any) {
+        tests.push({ name: "Config do Agente", success: false, error: e.message });
       }
+      
+      // Teste 2: Listar mensagens
+      try {
+        const messagesTest = await whatsappAPI.listMessages(siteSlug, customerId, 1, 0);
+        tests.push({ name: "Listar Mensagens", success: true, result: Array.isArray(messagesTest) ? `OK (${messagesTest.length} mensagens)` : "Resposta inválida" });
+      } catch (e: any) {
+        tests.push({ name: "Listar Mensagens", success: false, error: e.message });
+      }
+      
+      // Teste 3: Listar contatos
+      try {
+        const contactsTest = await whatsappAPI.listContacts(siteSlug, customerId);
+        tests.push({ name: "Listar Contatos", success: true, result: Array.isArray(contactsTest) ? `OK (${contactsTest.length} contatos)` : "Resposta inválida" });
+      } catch (e: any) {
+        tests.push({ name: "Listar Contatos", success: false, error: e.message });
+      }
+      
+      // Resumo dos testes
+      const successCount = tests.filter(t => t.success).length;
+      const totalTests = tests.length;
+      
+      const results = tests.map(t => 
+        `\n${t.success ? '✅' : '❌'} ${t.name}: ${t.success ? t.result : `Erro: ${t.error}`}`
+      ).join('');
+      
+      setTestStatus(`Testes concluídos: ${successCount}/${totalTests}${results}`);
+      
     } catch (err: any) {
-      setTestStatus("Erro na requisição: " + (err?.message ?? String(err)));
+      setTestStatus("Erro ao testar conectividade: " + (err?.message ?? String(err)));
     }
   }
 
@@ -748,13 +774,21 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
       const contactsData = await whatsappAPI.listContacts(siteSlug, customerId);
       
       // Função auxiliar para verificar se é um nome real (não apenas número formatado)
-      const isRealName = (s: string) => {
-        if (!s || s.length < 3) return false;
-        if (s === "Contato") return false;
+      const isRealName = (s: string | null | undefined): boolean => {
+        if (!s || typeof s !== 'string') return false;
+        const trimmed = s.trim();
+        if (trimmed.length < 3) return false;
+        if (trimmed === "Contato" || trimmed.toLowerCase() === "contato") return false;
         // Verifica se é formato de telefone brasileiro: (XX) XXXXX-XXXX ou (XX) XXXX-XXXX
-        if (s.match(/^\(\d{2}\)\s\d{4,5}-\d{4}$/)) return false;
-        // Verifica se é apenas números
-        if (s.replace(/\D/g, '').length === s.length && s.length >= 10) return false;
+        if (trimmed.match(/^\(\d{2}\)\s\d{4,5}-\d{4}$/)) return false;
+        // Verifica se é apenas números (mais de 8 dígitos = provavelmente telefone)
+        const digitsOnly = trimmed.replace(/\D/g, '');
+        if (digitsOnly.length === trimmed.length && digitsOnly.length >= 8) return false;
+        // Verifica se começa com + e tem muitos dígitos (formato internacional)
+        if (trimmed.match(/^\+\d{10,}$/)) return false;
+        // Verifica se é formato E.164 (começa com + e tem 10+ dígitos)
+        if (trimmed.match(/^\+?55\d{10,11}$/)) return false;
+        // Se passou por todas as verificações, provavelmente é um nome real
         return true;
       };
       
@@ -771,19 +805,32 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
       });
       
       if (contactsData && contactsData.length > 0) {
+        console.log('[loadContacts] Contatos recebidos da API:', contactsData.length, contactsData.slice(0, 3));
+        
         const formattedContacts = contactsData.map(c => {
           const normalizedPhone = normalizePhone(c.phoneNumber);
           // Tentar nome da API, depois das mensagens, depois formato de telefone
           let contactName = c.name;
           
+          console.log(`[loadContacts] Processando contato ${normalizedPhone}:`, {
+            nomeAPI: contactName,
+            isRealNameAPI: isRealName(contactName),
+            nomeMensagens: namesFromMessages.get(normalizedPhone)
+          });
+          
           // Se o nome da API não é válido (é número ou vazio), buscar nas mensagens
           if (!isRealName(contactName)) {
-            contactName = namesFromMessages.get(normalizedPhone) || null;
+            const nameFromMsg = namesFromMessages.get(normalizedPhone);
+            if (isRealName(nameFromMsg)) {
+              contactName = nameFromMsg;
+              console.log(`[loadContacts] Usando nome das mensagens para ${normalizedPhone}:`, contactName);
+            }
           }
           
           // Se ainda não tem nome válido, usar formato de telefone
           if (!isRealName(contactName)) {
             contactName = fmtPhoneBR(c.phoneNumber);
+            console.log(`[loadContacts] Usando formato de telefone para ${normalizedPhone}:`, contactName);
           }
           
           return {
@@ -792,6 +839,8 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
             profilePicUrl: c.profilePicUrl || null,
           };
         });
+        
+        console.log('[loadContacts] Contatos formatados:', formattedContacts.slice(0, 3));
         setContacts(formattedContacts);
         await syncContactsWithSupabase(formattedContacts);
       } else {
@@ -1069,10 +1118,16 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
               variant="outline"
               size="sm"
               className="text-xs sm:text-sm"
+              disabled={loading}
             >
               Testar n8n
             </Button>
           </div>
+          {testStatus && (
+            <div className="mt-2 p-2 bg-blue-500/10 border border-blue-500/20 rounded text-xs text-blue-300 whitespace-pre-wrap">
+              {testStatus}
+            </div>
+          )}
         </div>
       </CardHeader>
 
@@ -1477,8 +1532,47 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
                     <Switch
                       id="active-toggle"
                       checked={agentConfig.active !== false}
-                      onCheckedChange={(checked) => {
-                        setAgentConfig({ ...agentConfig, active: checked });
+                      disabled={configSaving}
+                      onCheckedChange={async (checked) => {
+                        // Atualizar estado local imediatamente
+                        const updatedConfig = { ...agentConfig, active: checked };
+                        setAgentConfig(updatedConfig);
+                        
+                        // Salvar automaticamente quando o toggle é alterado
+                        setConfigSaving(true);
+                        setConfigError(null);
+                        try {
+                          const result = await whatsappAPI.saveAgentConfig(updatedConfig);
+                          if (result.success) {
+                            setConfigError(null);
+                            if ((window as any).toast) {
+                              (window as any).toast.success(`Agente ${checked ? 'ativado' : 'desativado'} com sucesso!`);
+                            } else {
+                              alert(`Agente ${checked ? 'ativado' : 'desativado'} com sucesso!`);
+                            }
+                          } else {
+                            // Reverter estado se falhar
+                            setAgentConfig({ ...agentConfig, active: !checked });
+                            setConfigError(result.error || 'Erro ao alterar status do agente');
+                            if ((window as any).toast) {
+                              (window as any).toast.error(result.error || 'Erro ao alterar status do agente');
+                            } else {
+                              alert(result.error || 'Erro ao alterar status do agente');
+                            }
+                          }
+                        } catch (err: any) {
+                          // Reverter estado se falhar
+                          setAgentConfig({ ...agentConfig, active: !checked });
+                          console.error('Erro ao alterar status do agente:', err);
+                          setConfigError(err?.message || 'Erro ao alterar status do agente');
+                          if ((window as any).toast) {
+                            (window as any).toast.error(err?.message || 'Erro ao alterar status do agente');
+                          } else {
+                            alert(err?.message || 'Erro ao alterar status do agente');
+                          }
+                        } finally {
+                          setConfigSaving(false);
+                        }
                       }}
                     />
                   </div>
