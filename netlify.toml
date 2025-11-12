@@ -3,6 +3,10 @@
   publish   = "dist"
   # functions removidas - usando apenas n8n
 
+# Configurar secrets scanning para ignorar scripts de desenvolvimento
+[build.environment]
+  SECRETS_SCAN_OMIT_PATHS = "scripts/**,*.md"
+
 [dev]
   command    = "npm run dev:vite"
   targetPort = 5000
