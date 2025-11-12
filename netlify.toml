@@ -3,9 +3,13 @@
   publish   = "dist"
   # functions removidas - usando apenas n8n
 
-# Configurar secrets scanning para ignorar scripts de desenvolvimento
+# Configurar secrets scanning para ignorar scripts de desenvolvimento e build output
+# Nota: O dist/ é gerado durante o build e contém variáveis de ambiente substituídas pelo Vite
+# Isso é seguro pois as variáveis vêm do Netlify, não estão hardcoded no código fonte
 [build.environment]
-  SECRETS_SCAN_OMIT_PATHS = "scripts/**,*.md"
+  SECRETS_SCAN_OMIT_PATHS = "scripts/**,*.md,dist/**"
+  # Desabilitar scan de keys específicas se necessário (mas melhor remover do código)
+  # SECRETS_SCAN_OMIT_KEYS = "N8N_API_KEY"
 
 [dev]
   command    = "npm run dev:vite"

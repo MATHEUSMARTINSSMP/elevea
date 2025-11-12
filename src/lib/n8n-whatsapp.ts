@@ -389,7 +389,12 @@ async function callN8nRestAPI<T = any>(
   body?: any
 ): Promise<T> {
   const N8N_BASE_URL = (import.meta.env.VITE_N8N_BASE_URL || "https://fluxos.eleveaagencia.com.br").replace(/\/$/, "");
-  const N8N_API_KEY = import.meta.env.VITE_N8N_API_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjMjdiNTliMS1kNzA3LTQ0ZmMtOTNkZS03Y2NmYTNlN2RhNzEiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYwOTAwMTE3fQ.INFaDR3UONfjP6Gfd9MkO1kfGrV-b1af5yQDY36wBH4';
+  const N8N_API_KEY = import.meta.env.VITE_N8N_API_KEY;
+  
+  // Validar que a API key está configurada (não usar fallback hardcoded por segurança)
+  if (!N8N_API_KEY) {
+    throw new Error('VITE_N8N_API_KEY não configurada. Configure a variável de ambiente no Netlify.');
+  }
   
   const url = endpoint.startsWith('http') ? endpoint : `${N8N_BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
   
@@ -468,11 +473,17 @@ export async function saveAgentConfig(
       
       console.log('[saveAgentConfig] Chamando webhook via API REST:', webhookUrl);
       
+      // Validar que a API key está configurada
+      const N8N_API_KEY = import.meta.env.VITE_N8N_API_KEY;
+      if (!N8N_API_KEY) {
+        throw new Error('VITE_N8N_API_KEY não configurada. Configure a variável de ambiente no Netlify.');
+      }
+      
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-N8N-API-KEY': import.meta.env.VITE_N8N_API_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjMjdiNTliMS1kNzA3LTQ0ZmMtOTNkZS03Y2NmYTNlN2RhNzEiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYwOTAwMTE3fQ.INFaDR3UONfjP6Gfd9MkO1kfGrV-b1af5yQDY36wBH4',
+          'X-N8N-API-KEY': N8N_API_KEY,
         },
         body: JSON.stringify({
           siteSlug: config.siteSlug,
