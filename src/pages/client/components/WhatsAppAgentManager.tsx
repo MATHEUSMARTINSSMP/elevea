@@ -58,70 +58,93 @@ const fmtPhoneBR = (p: string) => {
   return p;
 };
 
-  const onlyDigits = (s: string) => (s || "").replace(/\D/g, "");
+const onlyDigits = (s: string) => (s || "").replace(/\D/g, "");
 
-  /**
-   * Normaliza para E.164 BR (celular): 55 + DDD + 9 + 8 dígitos.
-   * Tolera prefixos (0XX), duplicação de 55 e "lixo" à esquerda.
-   * Estratégia: pega dos *últimos* 11 ou 10 dígitos úteis.
-   */
-  const toE164CellBR = (raw: string): string => {
-    let d = onlyDigits(raw);
-    // remove 55 extra no começo
-    if (d.startsWith("55")) d = d.slice(2);
-    // remove zeros/carrier à esquerda mantendo o final
-    // (não precisamos adivinhar o prefixo; vamos extrair do fim)
-    if (d.length >= 12 && d[0] === "0") {
-      // pode ter 0 + operadora (2 dígitos). descartamos pelo método do "slice do fim"
+/**
+ * Normaliza números para o formato E.164 brasileiro (55 + DDD + 9 + 8 dígitos).
+ * Quando não for possível garantir o formato, retorna os dígitos disponíveis
+ * (mantendo ao menos o DDD e número).
+ */
+const toE164CellBR = (raw: string): string => {
+  let d = onlyDigits(raw);
+  if (!d) return "";
+
+  // manter últimos 13 dígitos para remover ruídos à esquerda
+  if (d.length > 13) {
+    d = d.slice(-13);
+  }
+
+  // Já está em E.164
+  if (d.length === 13 && d.startsWith("55")) {
+    return d;
+  }
+
+  // Se começar com 55 mas faltar dígitos, complementar
+  if (d.startsWith("55") && d.length > 4) {
+    const tail = d.slice(2);
+    if (tail.length >= 11) {
+      const last11 = tail.slice(-11);
+      const ddd = last11.slice(0, 2);
+      let rest = last11.slice(2);
+      if (rest.length === 8) rest = "9" + rest;
+      if (rest.length === 9) return `55${ddd}${rest}`;
     }
+  }
 
-    if (d.length >= 11) {
-      // pega os últimos 11 dígitos (esperado: DDD + 9 + 8)
-      let n11 = d.slice(-11);
-      const ddd = n11.slice(0, 2);
-      let rest = n11.slice(2); // 9 dígitos
-      if (rest.length !== 9) return "";
-      if (rest[0] !== "9") rest = "9" + rest.slice(0, 8); // força o 9
-      return "55" + ddd + rest;
-    }
+  // Usar últimos 11 dígitos (DDD + 9 + número)
+  if (d.length >= 11) {
+    const last11 = d.slice(-11);
+    const ddd = last11.slice(0, 2);
+    let rest = last11.slice(2);
+    if (rest.length === 8) rest = "9" + rest;
+    if (rest.length === 9) return `55${ddd}${rest}`;
+  }
 
-    if (d.length === 10) {
-      // DDD + 8 → vira DDD + 9 + 8
-      const ddd = d.slice(0, 2);
-      const line8 = d.slice(2);
-      return "55" + ddd + "9" + line8;
-    }
+  // Se tiver 10 dígitos (DDD + número), forçar o 9
+  if (d.length === 10) {
+    const ddd = d.slice(0, 2);
+    const line8 = d.slice(2);
+    return `55${ddd}9${line8}`;
+  }
 
-    // números sem DDD ou muito curtos: inválido para o seu caso
-    return "";
-  };
+  // Último recurso: garantir prefixo 55 e manter os últimos 10 dígitos
+  if (!d.startsWith("55")) {
+    d = "55" + d;
+  }
+  if (d.length > 13) {
+    d = d.slice(-13);
+  }
+  return d;
+};
 
-  // Manter compatibilidade
-  const normalizePhone = toE164CellBR;
+// Manter compatibilidade
+const normalizePhone = (value: string) => {
+  const normalized = toE164CellBR(value);
+  return normalized || onlyDigits(value) || value;
+};
 
 type Contact = { phone: string; name?: string; profilePicUrl?: string | null; [k: string]: any };
 
 const consolidateContacts = (contacts: Contact[]) => {
-    const byPhone = new Map<string, Contact>();
+  const byPhone = new Map<string, Contact>();
 
-    for (const c of contacts) {
-      const key = toE164CellBR(c.phone || "");
-      if (!key) continue;
+  for (const c of contacts) {
+    const key = normalizePhone(c.phone || "");
+    if (!key) continue;
 
-      const prev = byPhone.get(key);
+    const prev = byPhone.get(key);
     if (!prev) {
       byPhone.set(key, { ...c, phone: key });
-        continue;
-      }
+      continue;
+    }
 
-      // mantém o "melhor" nome: prioriza nomes reais (não números formatados)
-      const currName = (c.name || "").trim();
-      const prevName = (prev.name || "").trim();
-      
-      // Função para verificar se é um nome real (não número formatado)
-      const isRealName = (s: string) => {
-        return s && s !== "Contato" && !s.match(/^\(\d{2}\)\s\d{4,5}-\d{4}$/) && s.length >= 3;
-      };
+    // mantém o "melhor" nome: prioriza nomes reais (não número formatado)
+    const currName = (c.name || "").trim();
+    const prevName = (prev.name || "").trim();
+    
+    const isRealName = (s: string) => {
+      return s && s !== "Contato" && !s.match(/^\(\d{2}\)\s\d{4,5}-\d{4}$/) && s.length >= 3;
+    };
 
     if (isRealName(currName) && (!isRealName(prevName) || currName.length > prevName.length)) {
       prev.name = currName;
@@ -130,12 +153,11 @@ const consolidateContacts = (contacts: Contact[]) => {
       prev.profilePicUrl = c.profilePicUrl;
     }
 
-      // pode mesclar outros campos conforme sua regra
     byPhone.set(key, { ...prev, ...c, phone: key });
-    }
+  }
 
-    return Array.from(byPhone.values());
-  };
+  return Array.from(byPhone.values());
+};
 
 const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || "";
 const SUPABASE_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || "";
@@ -172,6 +194,18 @@ const ContactAvatar: React.FC<{ contact?: { name?: string; profilePicUrl?: strin
       {initial}
     </div>
   );
+};
+
+const formatErrorMessage = (message?: string | null) => {
+  if (!message) return "Não foi possível carregar os dados do WhatsApp.";
+  const normalized = message.toLowerCase();
+  if (normalized.includes("e is undefined")) {
+    return "Erro ao carregar dados do WhatsApp (resposta inválida). Verifique os workflows do n8n.";
+  }
+  if (normalized.includes("failed to fetch") || normalized.includes("network")) {
+    return "Erro de conexão com o servidor do WhatsApp. Verifique sua conexão ou os workflows.";
+  }
+  return message;
 };
 
 const saudacao = () => {
@@ -230,8 +264,6 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
 
   const listRef = useRef<HTMLDivElement>(null);
 
-  const normalizeKey = (value: string) => toE164CellBR(value) || value;
-
   const toggleContactSelection = (contact: Contact) => {
     const key = normalizeKey(contact.phone);
     setBulkStatus(null);
@@ -247,6 +279,8 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
     });
   };
 
+  const normalizeKey = (value: string) => normalizePhone(value || "");
+
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const appendSentMessage = (normalizedPhone: string, displayName: string, messageContent: string) => {
@@ -258,6 +292,7 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
       timestamp: new Date().toISOString(),
       type: "sent",
       status: "sent",
+      profilePicUrl: selectedContact?.profilePicUrl || null,
     };
 
     setItems((prev) => [...prev, sentMessage]);
@@ -347,9 +382,15 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
           messageType = "sent";
         }
         
+        const messageId =
+          m.id ??
+          m.message_id ??
+          (m.timestamp && m.phoneNumber ? `${m.phoneNumber}-${m.timestamp}` : Math.random().toString(36).slice(2));
+        const normalizedPhone = normalizePhone(m.phoneNumber);
+
         return {
-          id: String(m.id || Math.random()),
-          phoneNumber: m.phoneNumber,
+          id: String(messageId),
+          phoneNumber: normalizedPhone,
           contactName: m.contactName || fmtPhoneBR(m.phoneNumber),
           message: m.message,
           timestamp: m.timestamp,
@@ -360,6 +401,7 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
       });
 
       setItems(mapped);
+      setError(null);
 
       // Debug: verificar tipos de mensagens e normalização
       console.log('Mensagens carregadas:', {
@@ -401,7 +443,7 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
       }, 150);
     } catch (err: any) {
       const errorMsg = err?.message || String(err) || "Falha ao carregar histórico";
-      setError(errorMsg);
+      setError(formatErrorMessage(errorMsg));
       setLastError(errorMsg);
       
       // Retry automático (máximo 3 tentativas)
@@ -425,9 +467,9 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
     setPhone(contact.phone);
     
     // Filtrar mensagens apenas deste contato (usando telefone normalizado)
-    const normalizedContactPhone = toE164CellBR(contact.phone);
+    const normalizedContactPhone = normalizePhone(contact.phone);
     const contactMessages = items.filter(item => {
-      const itemNormalized = toE164CellBR(item.phoneNumber);
+      const itemNormalized = normalizePhone(item.phoneNumber);
       return itemNormalized === normalizedContactPhone;
     });
     
@@ -469,9 +511,15 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
           messageType = "sent";
         }
         
+        const messageId =
+          m.id ??
+          m.message_id ??
+          (m.timestamp && m.phoneNumber ? `${m.phoneNumber}-${m.timestamp}` : Math.random().toString(36).slice(2));
+        const normalizedPhone = normalizePhone(m.phoneNumber);
+
         return {
-          id: String(m.id || Math.random()),
-          phoneNumber: m.phoneNumber,
+          id: String(messageId),
+          phoneNumber: normalizedPhone,
           contactName: m.contactName || fmtPhoneBR(m.phoneNumber),
           message: m.message,
           timestamp: m.timestamp,
@@ -484,26 +532,24 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
       const currentIds = new Set(items.map(i => i.id));
       const newMessages = mapped.filter(m => !currentIds.has(m.id));
       
-      if (newMessages.length > 0) {
+      const hasChanges =
+        newMessages.length > 0 ||
+        mapped.length !== items.length ||
+        (mapped.length && items.length && mapped[0].id !== items[0].id);
+
+      if (hasChanges) {
         setItems(mapped);
-        
-        // Se estiver em uma conversa específica, atualizar também
+        setError(null);
+
         if (selectedContact) {
-          const normalizedContactPhone = toE164CellBR(selectedContact.phone);
-          const contactMessages = mapped.filter(item => {
-            const itemNormalized = toE164CellBR(item.phoneNumber);
-            return itemNormalized === normalizedContactPhone;
-          });
-          
-          // Ordenar mensagens por timestamp (mais antiga primeiro para chat)
-          const sortedMessages = contactMessages.sort((a, b) => 
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          const normalizedContactPhone = normalizePhone(selectedContact.phone);
+          const contactMessages = mapped.filter(item => normalizePhone(item.phoneNumber) === normalizedContactPhone);
+          const sortedMessages = contactMessages.sort(
+            (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           );
-          
           setConversationItems(sortedMessages);
         }
-        
-        // Rolar para o fim se houver mensagens novas
+
         setTimeout(() => {
           if (listRef.current) {
             listRef.current.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
@@ -529,10 +575,11 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
         hora: nowTime(),
       });
 
+      const normalizedPhone = normalizePhone(phone);
       const result = await whatsappAPI.sendMessage(
         siteSlug,
         customerId,
-        toE164CellBR(phone),
+        normalizedPhone,
         msg
       );
       
@@ -540,7 +587,6 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
         throw new Error(result.error || "Erro ao enviar");
       }
 
-      const normalizedPhone = toE164CellBR(phone);
       appendSentMessage(normalizedPhone, selectedContact?.name || fmtPhoneBR(phone), msg);
 
       setText("");
@@ -557,7 +603,8 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
         }
       }, 100);
     } catch (err: any) {
-      setError(err?.message || String(err) || "Falha ao enviar");
+      const errorMsg = err?.message || String(err) || "Falha ao enviar";
+      setError(formatErrorMessage(errorMsg));
     } finally {
       setSending(false);
     }
@@ -633,7 +680,7 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
       
       if (contactsData && contactsData.length > 0) {
         const formattedContacts = contactsData.map(c => ({
-          phone: c.phoneNumber,
+          phone: normalizePhone(c.phoneNumber),
           name: c.name || fmtPhoneBR(c.phoneNumber),
           profilePicUrl: c.profilePicUrl || null,
         }));
@@ -642,11 +689,10 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
       } else {
         // Fallback: criar contatos baseados nas mensagens
         console.log('Criando contatos baseados nas mensagens...');
-        const uniqueContacts = new Map();
+        const uniqueContacts = new Map<string, Contact>();
         items.forEach(item => {
           if (item.phoneNumber && item.contactName) {
-            // Usar telefone normalizado como chave para evitar duplicatas
-            const normalizedPhone = toE164CellBR(item.phoneNumber);
+            const normalizedPhone = normalizePhone(item.phoneNumber);
             console.log('Normalizando contato:', {
               original: item.phoneNumber,
               normalized: normalizedPhone,
@@ -654,7 +700,6 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
             });
             
             if (!uniqueContacts.has(normalizedPhone)) {
-              // Se não tem nome real, usar número formatado como fallback
               const displayName = (item.contactName && item.contactName !== "Contato") 
                 ? item.contactName 
                 : fmtPhoneBR(item.phoneNumber);
@@ -665,7 +710,6 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
                 profilePicUrl: item.profilePicUrl || null,
               });
             } else {
-              // Se já existe, atualizar o nome se for melhor
               const existing = uniqueContacts.get(normalizedPhone);
               const isRealName = (s: string) => {
                 return s && s !== "Contato" && !s.match(/^\(\d{2}\)\s\d{4,5}-\d{4}$/) && s.length >= 3;
@@ -673,6 +717,9 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
               
               if (isRealName(item.contactName) && !isRealName(existing.name)) {
                 existing.name = item.contactName;
+              }
+              if (!existing.profilePicUrl && item.profilePicUrl) {
+                existing.profilePicUrl = item.profilePicUrl;
               }
             }
           }
@@ -690,22 +737,26 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
     } catch (err: any) {
       console.error("Erro ao carregar contatos:", err);
       // Fallback: criar contatos baseados nas mensagens
-      const uniqueContacts = new Map();
+      const uniqueContacts = new Map<string, Contact>();
       items.forEach(item => {
         if (item.phoneNumber && item.contactName) {
-          // Usar telefone normalizado como chave para evitar duplicatas
-          const normalizedPhone = toE164CellBR(item.phoneNumber);
+          const normalizedPhone = normalizePhone(item.phoneNumber);
           if (!uniqueContacts.has(normalizedPhone)) {
-            // Se não tem nome real, usar número formatado como fallback
-            const displayName = (item.contactName && item.contactName !== "Contato") 
-              ? item.contactName 
-              : fmtPhoneBR(item.phoneNumber);
-            
+            const displayName =
+              item.contactName && item.contactName !== "Contato"
+                ? item.contactName
+                : fmtPhoneBR(item.phoneNumber);
+
             uniqueContacts.set(normalizedPhone, {
               phone: normalizedPhone,
               name: displayName,
               profilePicUrl: item.profilePicUrl || null,
             });
+          } else {
+            const existing = uniqueContacts.get(normalizedPhone);
+            if (existing && !existing.profilePicUrl && item.profilePicUrl) {
+              existing.profilePicUrl = item.profilePicUrl;
+            }
           }
         }
       });

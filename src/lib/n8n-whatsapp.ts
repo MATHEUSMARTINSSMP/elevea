@@ -30,6 +30,8 @@ export interface WhatsAppMessage {
   messageType?: string;
   contactName?: string;
   profilePicUrl?: string | null;
+  messageId?: string;
+  message_id?: string;
 }
 
 export interface WhatsAppContact {
