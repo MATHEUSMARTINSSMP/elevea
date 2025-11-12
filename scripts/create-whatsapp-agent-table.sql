@@ -4,20 +4,26 @@ CREATE SCHEMA IF NOT EXISTS elevea;
 -- Criar tabela de configuração do agente WhatsApp
 CREATE TABLE IF NOT EXISTS elevea.whatsapp_agent_config (
   id SERIAL PRIMARY KEY,
-  site_slug VARCHAR(255) NOT NULL UNIQUE,
+  site_slug VARCHAR(255) NOT NULL,
+  customer_id VARCHAR(255),
   business_name VARCHAR(255),
   business_type VARCHAR(100),
   generated_prompt TEXT,
   tools_enabled JSONB DEFAULT '{}',
   specialities TEXT[] DEFAULT '{}',
+  observations TEXT,
   active BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(site_slug, customer_id)
 );
 
 -- Criar índice para busca rápida
 CREATE INDEX IF NOT EXISTS idx_whatsapp_agent_config_site_slug 
 ON elevea.whatsapp_agent_config(site_slug);
+
+CREATE INDEX IF NOT EXISTS idx_whatsapp_agent_config_customer_id 
+ON elevea.whatsapp_agent_config(customer_id);
 
 -- Criar índice para busca por status ativo
 CREATE INDEX IF NOT EXISTS idx_whatsapp_agent_config_active 

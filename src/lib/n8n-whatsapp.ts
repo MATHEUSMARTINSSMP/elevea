@@ -498,6 +498,7 @@ export async function saveAgentConfig(
           specialities: Array.isArray(config.specialities) 
             ? config.specialities 
             : (typeof config.specialities === 'string' ? [config.specialities] : []),
+          observations: config.observations || '', // Incluir observações
         }),
         mode: 'cors',
         credentials: 'omit',
@@ -534,6 +535,7 @@ export async function saveAgentConfig(
           specialities: Array.isArray(config.specialities) 
             ? config.specialities 
             : (typeof config.specialities === 'string' ? [config.specialities] : []),
+          observations: config.observations || '', // Incluir observações
         });
         
         console.log('[saveAgentConfig] Resposta do webhook tradicional:', data);

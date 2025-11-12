@@ -1,0 +1,137 @@
+{
+  "name": "Salvar Configuração do Agente WhatsApp",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "api/whatsapp/agent/config",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [250, 300],
+      "id": "webhook-receive",
+      "name": "Webhook - Receber Config",
+      "webhookId": "whatsapp-agent-config"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "site-slug",
+              "name": "site_slug",
+              "value": "={{ $json.body.siteSlug || $json.body.site_slug }}",
+              "type": "string"
+            },
+            {
+              "id": "customer-id",
+              "name": "customer_id",
+              "value": "={{ $json.body.customerId || $json.body.customer_id }}",
+              "type": "string"
+            },
+            {
+              "id": "business-name",
+              "name": "business_name",
+              "value": "={{ $json.body.businessName || $json.body.business_name || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "business-type",
+              "name": "business_type",
+              "value": "={{ $json.body.businessType || $json.body.business_type || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "generated-prompt",
+              "name": "generated_prompt",
+              "value": "={{ $json.body.generatedPrompt || $json.body.generated_prompt || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "tools-enabled",
+              "name": "tools_enabled",
+              "value": "={{ $json.body.toolsEnabled || $json.body.tools_enabled || {} }}",
+              "type": "object"
+            },
+            {
+              "id": "specialities",
+              "name": "specialities",
+              "value": "={{ $json.body.specialities || [] }}",
+              "type": "array"
+            },
+            {
+              "id": "observations",
+              "name": "observations",
+              "value": "={{ $json.body.observations || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "active",
+              "name": "active",
+              "value": "={{ $json.body.active !== undefined ? $json.body.active : true }}",
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [450, 300],
+      "id": "prepare-data",
+      "name": "Preparar Dados"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO elevea.whatsapp_agent_config (\n  site_slug,\n  customer_id,\n  business_name,\n  business_type,\n  generated_prompt,\n  tools_enabled,\n  specialities,\n  observations,\n  active\n) VALUES (\n  $1,\n  $2,\n  $3,\n  $4,\n  $5,\n  $6::jsonb,\n  $7::text[],\n  $8,\n  $9\n)\nON CONFLICT (site_slug, customer_id)\nDO UPDATE SET\n  business_name = EXCLUDED.business_name,\n  business_type = EXCLUDED.business_type,\n  generated_prompt = EXCLUDED.generated_prompt,\n  tools_enabled = EXCLUDED.tools_enabled,\n  specialities = EXCLUDED.specialities,\n  observations = EXCLUDED.observations,\n  active = EXCLUDED.active,\n  updated_at = NOW()\nRETURNING *",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [650, 300],
+      "id": "save-to-supabase",
+      "name": "Salvar no Supabase",
+      "credentials": {
+        "postgres": {
+          "id": "S2Hp22T5AgilJMEy",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, success: true, message: 'Configuração salva com sucesso', config: $json } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [850, 300],
+      "id": "respond-success",
+      "name": "Responder Sucesso"
+    }
+  ],
+  "connections": {
+    "Webhook - Receber Config": {
+      "main": [[{ "node": "Preparar Dados", "type": "main", "index": 0 }]]
+    },
+    "Preparar Dados": {
+      "main": [[{ "node": "Salvar no Supabase", "type": "main", "index": 0 }]]
+    },
+    "Salvar no Supabase": {
+      "main": [[{ "node": "Responder Sucesso", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-11-12T00:00:00.000Z",
+  "versionId": "1"
+}
+
