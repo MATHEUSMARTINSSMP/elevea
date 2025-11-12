@@ -105,26 +105,67 @@ RETURNING *;
 
 ## 🚀 Como Criar no n8n
 
+### Opção 1: Importar JSON (Recomendado)
+
+1. Abra o n8n
+2. Clique em "Workflows" → "Import from File"
+3. Selecione o arquivo `scripts/n8n-workflow-save-agent-config.json`
+4. **Configure as credenciais do Postgres (Supabase)** no node "Salvar no Supabase":
+   - Clique no node "Salvar no Supabase"
+   - Selecione ou crie credencial do Postgres com dados do Supabase
+   - **IMPORTANTE**: No campo "Query Replacement", configure:
+     ```
+     {{ [$json.site_slug, $json.customer_id, $json.business_name, $json.business_type, $json.generated_prompt, JSON.stringify($json.tools_enabled), $json.specialities, $json.observations, $json.active] }}
+     ```
+5. Ative o workflow (toggle no canto superior direito)
+
+### Opção 2: Criar Manualmente
+
 1. **Criar novo workflow** no n8n
 2. **Adicionar node "Webhook"**:
    - Método: POST
    - Path: `api/whatsapp/agent/config`
    - Production: ✅ (ativar)
+   - Response Mode: "When Last Node Finishes"
 
 3. **Adicionar node "Set"** (Preparar Dados):
-   - Mapear campos do body para variáveis
-   - Converter tipos conforme necessário
+   - Mode: "Manual"
+   - Adicionar assignments:
+     - `site_slug` = `{{ $json.body.siteSlug || $json.body.site_slug }}`
+     - `customer_id` = `{{ $json.body.customerId || $json.body.customer_id }}`
+     - `business_name` = `{{ $json.body.businessName || $json.body.business_name || '' }}`
+     - `business_type` = `{{ $json.body.businessType || $json.body.business_type || '' }}`
+     - `generated_prompt` = `{{ $json.body.generatedPrompt || $json.body.generated_prompt || '' }}`
+     - `tools_enabled` = `{{ $json.body.toolsEnabled || $json.body.tools_enabled || {} }}`
+     - `specialities` = `{{ $json.body.specialities || [] }}`
+     - `observations` = `{{ $json.body.observations || '' }}`
+     - `active` = `{{ $json.body.active !== undefined ? $json.body.active : true }}`
 
 4. **Adicionar node "Postgres"** (Salvar no Supabase):
    - Operation: Execute Query
-   - Query: Usar a query SQL acima
+   - Query: Usar a query SQL acima (com placeholders $1, $2, etc.)
    - Credentials: Postgres account (Supabase)
+   - **Query Replacement**: 
+     ```
+     {{ [$json.site_slug, $json.customer_id, $json.business_name, $json.business_type, $json.generated_prompt, JSON.stringify($json.tools_enabled), $json.specialities, $json.observations, $json.active] }}
+     ```
 
 5. **Adicionar node "Respond to Webhook"**:
    - Respond With: JSON
-   - Response Body: `{ ok: true, success: true, message: 'Configuração salva com sucesso', config: $json }`
+   - Response Body: 
+     ```json
+     {
+       "ok": true,
+       "success": true,
+       "message": "Configuração salva com sucesso",
+       "config": {{ $json }}
+     }
+     ```
 
-6. **Ativar workflow**
+6. **Conectar os nodes**:
+   - Webhook → Preparar Dados → Salvar no Supabase → Responder Sucesso
+
+7. **Ativar workflow** (toggle no canto superior direito)
 
 ## ✅ Validações
 
@@ -153,10 +194,26 @@ curl -X POST https://fluxos.eleveaagencia.com.br/webhook/api/whatsapp/agent/conf
   }'
 ```
 
-## 📌 Notas
+## 📌 Notas Importantes
 
 - O workflow usa `ON CONFLICT` para fazer UPSERT (INSERT ou UPDATE)
 - A constraint `UNIQUE(site_slug, customer_id)` garante uma configuração por site/cliente
 - O campo `updated_at` é atualizado automaticamente via trigger
 - O campo `created_at` é definido apenas na criação
+- **Query Replacement**: No node Postgres, é necessário configurar o "Query Replacement" com os valores dos parâmetros em ordem ($1, $2, etc.)
+- O `tools_enabled` precisa ser convertido para JSON string usando `JSON.stringify()`
+- O `specialities` já é um array, então pode ser passado diretamente
 
+## 🗄️ Atualizar Tabela Existente
+
+Se a tabela já existe, execute o script SQL de atualização:
+
+```bash
+psql -h [SUPABASE_HOST] -U [SUPABASE_USER] -d [SUPABASE_DB] -f scripts/update-whatsapp-agent-table.sql
+```
+
+Ou execute diretamente no Supabase SQL Editor:
+
+```sql
+-- Ver scripts/update-whatsapp-agent-table.sql
+```

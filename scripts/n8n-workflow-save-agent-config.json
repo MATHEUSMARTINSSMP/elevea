@@ -86,7 +86,9 @@
       "parameters": {
         "operation": "executeQuery",
         "query": "INSERT INTO elevea.whatsapp_agent_config (\n  site_slug,\n  customer_id,\n  business_name,\n  business_type,\n  generated_prompt,\n  tools_enabled,\n  specialities,\n  observations,\n  active\n) VALUES (\n  $1,\n  $2,\n  $3,\n  $4,\n  $5,\n  $6::jsonb,\n  $7::text[],\n  $8,\n  $9\n)\nON CONFLICT (site_slug, customer_id)\nDO UPDATE SET\n  business_name = EXCLUDED.business_name,\n  business_type = EXCLUDED.business_type,\n  generated_prompt = EXCLUDED.generated_prompt,\n  tools_enabled = EXCLUDED.tools_enabled,\n  specialities = EXCLUDED.specialities,\n  observations = EXCLUDED.observations,\n  active = EXCLUDED.active,\n  updated_at = NOW()\nRETURNING *",
-        "options": {}
+        "options": {
+          "queryReplacement": "={{ [$json.site_slug, $json.customer_id, $json.business_name, $json.business_type, $json.generated_prompt, JSON.stringify($json.tools_enabled), $json.specialities, $json.observations, $json.active] }}"
+        }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
