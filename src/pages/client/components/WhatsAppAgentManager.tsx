@@ -262,6 +262,9 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
   const [bulkProgress, setBulkProgress] = useState<{ sent: number; total: number; success: number; failed: number } | null>(null);
   const [bulkStatus, setBulkStatus] = useState<string | null>(null);
 
+  // Status de teste de conectividade com o n8n
+  const [testStatus, setTestStatus] = useState<string | null>(null);
+
   const listRef = useRef<HTMLDivElement>(null);
 
   const toggleContactSelection = (contact: Contact) => {
@@ -278,6 +281,27 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
       return next;
     });
   };
+
+  // Testa a conectividade com o n8n usando os endpoints de WhatsApp
+  async function testN8nConnectivity() {
+    // Limpa status anterior
+    setTestStatus(null);
+    try {
+      const testToken = (import.meta.env.VITE_N8N_TEST_TOKEN as string) || "test"; // opcional: token de teste em env
+      const result = await whatsappAPI.connectUAZAPI(siteSlug, customerId, testToken);
+      if (result?.connected) {
+        setTestStatus("Conexão OK: QR code disponível" + (result.qrCode ? "" : ", QR code não retornado"));
+      } else if (result?.status) {
+        setTestStatus("Status: " + result.status);
+      } else if (result?.error) {
+        setTestStatus("Erro: " + result.error);
+      } else {
+        setTestStatus("Conexão verificada (resultado desconhecido)");
+      }
+    } catch (err: any) {
+      setTestStatus("Erro na requisição: " + (err?.message ?? String(err)));
+    }
+  }
 
   const normalizeKey = (value: string) => normalizePhone(value || "");
 
@@ -807,6 +831,14 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
     setBulkPreview(preview);
   }, [bulkMessage, selectedPhones, contacts, bulkMode, selectedContact]);
 
+  // Exibir status de teste se disponível
+  useEffect(() => {
+    if (testStatus) {
+      // Você pode exibir em console também para debug
+      console.log("N8n test status:", testStatus);
+    }
+  }, [testStatus]);
+
   /* --------- carregar dados iniciais --------- */
   useEffect(() => {
     // Teste de normalização
@@ -883,6 +915,14 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
             >
               <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 ${loading ? 'animate-spin' : ''}`} />
               Atualizar
+            </Button>
+            <Button
+              onClick={testN8nConnectivity}
+              variant="outline"
+              size="sm"
+              className="text-xs sm:text-sm"
+            >
+              Testar n8n
             </Button>
           </div>
         </div>
