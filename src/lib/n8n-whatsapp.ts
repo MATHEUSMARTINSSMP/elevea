@@ -310,6 +310,7 @@ export interface WhatsAppAgentConfig {
   active?: boolean;
   toolsEnabled?: Record<string, boolean>;
   specialities?: string[];
+  observations?: string; // Campo de observações para informações adicionais
 }
 
 /**
@@ -460,6 +461,7 @@ export async function saveAgentConfig(
       specialities: Array.isArray(config.specialities) 
         ? config.specialities 
         : (typeof config.specialities === 'string' ? [config.specialities] : []),
+      observations: config.observations || '', // Incluir observações no payload
     };
     
     console.log('[saveAgentConfig] Payload preparado:', payload);

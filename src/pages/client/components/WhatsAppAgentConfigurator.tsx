@@ -141,11 +141,7 @@ type FormData = {
   // Configurações
   personality_traits: string[];
   tone_of_voice: string;
-  tools_enabled: {
-    google_calendar: boolean;
-    escalate_human: boolean;
-    send_file: boolean;
-  };
+  observations: string; // Campo de observações ao invés de tools_enabled
 };
 
 export default function WhatsAppAgentConfigurator({ siteSlug, vipPin }: WhatsAppAgentConfiguratorProps) {
@@ -176,11 +172,7 @@ export default function WhatsAppAgentConfigurator({ siteSlug, vipPin }: WhatsApp
     service_categories: [],
     personality_traits: ["simpática", "prestativa"],
     tone_of_voice: "profissional",
-    tools_enabled: {
-      google_calendar: false,
-      escalate_human: true,
-      send_file: false,
-    },
+    observations: "", // Campo de observações ao invés de tools_enabled
   });
 
   // Carregar configuração existente
@@ -216,11 +208,7 @@ export default function WhatsAppAgentConfigurator({ siteSlug, vipPin }: WhatsApp
           health_plans: config.health_plans || [],
           product_categories: config.product_categories || [],
           service_categories: config.service_categories || [],
-          tools_enabled: config.tools_enabled || {
-            google_calendar: false,
-            escalate_human: true,
-            send_file: false,
-          },
+          observations: config.observations || "",
           tone_of_voice: config.tone_of_voice || "profissional",
         }));
       }
@@ -265,12 +253,9 @@ export default function WhatsAppAgentConfigurator({ siteSlug, vipPin }: WhatsApp
         businessType: formData.business_category || formData.business_subcategory || '',
         generatedPrompt: formData.business_description || '', // Usar descrição como prompt inicial
         active: true,
-        toolsEnabled: {
-          google_calendar: formData.tools_enabled?.google_calendar || false,
-          escalar_humano: formData.tools_enabled?.escalate_human || false,
-          google_drive: formData.tools_enabled?.send_file || false,
-        },
+        toolsEnabled: {}, // Mantido vazio por enquanto, pode ser usado no futuro
         specialities: specialitiesArray,
+        observations: formData.observations || "", // Adicionar observações ao payload
       };
       
       console.log('[WhatsAppAgentConfigurator] Salvando configuração:', configToSave);
@@ -477,10 +462,16 @@ export default function WhatsAppAgentConfigurator({ siteSlug, vipPin }: WhatsApp
                 </label>
                 <Textarea
                   value={formData.business_description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, business_description: e.target.value }))}
+                  onChange={(e) => {
+                    // Preservar todos os espaços e quebras de linha
+                    setFormData(prev => ({ ...prev, business_description: e.target.value }));
+                  }}
                   placeholder="Descreva brevemente seu negócio..."
                   className="dashboard-input border dashboard-border min-h-[100px]"
                 />
+                <p className="text-xs text-slate-400 mt-1">
+                  Você pode usar espaços e quebras de linha livremente. Todo o texto será preservado.
+                </p>
               </div>
 
               <div>
@@ -787,10 +778,16 @@ export default function WhatsAppAgentConfigurator({ siteSlug, vipPin }: WhatsApp
                   </label>
                   <Textarea
                     value={formData.shipping_info}
-                    onChange={(e) => setFormData(prev => ({ ...prev, shipping_info: e.target.value }))}
+                    onChange={(e) => {
+                      // Preservar todos os espaços e quebras de linha
+                      setFormData(prev => ({ ...prev, shipping_info: e.target.value }));
+                    }}
                     placeholder="Frete grátis acima de R$ 100, entrega em até 5 dias úteis para capital e 7 dias para interior..."
-                    className="dashboard-input border dashboard-border min-h-[80px]"
+                    className="dashboard-input border dashboard-border min-h-[100px]"
                   />
+                  <p className="text-xs text-slate-400 mt-1">
+                    Descreva as informações de entrega. Espaços e quebras de linha serão preservados.
+                  </p>
                 </div>
 
                 <div>
@@ -897,10 +894,16 @@ export default function WhatsAppAgentConfigurator({ siteSlug, vipPin }: WhatsApp
                   </label>
                   <Textarea
                     value={formData.shipping_info}
-                    onChange={(e) => setFormData(prev => ({ ...prev, shipping_info: e.target.value }))}
+                    onChange={(e) => {
+                      // Preservar todos os espaços e quebras de linha
+                      setFormData(prev => ({ ...prev, shipping_info: e.target.value }));
+                    }}
                     placeholder="Frete grátis acima de R$ 100, entrega em até 5 dias úteis para capital e 7 dias para interior. Aceitamos retirada na loja física."
-                    className="dashboard-input border dashboard-border min-h-[80px]"
+                    className="dashboard-input border dashboard-border min-h-[100px]"
                   />
+                  <p className="text-xs text-slate-400 mt-1">
+                    Descreva as informações de entrega. Espaços e quebras de linha serão preservados.
+                  </p>
                 </div>
 
                 <div>
@@ -909,10 +912,16 @@ export default function WhatsAppAgentConfigurator({ siteSlug, vipPin }: WhatsApp
                   </label>
                   <Textarea
                     value={formData.return_policy}
-                    onChange={(e) => setFormData(prev => ({ ...prev, return_policy: e.target.value }))}
+                    onChange={(e) => {
+                      // Preservar todos os espaços e quebras de linha
+                      setFormData(prev => ({ ...prev, return_policy: e.target.value }));
+                    }}
                     placeholder="Aceitamos trocas e devoluções em até 7 dias após o recebimento do produto, desde que o produto esteja em perfeito estado..."
-                    className="dashboard-input border dashboard-border min-h-[80px]"
+                    className="dashboard-input border dashboard-border min-h-[100px]"
                   />
+                  <p className="text-xs text-slate-400 mt-1">
+                    Descreva a política de troca e devolução. Espaços e quebras de linha serão preservados.
+                  </p>
                 </div>
 
                 <div>
@@ -1001,43 +1010,17 @@ export default function WhatsAppAgentConfigurator({ siteSlug, vipPin }: WhatsApp
 
               <div>
                 <label className="block text-sm font-medium dashboard-text mb-2">
-                  Ferramentas Disponíveis
+                  Observações
                 </label>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.tools_enabled.google_calendar}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        tools_enabled: { ...prev.tools_enabled, google_calendar: e.target.checked }
-                      }))}
-                    />
-                    <span className="dashboard-text text-sm">Google Calendar (agendamentos)</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.tools_enabled.escalate_human}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        tools_enabled: { ...prev.tools_enabled, escalate_human: e.target.checked }
-                      }))}
-                    />
-                    <span className="dashboard-text text-sm">Escalar para Humano</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.tools_enabled.send_file}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        tools_enabled: { ...prev.tools_enabled, send_file: e.target.checked }
-                      }))}
-                    />
-                    <span className="dashboard-text text-sm">Enviar Arquivos</span>
-                  </label>
-                </div>
+                <Textarea
+                  value={formData.observations}
+                  onChange={(e) => setFormData(prev => ({ ...prev, observations: e.target.value }))}
+                  placeholder="Adicione observações importantes sobre o comportamento do agente, instruções especiais, ou qualquer informação relevante que o agente deve considerar ao atender os clientes..."
+                  className="dashboard-input border dashboard-border min-h-[150px]"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  Use este campo para adicionar informações adicionais, instruções especiais ou observações sobre como o agente deve se comportar.
+                </p>
               </div>
             </div>
 
