@@ -5,7 +5,9 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "api/whatsapp/agent/config",
-        "options": {}
+        "options": {
+          "responseMode": "responseNode"
+        }
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
@@ -112,7 +114,8 @@
       "typeVersion": 1.1,
       "position": [850, 300],
       "id": "respond-success",
-      "name": "Responder Sucesso"
+      "name": "Responder Sucesso",
+      "webhookId": "whatsapp-agent-config"
     }
   ],
   "connections": {
