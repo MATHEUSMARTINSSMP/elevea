@@ -5,11 +5,19 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = 'https://kktsbnrnlnzyofupegjc.supabase.co';
-const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrdHNibnJubG56eW9mdXBlZ2pjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MDc5NTAyNiwiZXhwIjoyMDc2MzcxMDI2fQ.C4bs65teQiC4cQNgRfFjDmmT27dCkEoS_H3eQFmdl3s';
+// Usar variáveis de ambiente para evitar expor secrets no código
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
 
-const N8N_BASE_URL = 'https://fluxos.eleveaagencia.com.br';
-const N8N_API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjMjdiNTliMS1kNzA3LTQ0ZmMtOTNkZS03Y2NmYTNlN2RhNzEiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYwOTAwMTE3fQ.INFaDR3UONfjP6Gfd9MkO1kfGrV-b1af5yQDY36wBH4';
+const N8N_BASE_URL = process.env.N8N_BASE_URL || process.env.VITE_N8N_BASE_URL || 'https://fluxos.eleveaagencia.com.br';
+const N8N_API_KEY = process.env.N8N_API_KEY || process.env.VITE_N8N_API_KEY || '';
+
+// Validar que as variáveis obrigatórias estão definidas
+if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+  console.error('❌ Erro: Variáveis de ambiente SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY são obrigatórias');
+  console.log('💡 Configure as variáveis de ambiente antes de executar este script');
+  process.exit(1);
+}
 
 async function checkSupabaseStructure() {
   console.log('\n=== VERIFICANDO SUPABASE ===\n');

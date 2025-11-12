@@ -2,8 +2,16 @@
  * Verificar workflow completo do n8n para entender estrutura necessária
  */
 
-const N8N_BASE_URL = 'https://fluxos.eleveaagencia.com.br';
-const N8N_API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjMjdiNTliMS1kNzA3LTQ0ZmMtOTNkZS03Y2NmYTNlN2RhNzEiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYwOTAwMTE3fQ.INFaDR3UONfjP6Gfd9MkO1kfGrV-b1af5yQDY36wBH4';
+// Usar variáveis de ambiente para evitar expor secrets no código
+const N8N_BASE_URL = process.env.N8N_BASE_URL || process.env.VITE_N8N_BASE_URL || 'https://fluxos.eleveaagencia.com.br';
+const N8N_API_KEY = process.env.N8N_API_KEY || process.env.VITE_N8N_API_KEY || '';
+
+// Validar que a API key está definida
+if (!N8N_API_KEY) {
+  console.error('❌ Erro: Variável de ambiente N8N_API_KEY é obrigatória');
+  console.log('💡 Configure a variável de ambiente antes de executar este script');
+  process.exit(1);
+}
 
 async function getWorkflowDetails() {
   const workflowId = 'HJlx3kX8rc9MJJqS';
