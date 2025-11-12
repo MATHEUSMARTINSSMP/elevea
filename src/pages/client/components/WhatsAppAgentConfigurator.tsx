@@ -245,17 +245,42 @@ export default function WhatsAppAgentConfigurator({ siteSlug, vipPin }: WhatsApp
         }).filter(s => s && s.trim().length > 0);
       }
 
-      // Mapear formData para o formato esperado pela API
+      // Mapear formData para o formato esperado pela API - ENVIAR TODOS OS DADOS
       const configToSave: whatsappAPI.WhatsAppAgentConfig = {
         siteSlug,
         customerId,
+        // Informações básicas
         businessName: formData.business_name || '',
         businessType: formData.business_category || formData.business_subcategory || '',
+        businessCategory: formData.business_category || '',
+        businessSubcategory: formData.business_subcategory || '',
+        businessDescription: formData.business_description || '',
         generatedPrompt: formData.business_description || '', // Usar descrição como prompt inicial
-        active: true,
-        toolsEnabled: {}, // Mantido vazio por enquanto, pode ser usado no futuro
+        // Contato
+        address: formData.address || '',
+        phone: formData.phone || '',
+        whatsappNumber: formData.whatsapp_number || '',
+        email: formData.email || '',
+        website: formData.website || '',
+        // Horários
+        businessHours: formData.business_hours || {},
+        // Específicos Clínica
         specialities: specialitiesArray,
-        observations: formData.observations || "", // Adicionar observações ao payload
+        appointmentPrice: formData.appointment_price || '',
+        paymentMethods: formData.payment_methods || [],
+        healthPlans: formData.health_plans || [],
+        // Específicos Produto
+        productCategories: formData.product_categories || [],
+        shippingInfo: formData.shipping_info || '',
+        returnPolicy: formData.return_policy || '',
+        // Específicos Serviços
+        serviceCategories: formData.service_categories || [],
+        // Configurações
+        personalityTraits: formData.personality_traits || [],
+        toneOfVoice: formData.tone_of_voice || 'profissional',
+        observations: formData.observations || '',
+        active: true,
+        toolsEnabled: {}, // Mantido vazio por enquanto
       };
       
       console.log('[WhatsAppAgentConfigurator] Salvando configuração:', configToSave);

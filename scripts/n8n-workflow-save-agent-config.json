@@ -86,15 +86,83 @@
     },
     {
       "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "site-slug-normalized",
+              "name": "site_slug",
+              "value": "={{ $json.site_slug }}",
+              "type": "string"
+            },
+            {
+              "id": "customer-id-normalized",
+              "name": "customer_id",
+              "value": "={{ $json.customer_id }}",
+              "type": "string"
+            },
+            {
+              "id": "business-name-normalized",
+              "name": "business_name",
+              "value": "={{ $json.business_name || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "business-type-normalized",
+              "name": "business_type",
+              "value": "={{ $json.business_type || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "generated-prompt-normalized",
+              "name": "generated_prompt",
+              "value": "={{ $json.generated_prompt || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "tools-enabled-normalized",
+              "name": "tools_enabled",
+              "value": "={{ typeof $json.tools_enabled === 'object' ? JSON.stringify($json.tools_enabled) : ($json.tools_enabled || '{}') }}",
+              "type": "string"
+            },
+            {
+              "id": "specialities-normalized",
+              "name": "specialities",
+              "value": "={{ Array.isArray($json.specialities) ? JSON.stringify($json.specialities) : ($json.specialities || '[]') }}",
+              "type": "string"
+            },
+            {
+              "id": "observations-normalized",
+              "name": "observations",
+              "value": "={{ $json.observations || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "active-normalized",
+              "name": "active",
+              "value": "={{ $json.active !== undefined ? $json.active : true }}",
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [650, 300],
+      "id": "normalize-data",
+      "name": "Normalizar Dados"
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO elevea.whatsapp_agent_config (\n  site_slug,\n  customer_id,\n  business_name,\n  business_type,\n  generated_prompt,\n  tools_enabled,\n  specialities,\n  observations,\n  active\n) VALUES (\n  $1,\n  $2,\n  $3,\n  $4,\n  $5,\n  $6::jsonb,\n  $7::text[],\n  $8,\n  $9\n)\nON CONFLICT (site_slug, customer_id)\nDO UPDATE SET\n  business_name = EXCLUDED.business_name,\n  business_type = EXCLUDED.business_type,\n  generated_prompt = EXCLUDED.generated_prompt,\n  tools_enabled = EXCLUDED.tools_enabled,\n  specialities = EXCLUDED.specialities,\n  observations = EXCLUDED.observations,\n  active = EXCLUDED.active,\n  updated_at = NOW()\nRETURNING *",
+        "query": "INSERT INTO elevea.whatsapp_agent_config (\n  site_slug,\n  customer_id,\n  business_name,\n  business_type,\n  generated_prompt,\n  tools_enabled,\n  specialities,\n  observations,\n  active\n) VALUES (\n  $1,\n  $2,\n  $3,\n  $4,\n  $5,\n  $6::jsonb,\n  $7::jsonb,\n  $8,\n  $9\n)\nON CONFLICT (site_slug, customer_id)\nDO UPDATE SET\n  business_name = EXCLUDED.business_name,\n  business_type = EXCLUDED.business_type,\n  generated_prompt = EXCLUDED.generated_prompt,\n  tools_enabled = EXCLUDED.tools_enabled,\n  specialities = EXCLUDED.specialities,\n  observations = EXCLUDED.observations,\n  active = EXCLUDED.active,\n  updated_at = NOW()\nRETURNING *",
         "options": {
-          "queryReplacement": "={{ [$json.site_slug, $json.customer_id, $json.business_name, $json.business_type, $json.generated_prompt, JSON.stringify($json.tools_enabled), $json.specialities, $json.observations, $json.active] }}"
+          "queryReplacement": "={{ [$json.site_slug, $json.customer_id, $json.business_name, $json.business_type, $json.generated_prompt, $json.tools_enabled, $json.specialities, $json.observations, $json.active] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
-      "position": [650, 300],
+      "position": [850, 300],
       "id": "save-to-supabase",
       "name": "Salvar no Supabase",
       "credentials": {
@@ -112,7 +180,7 @@
       },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [850, 300],
+      "position": [1050, 300],
       "id": "respond-success",
       "name": "Responder Sucesso",
       "webhookId": "whatsapp-agent-config"
@@ -123,6 +191,9 @@
       "main": [[{ "node": "Preparar Dados", "type": "main", "index": 0 }]]
     },
     "Preparar Dados": {
+      "main": [[{ "node": "Normalizar Dados", "type": "main", "index": 0 }]]
+    },
+    "Normalizar Dados": {
       "main": [[{ "node": "Salvar no Supabase", "type": "main", "index": 0 }]]
     },
     "Salvar no Supabase": {

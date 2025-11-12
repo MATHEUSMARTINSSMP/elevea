@@ -85,12 +85,24 @@ async function testWebhook() {
     console.log(`   Content-Type: ${contentType2}`);
     
     let data2: any;
+    const text2 = await response2.text();
+    
     if (contentType2?.includes('application/json')) {
-      data2 = await response2.json();
+      if (text2 && text2.trim()) {
+        try {
+          data2 = JSON.parse(text2);
+        } catch (e) {
+          console.log(`   ⚠️  Erro ao fazer parse do JSON: ${e}`);
+          console.log(`   Resposta (texto): ${text2.substring(0, 500)}`);
+          data2 = { raw: text2, parseError: true };
+        }
+      } else {
+        console.log(`   ⚠️  Resposta vazia (mas status 200 OK)`);
+        data2 = { empty: true };
+      }
     } else {
-      const text = await response2.text();
-      console.log(`   Resposta (texto): ${text.substring(0, 500)}`);
-      data2 = { raw: text };
+      console.log(`   Resposta (texto): ${text2.substring(0, 500)}`);
+      data2 = { raw: text2 };
     }
 
     console.log("\n   Resposta:", JSON.stringify(data2, null, 2));

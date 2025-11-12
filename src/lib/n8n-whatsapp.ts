@@ -306,11 +306,30 @@ export interface WhatsAppAgentConfig {
   customerId: string;
   businessName?: string;
   businessType?: string;
+  businessCategory?: string;
+  businessSubcategory?: string;
+  businessDescription?: string;
+  address?: string;
+  phone?: string;
+  whatsappNumber?: string;
+  email?: string;
+  website?: string;
+  businessHours?: Record<string, any>;
+  specialities?: string[];
+  appointmentPrice?: string;
+  paymentMethods?: string[];
+  healthPlans?: string[];
+  productCategories?: Array<{ name: string; products?: string[] }>;
+  shippingInfo?: string;
+  returnPolicy?: string;
+  serviceCategories?: Array<{ name: string; description: string; price?: string }>;
   generatedPrompt?: string;
+  promptTemplate?: string;
+  personalityTraits?: string[];
+  toneOfVoice?: string;
   active?: boolean;
   toolsEnabled?: Record<string, boolean>;
-  specialities?: string[];
-  observations?: string; // Campo de observações para informações adicionais
+  observations?: string;
 }
 
 /**
@@ -449,19 +468,44 @@ export async function saveAgentConfig(
       throw new Error('siteSlug e customerId são obrigatórios');
     }
     
-    // Preparar payload com estrutura correta para o n8n/Supabase
+    // Preparar payload com estrutura correta para o n8n/Supabase - TODOS OS CAMPOS
     const payload = {
       site_slug: config.siteSlug,
       customer_id: config.customerId,
+      // Informações básicas
       business_name: config.businessName || '',
       business_type: config.businessType || '',
+      business_category: config.businessCategory || '',
+      business_subcategory: config.businessSubcategory || '',
+      business_description: config.businessDescription || '',
       generated_prompt: config.generatedPrompt || '',
-      active: config.active !== undefined ? config.active : true,
-      tools_enabled: config.toolsEnabled || {},
+      // Contato
+      address: config.address || '',
+      phone: config.phone || '',
+      whatsapp_number: config.whatsappNumber || '',
+      email: config.email || '',
+      website: config.website || '',
+      // Horários
+      business_hours: config.businessHours || {},
+      // Específicos Clínica
       specialities: Array.isArray(config.specialities) 
         ? config.specialities 
         : (typeof config.specialities === 'string' ? [config.specialities] : []),
-      observations: config.observations || '', // Incluir observações no payload
+      appointment_price: config.appointmentPrice || '',
+      payment_methods: Array.isArray(config.paymentMethods) ? config.paymentMethods : [],
+      health_plans: Array.isArray(config.healthPlans) ? config.healthPlans : [],
+      // Específicos Produto
+      product_categories: Array.isArray(config.productCategories) ? config.productCategories : [],
+      shipping_info: config.shippingInfo || '',
+      return_policy: config.returnPolicy || '',
+      // Específicos Serviços
+      service_categories: Array.isArray(config.serviceCategories) ? config.serviceCategories : [],
+      // Configurações
+      personality_traits: Array.isArray(config.personalityTraits) ? config.personalityTraits : [],
+      tone_of_voice: config.toneOfVoice || 'profissional',
+      observations: config.observations || '',
+      active: config.active !== undefined ? config.active : true,
+      tools_enabled: config.toolsEnabled || {},
     };
     
     console.log('[saveAgentConfig] Payload preparado:', payload);
@@ -490,15 +534,40 @@ export async function saveAgentConfig(
         body: JSON.stringify({
           siteSlug: config.siteSlug,
           customerId: config.customerId,
+          // Informações básicas
           businessName: config.businessName || '',
           businessType: config.businessType || '',
+          businessCategory: config.businessCategory || '',
+          businessSubcategory: config.businessSubcategory || '',
+          businessDescription: config.businessDescription || '',
           generatedPrompt: config.generatedPrompt || '',
-          active: config.active !== undefined ? config.active : true,
-          toolsEnabled: config.toolsEnabled || {},
+          // Contato
+          address: config.address || '',
+          phone: config.phone || '',
+          whatsappNumber: config.whatsappNumber || '',
+          email: config.email || '',
+          website: config.website || '',
+          // Horários
+          businessHours: config.businessHours || {},
+          // Específicos Clínica
           specialities: Array.isArray(config.specialities) 
             ? config.specialities 
             : (typeof config.specialities === 'string' ? [config.specialities] : []),
-          observations: config.observations || '', // Incluir observações
+          appointmentPrice: config.appointmentPrice || '',
+          paymentMethods: Array.isArray(config.paymentMethods) ? config.paymentMethods : [],
+          healthPlans: Array.isArray(config.healthPlans) ? config.healthPlans : [],
+          // Específicos Produto
+          productCategories: Array.isArray(config.productCategories) ? config.productCategories : [],
+          shippingInfo: config.shippingInfo || '',
+          returnPolicy: config.returnPolicy || '',
+          // Específicos Serviços
+          serviceCategories: Array.isArray(config.serviceCategories) ? config.serviceCategories : [],
+          // Configurações
+          personalityTraits: Array.isArray(config.personalityTraits) ? config.personalityTraits : [],
+          toneOfVoice: config.toneOfVoice || 'profissional',
+          observations: config.observations || '',
+          active: config.active !== undefined ? config.active : true,
+          toolsEnabled: config.toolsEnabled || {},
         }),
         mode: 'cors',
         credentials: 'omit',
@@ -527,15 +596,40 @@ export async function saveAgentConfig(
         const data = await post('/api/whatsapp/agent/config', {
           siteSlug: config.siteSlug,
           customerId: config.customerId,
+          // Informações básicas
           businessName: config.businessName || '',
           businessType: config.businessType || '',
+          businessCategory: config.businessCategory || '',
+          businessSubcategory: config.businessSubcategory || '',
+          businessDescription: config.businessDescription || '',
           generatedPrompt: config.generatedPrompt || '',
-          active: config.active !== undefined ? config.active : true,
-          toolsEnabled: config.toolsEnabled || {},
+          // Contato
+          address: config.address || '',
+          phone: config.phone || '',
+          whatsappNumber: config.whatsappNumber || '',
+          email: config.email || '',
+          website: config.website || '',
+          // Horários
+          businessHours: config.businessHours || {},
+          // Específicos Clínica
           specialities: Array.isArray(config.specialities) 
             ? config.specialities 
             : (typeof config.specialities === 'string' ? [config.specialities] : []),
-          observations: config.observations || '', // Incluir observações
+          appointmentPrice: config.appointmentPrice || '',
+          paymentMethods: Array.isArray(config.paymentMethods) ? config.paymentMethods : [],
+          healthPlans: Array.isArray(config.healthPlans) ? config.healthPlans : [],
+          // Específicos Produto
+          productCategories: Array.isArray(config.productCategories) ? config.productCategories : [],
+          shippingInfo: config.shippingInfo || '',
+          returnPolicy: config.returnPolicy || '',
+          // Específicos Serviços
+          serviceCategories: Array.isArray(config.serviceCategories) ? config.serviceCategories : [],
+          // Configurações
+          personalityTraits: Array.isArray(config.personalityTraits) ? config.personalityTraits : [],
+          toneOfVoice: config.toneOfVoice || 'profissional',
+          observations: config.observations || '',
+          active: config.active !== undefined ? config.active : true,
+          toolsEnabled: config.toolsEnabled || {},
         });
         
         console.log('[saveAgentConfig] Resposta do webhook tradicional:', data);
