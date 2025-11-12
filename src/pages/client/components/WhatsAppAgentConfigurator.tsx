@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { DashboardCardSkeleton } from "@/components/ui/loading-skeletons";
 import * as n8nAgent from "@/lib/n8n-whatsapp-agent";
+import * as whatsappAPI from "@/lib/n8n-whatsapp";
+import { useAuth } from "@/hooks/useAuth";
 
 export interface WhatsAppAgentConfiguratorProps {
   siteSlug: string;
@@ -147,8 +149,11 @@ type FormData = {
 };
 
 export default function WhatsAppAgentConfigurator({ siteSlug, vipPin }: WhatsAppAgentConfiguratorProps) {
+  const { user } = useAuth();
+  const customerId = user?.email || "";
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("category");
   const [formData, setFormData] = useState<FormData>({
     business_category: "",
@@ -184,9 +189,14 @@ export default function WhatsAppAgentConfigurator({ siteSlug, vipPin }: WhatsApp
   }, [siteSlug]);
 
   async function loadConfig() {
+    if (!customerId) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      const config = await n8nAgent.getAgentConfig(siteSlug);
+      const config = await whatsappAPI.getAgentConfig(siteSlug, customerId);
       if (config) {
         // Preencher formData com valores carregados
         setFormData(prev => ({
@@ -222,32 +232,88 @@ export default function WhatsAppAgentConfigurator({ siteSlug, vipPin }: WhatsApp
   }
 
   async function saveConfig() {
+    if (!customerId) {
+      setError("Usuário não autenticado");
+      return;
+    }
+
+    if (!siteSlug) {
+      setError("Site slug não encontrado");
+      return;
+    }
+
     setSaving(true);
+    setError(null);
     try {
-      // Gerar prompt primeiro
-      const prompt = await n8nAgent.generateAgentPrompt(siteSlug, formData);
+      // Preparar specialities - pode ser array de objetos ou array de strings
+      let specialitiesArray: string[] = [];
+      if (Array.isArray(formData.specialities)) {
+        specialitiesArray = formData.specialities.map(s => {
+          if (typeof s === 'string') return s;
+          if (typeof s === 'object' && s !== null && 'name' in s) {
+            return s.name;
+          }
+          return String(s);
+        }).filter(s => s && s.trim().length > 0);
+      }
+
+      // Mapear formData para o formato esperado pela API
+      const configToSave: whatsappAPI.WhatsAppAgentConfig = {
+        siteSlug,
+        customerId,
+        businessName: formData.business_name || '',
+        businessType: formData.business_category || formData.business_subcategory || '',
+        generatedPrompt: formData.business_description || '', // Usar descrição como prompt inicial
+        active: true,
+        toolsEnabled: {
+          google_calendar: formData.tools_enabled?.google_calendar || false,
+          escalar_humano: formData.tools_enabled?.escalate_human || false,
+          google_drive: formData.tools_enabled?.send_file || false,
+        },
+        specialities: specialitiesArray,
+      };
       
-      // Salvar configuração completa (incluindo prompt gerado)
-      await n8nAgent.saveAgentConfig(siteSlug, {
-        ...formData,
-        generated_prompt: prompt,
-      });
+      console.log('[WhatsAppAgentConfigurator] Salvando configuração:', configToSave);
       
-      setSaving(false);
-      if (window.toast) {
-        window.toast.success("Configuração salva com sucesso! O prompt do agente foi atualizado.");
+      // Salvar usando a API correta
+      const result = await whatsappAPI.saveAgentConfig(configToSave);
+      
+      console.log('[WhatsAppAgentConfigurator] Resultado do save:', result);
+      
+      if (result.success) {
+        setError(null);
+        if (window.toast) {
+          window.toast.success("Configuração salva com sucesso!");
+        } else {
+          alert("Configuração salva com sucesso!");
+        }
+        // Recarregar configuração
+        await loadConfig();
       } else {
-        alert("Configuração salva com sucesso! O prompt do agente foi atualizado.");
+        throw new Error(result.error || "Erro ao salvar configuração");
       }
     } catch (error: any) {
-      console.error("Erro ao salvar:", error);
-      setSaving(false);
-      const errorMsg = error?.message || "Erro ao salvar configuração. Tente novamente.";
+      console.error("[WhatsAppAgentConfigurator] Erro ao salvar:", error);
+      
+      // Melhorar mensagem de erro
+      let errorMsg = "Erro ao salvar configuração. Verifique sua conexão e tente novamente.";
+      
+      if (error?.message) {
+        errorMsg = error.message;
+      } else if (error?.name === 'NetworkError' || error?.message?.includes('NetworkError')) {
+        errorMsg = "Erro de rede. Verifique sua conexão com a internet e tente novamente.";
+      } else if (error?.message?.includes('fetch') || error?.message?.includes('Failed to fetch')) {
+        errorMsg = "Erro de conexão. Não foi possível conectar ao servidor. Verifique sua internet.";
+      }
+      
+      setError(errorMsg);
       if (window.toast) {
         window.toast.error(errorMsg);
       } else {
         alert(errorMsg);
       }
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -476,9 +542,13 @@ export default function WhatsAppAgentConfigurator({ siteSlug, vipPin }: WhatsApp
 
           {/* Aba 3: Informações Específicas */}
           <TabsContent value="specific" className="space-y-6 mt-6">
+            {/* Formulário para Clínica/Saúde */}
             {formData.business_subcategory === "clinica" && (
               <div className="space-y-4">
-                <h3 className="font-semibold dashboard-text">Configurações para Clínica</h3>
+                <h3 className="font-semibold dashboard-text flex items-center gap-2">
+                  <span className="text-2xl">🏥</span>
+                  Configurações para Clínica/Saúde
+                </h3>
                 
                 <div>
                   <label className="block text-sm font-medium dashboard-text mb-2">
@@ -496,18 +566,22 @@ export default function WhatsAppAgentConfigurator({ siteSlug, vipPin }: WhatsApp
 
                 <div>
                   <label className="block text-sm font-medium dashboard-text mb-2">
-                    Especialidades e Profissionais
+                    Especialidades Oferecidas
                   </label>
-                  <Alert className="mb-4">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription className="text-sm">
-                      Configure as especialidades, profissionais e IDs das agendas do Google Calendar.
-                      Você pode editar isso depois.
-                    </AlertDescription>
-                  </Alert>
-                  <Button variant="outline" className="dashboard-border">
-                    Gerenciar Especialidades
-                  </Button>
+                  <Textarea
+                    value={formData.specialities.map(s => typeof s === 'string' ? s : s.name).join(', ')}
+                    onChange={(e) => {
+                      const specialities = e.target.value
+                        .split(',')
+                        .map(s => s.trim())
+                        .filter(s => s.length > 0)
+                        .map(name => ({ name, professional: '', calendar_id: '' }));
+                      setFormData(prev => ({ ...prev, specialities }));
+                    }}
+                    placeholder="Ex: Cardiologia, Ortopedia, Pediatria, Ginecologia"
+                    className="dashboard-input border dashboard-border min-h-[80px]"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">Separe as especialidades por vírgula</p>
                 </div>
 
                 <div>
@@ -515,24 +589,196 @@ export default function WhatsAppAgentConfigurator({ siteSlug, vipPin }: WhatsApp
                     Convênios Aceitos
                   </label>
                   <Input
+                    value={formData.health_plans.join(', ')}
+                    onChange={(e) => {
+                      const plans = e.target.value
+                        .split(',')
+                        .map(s => s.trim())
+                        .filter(s => s.length > 0);
+                      setFormData(prev => ({ ...prev, health_plans: plans }));
+                    }}
                     placeholder="Unimed, Bradesco, SulAmérica (separados por vírgula)"
+                    className="dashboard-input border dashboard-border"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium dashboard-text mb-2">
+                    Formas de Pagamento Aceitas
+                  </label>
+                  <Input
+                    value={formData.payment_methods.join(', ')}
+                    onChange={(e) => {
+                      const methods = e.target.value
+                        .split(',')
+                        .map(s => s.trim())
+                        .filter(s => s.length > 0);
+                      setFormData(prev => ({ ...prev, payment_methods: methods }));
+                    }}
+                    placeholder="Cartão de crédito, PIX, Dinheiro (separados por vírgula)"
                     className="dashboard-input border dashboard-border"
                   />
                 </div>
               </div>
             )}
 
-            {(formData.business_subcategory === "produto_fisico" || formData.business_subcategory === "ecommerce") && (
+            {/* Formulário para Advocacia */}
+            {formData.business_subcategory === "advocacia" && (
               <div className="space-y-4">
-                <h3 className="font-semibold dashboard-text">Configurações para E-commerce</h3>
+                <h3 className="font-semibold dashboard-text flex items-center gap-2">
+                  <span className="text-2xl">⚖️</span>
+                  Configurações para Advocacia
+                </h3>
+                
+                <div>
+                  <label className="block text-sm font-medium dashboard-text mb-2">
+                    Áreas de Atuação
+                  </label>
+                  <Textarea
+                    value={formData.service_categories.map(s => `${s.name}${s.description ? ` - ${s.description}` : ''}${s.price ? ` (R$ ${s.price})` : ''}`).join('\n')}
+                    onChange={(e) => {
+                      const lines = e.target.value.split('\n').filter(l => l.trim());
+                      const categories = lines.map(line => {
+                        const match = line.match(/^(.+?)(?:\s*-\s*(.+?))?(?:\s*\(R\$\s*(.+?)\))?$/);
+                        return {
+                          name: match?.[1]?.trim() || line.trim(),
+                          description: match?.[2]?.trim() || '',
+                          price: match?.[3]?.trim() || ''
+                        };
+                      });
+                      setFormData(prev => ({ ...prev, service_categories: categories }));
+                    }}
+                    placeholder="Direito Civil - Contratos e obrigações (R$ 500)&#10;Direito Trabalhista - Rescisões e acordos (R$ 800)&#10;Direito Criminal - Defesa em processos criminais"
+                    className="dashboard-input border dashboard-border min-h-[120px]"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">Uma área por linha. Formato: Nome - Descrição (R$ Preço)</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium dashboard-text mb-2">
+                    Valor da Consulta Inicial (R$)
+                  </label>
+                  <Input
+                    value={formData.appointment_price}
+                    onChange={(e) => setFormData(prev => ({ ...prev, appointment_price: e.target.value }))}
+                    placeholder="300.00"
+                    type="number"
+                    step="0.01"
+                    className="dashboard-input border dashboard-border"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Formulário para Consultoria */}
+            {formData.business_subcategory === "consultoria" && (
+              <div className="space-y-4">
+                <h3 className="font-semibold dashboard-text flex items-center gap-2">
+                  <span className="text-2xl">💼</span>
+                  Configurações para Consultoria
+                </h3>
+                
+                <div>
+                  <label className="block text-sm font-medium dashboard-text mb-2">
+                    Serviços Oferecidos
+                  </label>
+                  <Textarea
+                    value={formData.service_categories.map(s => `${s.name}${s.description ? ` - ${s.description}` : ''}${s.price ? ` (R$ ${s.price})` : ''}`).join('\n')}
+                    onChange={(e) => {
+                      const lines = e.target.value.split('\n').filter(l => l.trim());
+                      const categories = lines.map(line => {
+                        const match = line.match(/^(.+?)(?:\s*-\s*(.+?))?(?:\s*\(R\$\s*(.+?)\))?$/);
+                        return {
+                          name: match?.[1]?.trim() || line.trim(),
+                          description: match?.[2]?.trim() || '',
+                          price: match?.[3]?.trim() || ''
+                        };
+                      });
+                      setFormData(prev => ({ ...prev, service_categories: categories }));
+                    }}
+                    placeholder="Consultoria em Marketing Digital - Estratégias de crescimento (R$ 2000)&#10;Consultoria em Gestão - Otimização de processos (R$ 3000)"
+                    className="dashboard-input border dashboard-border min-h-[120px]"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">Um serviço por linha. Formato: Nome - Descrição (R$ Preço)</p>
+                </div>
+              </div>
+            )}
+
+            {/* Formulário para Educação/Cursos */}
+            {formData.business_subcategory === "educacao" && (
+              <div className="space-y-4">
+                <h3 className="font-semibold dashboard-text flex items-center gap-2">
+                  <span className="text-2xl">🎓</span>
+                  Configurações para Educação/Cursos
+                </h3>
+                
+                <div>
+                  <label className="block text-sm font-medium dashboard-text mb-2">
+                    Cursos Oferecidos
+                  </label>
+                  <Textarea
+                    value={formData.service_categories.map(s => `${s.name}${s.description ? ` - ${s.description}` : ''}${s.price ? ` (R$ ${s.price})` : ''}`).join('\n')}
+                    onChange={(e) => {
+                      const lines = e.target.value.split('\n').filter(l => l.trim());
+                      const categories = lines.map(line => {
+                        const match = line.match(/^(.+?)(?:\s*-\s*(.+?))?(?:\s*\(R\$\s*(.+?)\))?$/);
+                        return {
+                          name: match?.[1]?.trim() || line.trim(),
+                          description: match?.[2]?.trim() || '',
+                          price: match?.[3]?.trim() || ''
+                        };
+                      });
+                      setFormData(prev => ({ ...prev, service_categories: categories }));
+                    }}
+                    placeholder="Curso de Inglês - Básico ao Avançado (R$ 299)&#10;Curso de Programação - Full Stack (R$ 899)&#10;Curso de Marketing - Estratégias Digitais (R$ 499)"
+                    className="dashboard-input border dashboard-border min-h-[120px]"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">Um curso por linha. Formato: Nome - Descrição (R$ Preço)</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium dashboard-text mb-2">
+                    Modalidades de Ensino
+                  </label>
+                  <Input
+                    placeholder="Presencial, Online, Híbrido (separados por vírgula)"
+                    className="dashboard-input border dashboard-border"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Formulário para Produto Físico */}
+            {formData.business_subcategory === "produto_fisico" && (
+              <div className="space-y-4">
+                <h3 className="font-semibold dashboard-text flex items-center gap-2">
+                  <span className="text-2xl">📦</span>
+                  Configurações para Produto Físico
+                </h3>
                 
                 <div>
                   <label className="block text-sm font-medium dashboard-text mb-2">
                     Categorias de Produtos
                   </label>
-                  <Button variant="outline" className="dashboard-border">
-                    Gerenciar Categorias
-                  </Button>
+                  <Textarea
+                    value={formData.product_categories.map(cat => 
+                      `${cat.name}${cat.products && cat.products.length > 0 ? `: ${cat.products.join(', ')}` : ''}`
+                    ).join('\n')}
+                    onChange={(e) => {
+                      const lines = e.target.value.split('\n').filter(l => l.trim());
+                      const categories = lines.map(line => {
+                        const [name, ...products] = line.split(':');
+                        return {
+                          name: name.trim(),
+                          products: products.length > 0 ? products.join(':').split(',').map(p => p.trim()) : []
+                        };
+                      });
+                      setFormData(prev => ({ ...prev, product_categories: categories }));
+                    }}
+                    placeholder="Roupas: Camisetas, Calças, Vestidos&#10;Calçados: Tênis, Sapatos, Sandálias&#10;Acessórios: Bolsas, Relógios, Óculos"
+                    className="dashboard-input border dashboard-border min-h-[120px]"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">Formato: Categoria: produto1, produto2, produto3 (uma categoria por linha)</p>
                 </div>
 
                 <div>
@@ -542,12 +788,187 @@ export default function WhatsAppAgentConfigurator({ siteSlug, vipPin }: WhatsApp
                   <Textarea
                     value={formData.shipping_info}
                     onChange={(e) => setFormData(prev => ({ ...prev, shipping_info: e.target.value }))}
-                    placeholder="Frete grátis acima de R$ 100, entrega em até 5 dias úteis..."
+                    placeholder="Frete grátis acima de R$ 100, entrega em até 5 dias úteis para capital e 7 dias para interior..."
+                    className="dashboard-input border dashboard-border min-h-[80px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium dashboard-text mb-2">
+                    Formas de Pagamento
+                  </label>
+                  <Input
+                    value={formData.payment_methods.join(', ')}
+                    onChange={(e) => {
+                      const methods = e.target.value
+                        .split(',')
+                        .map(s => s.trim())
+                        .filter(s => s.length > 0);
+                      setFormData(prev => ({ ...prev, payment_methods: methods }));
+                    }}
+                    placeholder="Cartão de crédito, PIX, Boleto (separados por vírgula)"
                     className="dashboard-input border dashboard-border"
                   />
                 </div>
               </div>
             )}
+
+            {/* Formulário para Produto Digital */}
+            {formData.business_subcategory === "produto_digital" && (
+              <div className="space-y-4">
+                <h3 className="font-semibold dashboard-text flex items-center gap-2">
+                  <span className="text-2xl">💾</span>
+                  Configurações para Produto Digital
+                </h3>
+                
+                <div>
+                  <label className="block text-sm font-medium dashboard-text mb-2">
+                    Categorias de Produtos Digitais
+                  </label>
+                  <Textarea
+                    value={formData.product_categories.map(cat => 
+                      `${cat.name}${cat.products && cat.products.length > 0 ? `: ${cat.products.join(', ')}` : ''}`
+                    ).join('\n')}
+                    onChange={(e) => {
+                      const lines = e.target.value.split('\n').filter(l => l.trim());
+                      const categories = lines.map(line => {
+                        const [name, ...products] = line.split(':');
+                        return {
+                          name: name.trim(),
+                          products: products.length > 0 ? products.join(':').split(',').map(p => p.trim()) : []
+                        };
+                      });
+                      setFormData(prev => ({ ...prev, product_categories: categories }));
+                    }}
+                    placeholder="Cursos Online: Curso de Marketing, Curso de Programação&#10;E-books: Guia Completo, Manual Prático&#10;Templates: Templates para Canva, Templates para WordPress"
+                    className="dashboard-input border dashboard-border min-h-[120px]"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">Formato: Categoria: produto1, produto2 (uma categoria por linha)</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium dashboard-text mb-2">
+                    Forma de Entrega
+                  </label>
+                  <Input
+                    placeholder="Download imediato, Acesso por email, Plataforma própria"
+                    className="dashboard-input border dashboard-border"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Formulário para E-commerce */}
+            {formData.business_subcategory === "ecommerce" && (
+              <div className="space-y-4">
+                <h3 className="font-semibold dashboard-text flex items-center gap-2">
+                  <span className="text-2xl">🛒</span>
+                  Configurações para E-commerce
+                </h3>
+                
+                <div>
+                  <label className="block text-sm font-medium dashboard-text mb-2">
+                    Categorias de Produtos
+                  </label>
+                  <Textarea
+                    value={formData.product_categories.map(cat => 
+                      `${cat.name}${cat.products && cat.products.length > 0 ? `: ${cat.products.join(', ')}` : ''}`
+                    ).join('\n')}
+                    onChange={(e) => {
+                      const lines = e.target.value.split('\n').filter(l => l.trim());
+                      const categories = lines.map(line => {
+                        const [name, ...products] = line.split(':');
+                        return {
+                          name: name.trim(),
+                          products: products.length > 0 ? products.join(':').split(',').map(p => p.trim()) : []
+                        };
+                      });
+                      setFormData(prev => ({ ...prev, product_categories: categories }));
+                    }}
+                    placeholder="Eletrônicos: Smartphones, Notebooks, Tablets&#10;Roupas: Masculina, Feminina, Infantil&#10;Casa e Decoração: Móveis, Decoração, Organização"
+                    className="dashboard-input border dashboard-border min-h-[120px]"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">Formato: Categoria: produto1, produto2 (uma categoria por linha)</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium dashboard-text mb-2">
+                    Informações de Entrega
+                  </label>
+                  <Textarea
+                    value={formData.shipping_info}
+                    onChange={(e) => setFormData(prev => ({ ...prev, shipping_info: e.target.value }))}
+                    placeholder="Frete grátis acima de R$ 100, entrega em até 5 dias úteis para capital e 7 dias para interior. Aceitamos retirada na loja física."
+                    className="dashboard-input border dashboard-border min-h-[80px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium dashboard-text mb-2">
+                    Política de Troca e Devolução
+                  </label>
+                  <Textarea
+                    value={formData.return_policy}
+                    onChange={(e) => setFormData(prev => ({ ...prev, return_policy: e.target.value }))}
+                    placeholder="Aceitamos trocas e devoluções em até 7 dias após o recebimento do produto, desde que o produto esteja em perfeito estado..."
+                    className="dashboard-input border dashboard-border min-h-[80px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium dashboard-text mb-2">
+                    Formas de Pagamento Aceitas
+                  </label>
+                  <Input
+                    value={formData.payment_methods.join(', ')}
+                    onChange={(e) => {
+                      const methods = e.target.value
+                        .split(',')
+                        .map(s => s.trim())
+                        .filter(s => s.length > 0);
+                      setFormData(prev => ({ ...prev, payment_methods: methods }));
+                    }}
+                    placeholder="Cartão de crédito, PIX, Boleto, Parcelamento (separados por vírgula)"
+                    className="dashboard-input border dashboard-border"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Formulário para Outros Serviços */}
+            {formData.business_subcategory === "outros_servicos" && (
+              <div className="space-y-4">
+                <h3 className="font-semibold dashboard-text flex items-center gap-2">
+                  <span className="text-2xl">🔧</span>
+                  Configurações para Outros Serviços
+                </h3>
+                
+                <div>
+                  <label className="block text-sm font-medium dashboard-text mb-2">
+                    Serviços Oferecidos
+                  </label>
+                  <Textarea
+                    value={formData.service_categories.map(s => `${s.name}${s.description ? ` - ${s.description}` : ''}${s.price ? ` (R$ ${s.price})` : ''}`).join('\n')}
+                    onChange={(e) => {
+                      const lines = e.target.value.split('\n').filter(l => l.trim());
+                      const categories = lines.map(line => {
+                        const match = line.match(/^(.+?)(?:\s*-\s*(.+?))?(?:\s*\(R\$\s*(.+?)\))?$/);
+                        return {
+                          name: match?.[1]?.trim() || line.trim(),
+                          description: match?.[2]?.trim() || '',
+                          price: match?.[3]?.trim() || ''
+                        };
+                      });
+                      setFormData(prev => ({ ...prev, service_categories: categories }));
+                    }}
+                    placeholder="Serviço 1 - Descrição detalhada (R$ 200)&#10;Serviço 2 - Descrição detalhada (R$ 350)&#10;Serviço 3 - Descrição detalhada"
+                    className="dashboard-input border dashboard-border min-h-[120px]"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">Um serviço por linha. Formato: Nome - Descrição (R$ Preço)</p>
+                </div>
+              </div>
+            )}
+
 
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setActiveTab("basic")}>

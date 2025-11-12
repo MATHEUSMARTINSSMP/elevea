@@ -205,19 +205,40 @@ export async function listMessages(
       `/api/whatsapp/messages?siteSlug=${encodeURIComponent(siteSlug)}&customerId=${encodeURIComponent(customerId)}&limit=${limit}&offset=${offset}`
     );
     
+    // Validar resposta antes de processar
+    if (!data || typeof data !== 'object') {
+      console.error('Resposta inválida do servidor:', data);
+      return [];
+    }
+    
+    const messagesArray = data.messages || data.items || [];
+    if (!Array.isArray(messagesArray)) {
+      console.error('Formato de resposta inválido - esperado array:', messagesArray);
+      return [];
+    }
+    
     // Converter formato da API para formato do componente
-    return (data.messages || data.items || []).map((m: any) => ({
-      id: m.message_id || m.id,
-      phoneNumber: m.phone_number || m.phoneNumber,
-      message: m.message || m.message_text || m.text,
-      direction: m.direction === 'inbound' ? 'inbound' : 'outbound',
-      timestamp: m.timestamp || m.created_at,
-      messageType: m.message_type || 'text',
-      contactName: m.contact_name || m.name,
-      profilePicUrl: m.profile_pic_url || m.profilePicUrl || m.avatar_url || null,
-    }));
+    return messagesArray.map((m: any) => {
+      // Validar cada mensagem antes de mapear
+      if (!m || typeof m !== 'object') {
+        console.warn('Mensagem inválida ignorada:', m);
+        return null;
+      }
+      
+      return {
+        id: m.message_id || m.id || '',
+        phoneNumber: m.phone_number || m.phoneNumber || '',
+        message: m.message || m.message_text || m.text || '',
+        direction: m.direction === 'inbound' ? 'inbound' : 'outbound',
+        timestamp: m.timestamp || m.created_at || new Date().toISOString(),
+        messageType: m.message_type || 'text',
+        contactName: m.contact_name || m.name || null,
+        profilePicUrl: m.profile_pic_url || m.profilePicUrl || m.avatar_url || null,
+      };
+    }).filter((m): m is WhatsAppMessage => m !== null);
   } catch (error: any) {
     console.error('Erro ao listar mensagens:', error);
+    // Retornar array vazio em caso de erro para não quebrar a UI
     return [];
   }
 }
@@ -360,22 +381,175 @@ export async function toggleAgent(
 }
 
 /**
- * Salvar configuração do agente
+ * Função auxiliar para chamar API REST do n8n diretamente
+ */
+async function callN8nRestAPI<T = any>(
+  endpoint: string,
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'POST',
+  body?: any
+): Promise<T> {
+  const N8N_BASE_URL = (import.meta.env.VITE_N8N_BASE_URL || "https://fluxos.eleveaagencia.com.br").replace(/\/$/, "");
+  const N8N_API_KEY = import.meta.env.VITE_N8N_API_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjMjdiNTliMS1kNzA3LTQ0ZmMtOTNkZS03Y2NmYTNlN2RhNzEiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYwOTAwMTE3fQ.INFaDR3UONfjP6Gfd9MkO1kfGrV-b1af5yQDY36wBH4';
+  
+  const url = endpoint.startsWith('http') ? endpoint : `${N8N_BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+  
+  const headers: Record<string, string> = {
+    'X-N8N-API-KEY': N8N_API_KEY,
+    'Content-Type': 'application/json',
+  };
+  
+  console.log(`[n8n REST API] ${method} ${url}`, { body });
+  
+  try {
+    const response = await fetch(url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      mode: 'cors',
+      credentials: 'omit',
+    });
+    
+    console.log(`[n8n REST API] Resposta:`, { status: response.status, statusText: response.statusText });
+    
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Erro desconhecido');
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+    
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      return await response.json();
+    } else {
+      const text = await response.text();
+      return text as any;
+    }
+  } catch (error: any) {
+    console.error('[n8n REST API] Erro:', error);
+    throw error;
+  }
+}
+
+/**
+ * Salvar configuração do agente via API REST do n8n
  */
 export async function saveAgentConfig(
   config: WhatsAppAgentConfig
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const data = await post('/api/whatsapp/agent/config', config);
+    console.log('[saveAgentConfig] Enviando configuração:', config);
+    
+    // Validar dados obrigatórios
+    if (!config.siteSlug || !config.customerId) {
+      throw new Error('siteSlug e customerId são obrigatórios');
+    }
+    
+    // Preparar payload com estrutura correta para o n8n/Supabase
+    const payload = {
+      site_slug: config.siteSlug,
+      customer_id: config.customerId,
+      business_name: config.businessName || '',
+      business_type: config.businessType || '',
+      generated_prompt: config.generatedPrompt || '',
+      active: config.active !== undefined ? config.active : true,
+      tools_enabled: config.toolsEnabled || {},
+      specialities: Array.isArray(config.specialities) 
+        ? config.specialities 
+        : (typeof config.specialities === 'string' ? [config.specialities] : []),
+    };
+    
+    console.log('[saveAgentConfig] Payload preparado:', payload);
+    
+    // Usar API REST do n8n para chamar webhook diretamente
+    // O webhook /api/whatsapp/agent/config deve estar configurado no n8n
+    try {
+      // Chamar webhook via API REST do n8n
+      const N8N_BASE_URL = (import.meta.env.VITE_N8N_BASE_URL || "https://fluxos.eleveaagencia.com.br").replace(/\/$/, "");
+      const webhookUrl = `${N8N_BASE_URL}/webhook/api/whatsapp/agent/config`;
+      
+      console.log('[saveAgentConfig] Chamando webhook via API REST:', webhookUrl);
+      
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-N8N-API-KEY': import.meta.env.VITE_N8N_API_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjMjdiNTliMS1kNzA3LTQ0ZmMtOTNkZS03Y2NmYTNlN2RhNzEiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzYwOTAwMTE3fQ.INFaDR3UONfjP6Gfd9MkO1kfGrV-b1af5yQDY36wBH4',
+        },
+        body: JSON.stringify({
+          siteSlug: config.siteSlug,
+          customerId: config.customerId,
+          businessName: config.businessName || '',
+          businessType: config.businessType || '',
+          generatedPrompt: config.generatedPrompt || '',
+          active: config.active !== undefined ? config.active : true,
+          toolsEnabled: config.toolsEnabled || {},
+          specialities: Array.isArray(config.specialities) 
+            ? config.specialities 
+            : (typeof config.specialities === 'string' ? [config.specialities] : []),
+        }),
+        mode: 'cors',
+        credentials: 'omit',
+      });
+      
+      console.log('[saveAgentConfig] Resposta do webhook:', { status: response.status, statusText: response.statusText });
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Erro desconhecido');
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      const data = await response.json().catch(() => ({}));
+      
+      console.log('[saveAgentConfig] Dados recebidos:', data);
+      
+      return {
+        success: data.ok === true || data.success === true || response.ok,
+        error: data.error || data.message,
+      };
+    } catch (apiError: any) {
+      console.warn('[saveAgentConfig] Erro ao chamar webhook via API REST, tentando webhook tradicional:', apiError);
+      
+      // Fallback: usar webhook tradicional (via função post que usa X-APP-KEY)
+      try {
+        const data = await post('/api/whatsapp/agent/config', {
+          siteSlug: config.siteSlug,
+          customerId: config.customerId,
+          businessName: config.businessName || '',
+          businessType: config.businessType || '',
+          generatedPrompt: config.generatedPrompt || '',
+          active: config.active !== undefined ? config.active : true,
+          toolsEnabled: config.toolsEnabled || {},
+          specialities: Array.isArray(config.specialities) 
+            ? config.specialities 
+            : (typeof config.specialities === 'string' ? [config.specialities] : []),
+        });
+        
+        console.log('[saveAgentConfig] Resposta do webhook tradicional:', data);
+        
+        return {
+          success: data.ok === true || data.success === true,
+          error: data.error || data.message,
+        };
+      } catch (webhookError: any) {
+        throw new Error(`Erro ao salvar: ${apiError.message || webhookError.message || 'Erro desconhecido'}`);
+      }
+    }
+  } catch (error: any) {
+    console.error('[saveAgentConfig] Erro ao salvar:', error);
+    
+    // Melhorar mensagem de erro
+    let errorMessage = 'Erro ao salvar configuração';
+    
+    if (error.message) {
+      errorMessage = error.message;
+    } else if (error instanceof TypeError && error.message.includes('fetch')) {
+      errorMessage = 'Erro de conexão. Verifique sua internet e tente novamente.';
+    } else if (error.name === 'NetworkError' || error.message?.includes('NetworkError')) {
+      errorMessage = 'Erro de rede. Verifique sua conexão e tente novamente.';
+    }
     
     return {
-      success: data.ok === true || data.success === true,
-      error: data.error,
-    };
-  } catch (error: any) {
-    return {
       success: false,
-      error: error.message || 'Erro ao salvar configuração',
+      error: errorMessage,
     };
   }
 }

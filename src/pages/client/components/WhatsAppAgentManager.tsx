@@ -10,12 +10,19 @@ import {
   Bot,
   Info,
   RefreshCw,
-  User
+  User,
+  Settings,
+  MessageSquare,
+  Link2,
 } from "lucide-react";
 import { DashboardCardSkeleton } from "@/components/ui/loading-skeletons";
 import { useAuth } from "@/hooks/useAuth";
 import * as whatsappAPI from "@/lib/n8n-whatsapp";
+import type { WhatsAppAgentConfig } from "@/lib/n8n-whatsapp";
 import { supabase } from "@/integrations/supabase/client";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 /* CSS de overrides para visual dark/WhatsApp */
 import "@/styles/chat-overrides.css";
@@ -262,6 +269,13 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
   const [bulkProgress, setBulkProgress] = useState<{ sent: number; total: number; success: number; failed: number } | null>(null);
   const [bulkStatus, setBulkStatus] = useState<string | null>(null);
 
+  // Estados para configuração do agente
+  const [activeTab, setActiveTab] = useState<'assistant' | 'connection' | 'manage' | 'config'>('assistant');
+  const [agentConfig, setAgentConfig] = useState<WhatsAppAgentConfig | null>(null);
+  const [configLoading, setConfigLoading] = useState(false);
+  const [configSaving, setConfigSaving] = useState(false);
+  const [configError, setConfigError] = useState<string | null>(null);
+
   // Status de teste de conectividade com o n8n
   const [testStatus, setTestStatus] = useState<string | null>(null);
 
@@ -395,34 +409,40 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
     try {
       const messages = await whatsappAPI.listMessages(siteSlug, customerId, 50, 0);
 
-      const mapped: WaItem[] = messages.map((m) => {
-        const isReceived = m.direction === 'inbound';
-        const isSent = m.direction === 'outbound';
-        
-        let messageType: MsgType = "sent";
-        if (isReceived) {
-          messageType = "received";
-        } else if (isSent) {
-          messageType = "sent";
-        }
-        
-        const messageId =
-          m.id ??
-          m.message_id ??
-          (m.timestamp && m.phoneNumber ? `${m.phoneNumber}-${m.timestamp}` : Math.random().toString(36).slice(2));
-        const normalizedPhone = normalizePhone(m.phoneNumber);
+      // Validar que recebemos um array válido
+      if (!Array.isArray(messages)) {
+        throw new Error('Resposta inválida: esperado array de mensagens');
+      }
 
-        return {
-          id: String(messageId),
-          phoneNumber: normalizedPhone,
-          contactName: m.contactName || fmtPhoneBR(m.phoneNumber),
-          message: m.message,
-          timestamp: m.timestamp,
-          type: messageType,
-          status: undefined as MsgStatus,
-          profilePicUrl: m.profilePicUrl || null,
-        };
-      });
+      const mapped: WaItem[] = messages
+        .filter((m) => m && m.phoneNumber && m.message) // Filtrar mensagens inválidas
+        .map((m) => {
+          const isReceived = m.direction === 'inbound';
+          const isSent = m.direction === 'outbound';
+          
+          let messageType: MsgType = "sent";
+          if (isReceived) {
+            messageType = "received";
+          } else if (isSent) {
+            messageType = "sent";
+          }
+          
+          const messageId =
+            m.id ||
+            (m.timestamp && m.phoneNumber ? `${m.phoneNumber}-${m.timestamp}` : Math.random().toString(36).slice(2));
+          const normalizedPhone = normalizePhone(m.phoneNumber || '');
+
+          return {
+            id: String(messageId),
+            phoneNumber: normalizedPhone,
+            contactName: m.contactName || fmtPhoneBR(m.phoneNumber || ''),
+            message: m.message || '',
+            timestamp: m.timestamp || new Date().toISOString(),
+            type: messageType,
+            status: undefined as MsgStatus,
+            profilePicUrl: m.profilePicUrl || null,
+          };
+        });
 
       setItems(mapped);
       setError(null);
@@ -466,7 +486,32 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
         }
       }, 150);
     } catch (err: any) {
-      const errorMsg = err?.message || String(err) || "Falha ao carregar histórico";
+      // Log detalhado do erro para debug
+      console.error('Erro ao carregar histórico:', {
+        error: err,
+        message: err?.message,
+        stack: err?.stack,
+        retryCount,
+        retry
+      });
+      
+      // Extrair mensagem de erro de forma segura
+      let errorMsg = "Falha ao carregar histórico";
+      if (err && typeof err === 'object') {
+        if (err.message && typeof err.message === 'string') {
+          errorMsg = err.message;
+        } else if (err.error && typeof err.error === 'string') {
+          errorMsg = err.error;
+        } else if (typeof err.toString === 'function') {
+          const errStr = err.toString();
+          if (errStr && errStr !== '[object Object]') {
+            errorMsg = errStr;
+          }
+        }
+      } else if (typeof err === 'string') {
+        errorMsg = err;
+      }
+      
       setError(formatErrorMessage(errorMsg));
       setLastError(errorMsg);
       
@@ -702,12 +747,51 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
     try {
       const contactsData = await whatsappAPI.listContacts(siteSlug, customerId);
       
+      // Função auxiliar para verificar se é um nome real (não apenas número formatado)
+      const isRealName = (s: string) => {
+        if (!s || s.length < 3) return false;
+        if (s === "Contato") return false;
+        // Verifica se é formato de telefone brasileiro: (XX) XXXXX-XXXX ou (XX) XXXX-XXXX
+        if (s.match(/^\(\d{2}\)\s\d{4,5}-\d{4}$/)) return false;
+        // Verifica se é apenas números
+        if (s.replace(/\D/g, '').length === s.length && s.length >= 10) return false;
+        return true;
+      };
+      
+      // Criar mapa de nomes das mensagens para usar como fallback
+      const namesFromMessages = new Map<string, string>();
+      items.forEach(item => {
+        if (item.phoneNumber && item.contactName && isRealName(item.contactName)) {
+          const normalizedPhone = normalizePhone(item.phoneNumber);
+          if (!namesFromMessages.has(normalizedPhone) || 
+              (namesFromMessages.get(normalizedPhone)?.length || 0) < item.contactName.length) {
+            namesFromMessages.set(normalizedPhone, item.contactName);
+          }
+        }
+      });
+      
       if (contactsData && contactsData.length > 0) {
-        const formattedContacts = contactsData.map(c => ({
-          phone: normalizePhone(c.phoneNumber),
-          name: c.name || fmtPhoneBR(c.phoneNumber),
-          profilePicUrl: c.profilePicUrl || null,
-        }));
+        const formattedContacts = contactsData.map(c => {
+          const normalizedPhone = normalizePhone(c.phoneNumber);
+          // Tentar nome da API, depois das mensagens, depois formato de telefone
+          let contactName = c.name;
+          
+          // Se o nome da API não é válido (é número ou vazio), buscar nas mensagens
+          if (!isRealName(contactName)) {
+            contactName = namesFromMessages.get(normalizedPhone) || null;
+          }
+          
+          // Se ainda não tem nome válido, usar formato de telefone
+          if (!isRealName(contactName)) {
+            contactName = fmtPhoneBR(c.phoneNumber);
+          }
+          
+          return {
+            phone: normalizedPhone,
+            name: contactName,
+            profilePicUrl: c.profilePicUrl || null,
+          };
+        });
         setContacts(formattedContacts);
         await syncContactsWithSupabase(formattedContacts);
       } else {
@@ -717,14 +801,9 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
         items.forEach(item => {
           if (item.phoneNumber && item.contactName) {
             const normalizedPhone = normalizePhone(item.phoneNumber);
-            console.log('Normalizando contato:', {
-              original: item.phoneNumber,
-              normalized: normalizedPhone,
-              name: item.contactName
-            });
             
             if (!uniqueContacts.has(normalizedPhone)) {
-              const displayName = (item.contactName && item.contactName !== "Contato") 
+              const displayName = isRealName(item.contactName)
                 ? item.contactName 
                 : fmtPhoneBR(item.phoneNumber);
               
@@ -735,11 +814,10 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
               });
             } else {
               const existing = uniqueContacts.get(normalizedPhone);
-              const isRealName = (s: string) => {
-                return s && s !== "Contato" && !s.match(/^\(\d{2}\)\s\d{4,5}-\d{4}$/) && s.length >= 3;
-              };
               
-              if (isRealName(item.contactName) && !isRealName(existing.name)) {
+              // Atualizar nome se o novo for melhor (mais longo e válido)
+              if (isRealName(item.contactName) && 
+                  (!isRealName(existing.name) || item.contactName.length > existing.name.length)) {
                 existing.name = item.contactName;
               }
               if (!existing.profilePicUrl && item.profilePicUrl) {
@@ -762,14 +840,21 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
       console.error("Erro ao carregar contatos:", err);
       // Fallback: criar contatos baseados nas mensagens
       const uniqueContacts = new Map<string, Contact>();
+      const isRealName = (s: string) => {
+        if (!s || s.length < 3) return false;
+        if (s === "Contato") return false;
+        if (s.match(/^\(\d{2}\)\s\d{4,5}-\d{4}$/)) return false;
+        if (s.replace(/\D/g, '').length === s.length && s.length >= 10) return false;
+        return true;
+      };
+      
       items.forEach(item => {
         if (item.phoneNumber && item.contactName) {
           const normalizedPhone = normalizePhone(item.phoneNumber);
           if (!uniqueContacts.has(normalizedPhone)) {
-            const displayName =
-              item.contactName && item.contactName !== "Contato"
-                ? item.contactName
-                : fmtPhoneBR(item.phoneNumber);
+            const displayName = isRealName(item.contactName)
+              ? item.contactName
+              : fmtPhoneBR(item.phoneNumber);
 
             uniqueContacts.set(normalizedPhone, {
               phone: normalizedPhone,
@@ -778,8 +863,15 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
             });
           } else {
             const existing = uniqueContacts.get(normalizedPhone);
-            if (existing && !existing.profilePicUrl && item.profilePicUrl) {
-              existing.profilePicUrl = item.profilePicUrl;
+            if (existing) {
+              // Atualizar nome se o novo for melhor
+              if (isRealName(item.contactName) && 
+                  (!isRealName(existing.name) || item.contactName.length > existing.name.length)) {
+                existing.name = item.contactName;
+              }
+              if (!existing.profilePicUrl && item.profilePicUrl) {
+                existing.profilePicUrl = item.profilePicUrl;
+              }
             }
           }
         }
@@ -839,6 +931,61 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
     }
   }, [testStatus]);
 
+  /* --------- carregar configuração do agente --------- */
+  async function loadAgentConfig() {
+    setConfigLoading(true);
+    setConfigError(null);
+    try {
+      const config = await whatsappAPI.getAgentConfig(siteSlug, customerId);
+      if (config) {
+        setAgentConfig({
+          ...config,
+          siteSlug,
+          customerId,
+        });
+      } else {
+        // Configuração padrão se não existir
+        setAgentConfig({
+          siteSlug,
+          customerId,
+          businessName: '',
+          generatedPrompt: '',
+          active: true,
+          toolsEnabled: {},
+          specialities: [],
+        });
+      }
+    } catch (err: any) {
+      console.error('Erro ao carregar configuração do agente:', err);
+      setConfigError(err?.message || 'Erro ao carregar configuração');
+    } finally {
+      setConfigLoading(false);
+    }
+  }
+
+  /* --------- salvar configuração do agente --------- */
+  async function saveAgentConfig() {
+    if (!agentConfig) return;
+    
+    setConfigSaving(true);
+    setConfigError(null);
+    try {
+      const result = await whatsappAPI.saveAgentConfig(agentConfig);
+      if (result.success) {
+        setConfigError(null);
+        // Recarregar para garantir sincronização
+        await loadAgentConfig();
+      } else {
+        setConfigError(result.error || 'Erro ao salvar configuração');
+      }
+    } catch (err: any) {
+      console.error('Erro ao salvar configuração do agente:', err);
+      setConfigError(err?.message || 'Erro ao salvar configuração');
+    } finally {
+      setConfigSaving(false);
+    }
+  }
+
   /* --------- carregar dados iniciais --------- */
   useEffect(() => {
     // Teste de normalização
@@ -858,6 +1005,7 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
     loadHistory();
     loadContacts();
     loadTemplates();
+    loadAgentConfig();
   }, [siteSlug, vipPin]);
 
   /* --------- auto-refresh a cada 5 segundos --------- */
@@ -929,8 +1077,31 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
       </CardHeader>
 
       <CardContent className="space-y-4 sm:space-y-6">
-        {/* Estatísticas */}
-        {stats && (
+        {/* Abas de navegação */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="assistant" className="flex items-center gap-2">
+              <Bot className="w-4 h-4" />
+              <span className="hidden sm:inline">Assistente</span>
+            </TabsTrigger>
+            <TabsTrigger value="connection" className="flex items-center gap-2">
+              <Link2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Conexão</span>
+            </TabsTrigger>
+            <TabsTrigger value="manage" className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              <span className="hidden sm:inline">Gerenciar Chat</span>
+            </TabsTrigger>
+            <TabsTrigger value="config" className="flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">Configurar Agente</span>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Conteúdo da aba Assistente */}
+          <TabsContent value="assistant" className="space-y-4 mt-4">
+            {/* Estatísticas */}
+            {stats && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
             <div className="text-center p-3 sm:p-4 dashboard-card rounded-lg border dashboard-border">
               <div className="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400 mb-1">
@@ -1257,6 +1428,200 @@ export default function WhatsAppAgentManager({ siteSlug, vipPin }: WhatsAppManag
             <p>• <strong>Nota:</strong> Se você usar WhatsApp Business API oficial, há regras específicas sobre templates e janela de 24 horas.</p>
           </div>
         </div>
+          </TabsContent>
+
+          {/* Conteúdo da aba Conexão */}
+          <TabsContent value="connection" className="space-y-4 mt-4">
+            <div className="p-6 bg-blue-500/5 border border-blue-500/20 rounded-lg">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Link2 className="w-5 h-5" />
+                Conexão WhatsApp
+              </h3>
+              <p className="text-sm text-slate-400 mb-4">
+                Configure a conexão do WhatsApp via UAZAPI. Use a aba "Gerenciar Chat" para conectar.
+              </p>
+            </div>
+          </TabsContent>
+
+          {/* Conteúdo da aba Gerenciar Chat */}
+          <TabsContent value="manage" className="space-y-4 mt-4">
+            <div className="p-6 bg-green-500/5 border border-green-500/20 rounded-lg">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <MessageSquare className="w-5 h-5" />
+                Gerenciar Conversas
+              </h3>
+              <p className="text-sm text-slate-400 mb-4">
+                Use a aba "Assistente" para gerenciar conversas e enviar mensagens.
+              </p>
+            </div>
+          </TabsContent>
+
+          {/* Conteúdo da aba Configurar Agente */}
+          <TabsContent value="config" className="space-y-4 mt-4">
+            {configLoading ? (
+              <div className="text-center py-8">
+                <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2 text-blue-400" />
+                <p className="text-sm text-slate-400">Carregando configuração...</p>
+              </div>
+            ) : agentConfig ? (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Settings className="w-5 h-5" />
+                    Configuração do Agente IA
+                  </h3>
+                  <div className="flex items-center gap-3">
+                    <Label htmlFor="active-toggle" className="text-sm">
+                      Agente Ativo
+                    </Label>
+                    <Switch
+                      id="active-toggle"
+                      checked={agentConfig.active !== false}
+                      onCheckedChange={(checked) => {
+                        setAgentConfig({ ...agentConfig, active: checked });
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {configError && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                    <p className="text-red-400 text-sm">{configError}</p>
+                  </div>
+                )}
+
+                {/* Nome do Negócio */}
+                <div className="space-y-2">
+                  <Label htmlFor="business-name">Nome do Negócio</Label>
+                  <Input
+                    id="business-name"
+                    value={agentConfig.businessName || ''}
+                    onChange={(e) => {
+                      setAgentConfig({ ...agentConfig, businessName: e.target.value });
+                    }}
+                    placeholder="Ex: Minha Empresa"
+                    className="dashboard-input"
+                  />
+                </div>
+
+                {/* Prompt do Agente */}
+                <div className="space-y-2">
+                  <Label htmlFor="generated-prompt">
+                    Prompt do Agente IA
+                    <span className="text-xs text-slate-400 ml-2">
+                      (Deixe vazio para usar prompt padrão)
+                    </span>
+                  </Label>
+                  <Textarea
+                    id="generated-prompt"
+                    value={agentConfig.generatedPrompt || ''}
+                    onChange={(e) => {
+                      setAgentConfig({ ...agentConfig, generatedPrompt: e.target.value });
+                    }}
+                    placeholder="Digite o prompt personalizado para o agente..."
+                    className="dashboard-input min-h-[200px] font-mono text-sm"
+                  />
+                  <p className="text-xs text-slate-400">
+                    Use variáveis como: {'{'} {'{'}$now.format('FFFF'){'}'} {'}'} para data/hora, {'{'} {'{'}$('Info').item.json.telefone{'}'} {'}'} para telefone
+                  </p>
+                </div>
+
+                {/* Ferramentas Habilitadas */}
+                <div className="space-y-3">
+                  <Label>Ferramentas Habilitadas</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { key: 'google_calendar', label: 'Google Calendar' },
+                      { key: 'google_drive', label: 'Google Drive' },
+                      { key: 'escalar_humano', label: 'Escalar para Humano' },
+                      { key: 'reagir_mensagem', label: 'Reagir Mensagem' },
+                      { key: 'enviar_alerta', label: 'Enviar Alerta Telegram' },
+                    ].map((tool) => (
+                      <div key={tool.key} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`tool-${tool.key}`}
+                          checked={agentConfig.toolsEnabled?.[tool.key] === true}
+                          onChange={(e) => {
+                            setAgentConfig({
+                              ...agentConfig,
+                              toolsEnabled: {
+                                ...agentConfig.toolsEnabled,
+                                [tool.key]: e.target.checked,
+                              },
+                            });
+                          }}
+                          className="h-4 w-4 accent-green-500"
+                        />
+                        <Label htmlFor={`tool-${tool.key}`} className="text-sm cursor-pointer">
+                          {tool.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Especialidades */}
+                <div className="space-y-2">
+                  <Label htmlFor="specialities">
+                    Especialidades
+                    <span className="text-xs text-slate-400 ml-2">
+                      (Separe por vírgula)
+                    </span>
+                  </Label>
+                  <Input
+                    id="specialities"
+                    value={agentConfig.specialities?.join(', ') || ''}
+                    onChange={(e) => {
+                      const specialities = e.target.value
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter((s) => s.length > 0);
+                      setAgentConfig({ ...agentConfig, specialities });
+                    }}
+                    placeholder="Ex: atendimento, vendas, suporte técnico"
+                    className="dashboard-input"
+                  />
+                </div>
+
+                {/* Botão Salvar */}
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-700">
+                  <Button
+                    variant="outline"
+                    onClick={() => loadAgentConfig()}
+                    disabled={configSaving}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={saveAgentConfig}
+                    disabled={configSaving}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {configSaving ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <Settings className="h-4 w-4 mr-2" />
+                        Salvar Configuração
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-slate-400">Erro ao carregar configuração</p>
+                <Button onClick={loadAgentConfig} variant="outline" className="mt-4">
+                  Tentar Novamente
+                </Button>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );
